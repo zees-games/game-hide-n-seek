@@ -38,7 +38,7 @@ props/               kits.json (which Kenney models, at what scale), catalogue.j
 assets/props/        the vendored furniture and nature models (Kenney, CC0)
 taunts/              the taunt sounds and taunts.json (Kenney, CC0); edit freely
 maps/                link to ../hide-n-seek-maps/maps
-examples/            headless_run (94), headless_maps (101), headless_climb (28), headless_net (44), dedicated (42)
+examples/            headless_run (94), headless_maps (111), headless_climb (34), headless_net (44), dedicated (42)
 tools/               shot.sh/.gd (render a view; --doors=open), measure_props.gd, audio_probe (xvfb only)
 ```
 
@@ -70,7 +70,7 @@ A hider is their TMC avatar (dot-platform, `HsAvatars`) with the torso painted t
 
 ## Decision 6: doors are a pure function of the tick, and a shut one is a wall
 
-The brief asked for maps as interactive as the genre's best, and what those have that a building of boxes does not is things that open. Every map has doors (320 across the nine), and they are the only thing in a map that moves, so they are built the way mg-deathrun builds a trap: **a door's state is `(open, since, flip)`**, where it is going, the tick it set off and which way it swings, and its pose on any tick follows from those and the document (`HsDoors.fraction`, `panel_transform`). The only thing ever sent is a use, `DOOR` (door, open, flip, tick), broadcast when it happens and sent to a joiner for every door that has moved this round. A client poses the doors for its own input tick before it predicts its player (`HsNetBridge.client_tick`), so it is predicted into a shut door exactly where the server stops it; `headless_net` arms the posing (taken out, the client's panel is 1.8 m from the server's).
+The brief asked for maps as interactive as the genre's best, and what those have that a building of boxes does not is things that open. Every map has doors (335 across the ten), and they are the only thing in a map that moves, so they are built the way mg-deathrun builds a trap: **a door's state is `(open, since, flip)`**, where it is going, the tick it set off and which way it swings, and its pose on any tick follows from those and the document (`HsDoors.fraction`, `panel_transform`). The only thing ever sent is a use, `DOOR` (door, open, flip, tick), broadcast when it happens and sent to a joiner for every door that has moved this round. A client poses the doors for its own input tick before it predicts its player (`HsNetBridge.client_tick`), so it is predicted into a shut door exactly where the server stops it; `headless_net` arms the posing (taken out, the client's panel is 1.8 m from the server's).
 
 **The use key is a button in the movement command** (`DotFpsCommand.BUTTON_USER_0`, `HsPlayer.USE_BUTTON`), held, and the game makes the press from the edge, as mg-deathrun makes its button presses: a reliable request would arrive a round trip after the key. Held players (the blindfold, a new seeker's freeze) cannot use a door.
 
