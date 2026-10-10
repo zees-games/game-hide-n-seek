@@ -36,6 +36,11 @@ const CLIMBS := [
 	["hs_mall", Vector3(-19.8, 0.05, -1.2), -90.0, 4.0, 3.9, "the atrium's west stair, up to the bridge"],
 	["hs_mall", Vector3(25.2, 0.05, 13.6), -90.0, 4.0, 3.9, "the service stair, from the south corridor"],
 	["hs_mall", Vector3(-26.6, 4.05, -3.45), 90.0, 3.0, 5.9, "the cinema's tiers, up the aisle to the back row"],
+	["hs_ship", Vector3(-27.0, -3.15, -1.5), 0.0, 3.0, -1.7, "the after stairwell, up from the engine room"],
+	["hs_ship", Vector3(-25.0, -1.55, -4.8), 180.0, 3.0, -0.1, "and on round the turn to the cabin deck"],
+	["hs_ship", Vector3(1.0, 2.05, 15.6), 0.0, 3.5, 3.1, "the gangway, from the quay onto the deck"],
+	["hs_ship", Vector3(-39.6, 3.25, 7.5), -90.0, 3.5, 6.3, "the aft stair, up to the sun deck"],
+	["hs_ship", Vector3(14.0, 6.45, 4.5), -90.0, 3.5, 9.3, "the stair to the bridge's roof"],
 ]
 
 ## A play tube in the park, running east from x -6 to 4: where to stand at its west mouth.

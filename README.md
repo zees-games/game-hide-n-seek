@@ -24,7 +24,7 @@ The hiders win if any of them is still hidden when the clock runs out. The seeke
 
 Rounds start with few seekers: one for every eight players. By default the first hider caught is next round's seeker. Say **!seek** or **!hide** in chat to ask for a side. Somebody who joins while the seekers are out joins them. After a few rounds on a map, players vote for the next one (`!rtv`, `!nominate hs_manor`).
 
-There are eight maps: a small practice house built into the game, and seven from [hide-n-seek-maps](https://github.com/gamemann/hide-n-seek-maps):
+There are nine maps: a small practice house built into the game, and eight from [hide-n-seek-maps](https://github.com/gamemann/hide-n-seek-maps):
 
 | Map | What it is |
 | --- | --- |
@@ -34,6 +34,7 @@ There are eight maps: a small practice house built into the game, and seven from
 | **Thistle Green** | A village of cottages round a square with a market, a barn with a hayloft, a meeting hall with a hollow stage and a pond with a bridge |
 | **Brookside School** | Two floors of classrooms and lockers off one long corridor with a stairwell at each end, a cafeteria, a gym with bleachers to crawl under and a balcony, a portable classroom on blocks, and a library with a room behind its wall |
 | **Galleria Mall** | Two floors of shops round a glass-roofed atrium, shutters to pull down, changing rooms, a food court, a supermarket, a cinema with a projection booth nobody can see the door of, and service corridors behind every shop |
+| **The Marigold** | A ship at her quay: an engine room to crawl through, a deck of cabins, saloons with promenades down both sides, a sun deck with lifeboats to hide in, the bridge and its roof. Two stairwells run the whole height. Over the side is a catch |
 | **Pinecrest Park** | A playground of towers and play tubes, a picnic shelter, the toilets with a door on every stall, a tennis court, a pond and the woods all round |
 
 ## Controls
