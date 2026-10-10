@@ -51,6 +51,9 @@ var chat: DotGameChatClient = null
 var audio: HsAudio = null
 var settings: HsSettings = null
 
+## The player's console. See [method DotConsoleKit.build].
+var console: DotConsoleController = null
+
 var net: DotNetManager = null
 var bridge: HsNetBridge = null
 var link: Node = null
@@ -627,6 +630,10 @@ func _build_settings() -> void:
 			elif not DotPlatform.is_web():
 				_capture())
 		settings.menu.busy = func() -> bool: return chat != null and chat.is_typing()
+		# The console (the key under Escape): net_stat and every other setting by name, and
+		# the server's console when one runs in this process. One of the menu's overlays, so
+		# opening it stops the player and frees the pointer exactly as the menu does.
+		console = DotConsoleKit.build(self, settings.settings, settings.menu)
 		_wire_board()
 
 
