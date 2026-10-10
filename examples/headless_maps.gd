@@ -19,7 +19,7 @@ const HsMapDoc := preload("../game/hs_map_doc.gd")
 ## Sections and checks are both counted; mg-smash-copter's notes say why the second matters.
 ## Adding a map adds a section and CHECKS_PER_MAP checks.
 
-const MAPS := ["hs_practice", "hs_apartments", "hs_warehouse", "hs_manor", "hs_village", "hs_park"]
+const MAPS := ["hs_practice", "hs_apartments", "hs_warehouse", "hs_manor", "hs_village", "hs_park", "hs_school", "hs_mall"]
 const CHECKS_PER_MAP := 10
 
 ## The maps actually checked: all of MAPS, or only the practice house where `maps/` is not
