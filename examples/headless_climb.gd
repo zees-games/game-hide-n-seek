@@ -53,6 +53,8 @@ const CLIMBS := [
 	["hs_camp", Vector3(5.0, 0.05, -10.4), 0.0, 3.5, 3.9, "the treehouse stair"],
 	["hs_camp", Vector3(18.6, 0.05, -39.2), 90.0, 4.0, 3.9, "the stair up to the far platform"],
 	["hs_camp", Vector3(22.2, -1.15, 1.0), 90.0, 2.0, -0.1, "the steps out of the lake"],
+	["hs_museum", Vector3(-7.0, 0.05, 18.6), 0.0, 4.0, 4.9, "the west grand stair, up to the gallery"],
+	["hs_museum", Vector3(7.0, 0.05, 18.6), 0.0, 4.0, 4.9, "and the east one"],
 ]
 
 ## A play tube in the park, running east from x -6 to 4: where to stand at its west mouth.

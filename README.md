@@ -24,7 +24,7 @@ The hiders win if any of them is still hidden when the clock runs out. The seeke
 
 Rounds start with few seekers: one for every eight players. By default the first hider caught is next round's seeker. Say **!seek** or **!hide** in chat to ask for a side. Somebody who joins while the seekers are out joins them. After a few rounds on a map, players vote for the next one (`!rtv`, `!nominate hs_manor`).
 
-There are eleven maps: a small practice house built into the game, and ten from [hide-n-seek-maps](https://github.com/gamemann/hide-n-seek-maps):
+There are twelve maps: a small practice house built into the game, and eleven from [hide-n-seek-maps](https://github.com/gamemann/hide-n-seek-maps):
 
 | Map | What it is |
 | --- | --- |
@@ -37,6 +37,7 @@ There are eleven maps: a small practice house built into the game, and ten from 
 | **The Marigold** | A ship at her quay: an engine room to crawl through, a deck of cabins, saloons with promenades down both sides, a sun deck with lifeboats to hide in, the bridge and its roof. Two stairwells run the whole height. Over the side is a catch |
 | **Ravenhold Castle** | A walled castle over a moat: a walk along the top of the walls, a tower at each corner with a stair to its top, a gatehouse with a portcullis, a keep of three floors over a dungeon of cells, stables with stall gates to crouch behind, and a tunnel from the dungeon to somewhere nobody would look |
 | **Pinehollow Camp** | A summer camp by a lake: cabins up on blocks, tents round a fire, a mess hall, a fire lookout twelve metres up, a treehouse with a rope bridge, a dock with boats to lie in, a boathouse, and a cave in the hillside with a chamber behind a rock |
+| **Halden Museum** | Two floors of galleries round a rotunda with a whale hung in its skylight: a dinosaur to crouch under, a pyramid to crawl through, a maze of paintings, a rocket and a capsule with a hatch, an armour hall, and a vault behind the library's wall |
 | **Pinecrest Park** | A playground of towers and play tubes, a picnic shelter, the toilets with a door on every stall, a tennis court, a pond and the woods all round |
 
 ## Controls
