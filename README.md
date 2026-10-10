@@ -114,10 +114,13 @@ hs_beacon_seconds_left 30      // beacon every hider with this many seconds left
 hs_rounds_per_map 4            // rounds on a map before the next one
 hs_spectate_camera 0           // who somebody who is out may watch: 0 anybody, 1 their own side, 2 nobody
 hs_autobhop 0                  // 1 = hold jump to keep hopping
-hs_min_players 5               // fill the round with bots up to this
+bot_quota 5                    // players a round is kept at with bots; each person who joins replaces one
+bot_quota_mode fill            // fill (as above), fixed (that many bots), per_player (that many per person) or off
 hs_bots 1                      // 0 = no bots
 hs_vote_after 20               // seconds into a map's last round before the vote opens
 ```
+
+The bot cvars are the family's shared ones (dot-server's `DotBotQuota`). `hs_min_players` still works and sets `bot_quota`; it is deprecated.
 
 `--hs-map-ids=<ids>` limits a server to some maps, and every other setting in `game/hs_config.gd` can be given the same way (`--hs-sprint-scale=1.5`, `--hs-taunt-range=80`). The taunts are listed in `taunts/taunts.json`: edit it to add your own sounds. The vote's settings go in `user://cfg/hideseek_vote.json` (`{"enabled": false}` turns it off); dot-vote's README lists them.
 
