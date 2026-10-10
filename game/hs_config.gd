@@ -123,6 +123,10 @@ enum Pick {
 ## Whether a hider sees the meter filling toward a forced taunt.
 @export var show_taunt_meter: bool = true
 
+## Whether the use key opens and shuts a map's doors. Off, every door stays as the map has
+## it: a server that wants the maps' layouts without the doors' noise.
+@export var doors_enabled: bool = true
+
 ## Seconds between taunts, on top of the last one's length.
 @export_range(0.0, 60.0, 0.5) var taunt_cooldown: float = 2.0
 

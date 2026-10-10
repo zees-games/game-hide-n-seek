@@ -254,6 +254,14 @@ static func practice() -> Dictionary:
 			{"at": [-5.0, 2.8, 0.0], "range": 9.0, "energy": 0.9},
 			{"at": [5.0, 2.8, 0.0], "range": 9.0, "energy": 0.9},
 		],
+		# The door between the rooms stands open and the garden door is shut: the one a hider
+		# shuts behind them, and the one a bot has to open to get out.
+		"doors": [
+			{"at": [0.0, 1.1, -0.1], "size": [1.77, 2.18, 0.06], "yaw": 90.0, "hinge": "right",
+				"angle": 100.0, "open": true, "name": "kitchen door"},
+			{"at": [10.1, 1.1, 0.0], "size": [2.37, 2.18, 0.06], "yaw": 90.0, "hinge": "right",
+				"angle": 100.0, "name": "garden door", "tint": [0.3, 0.42, 0.32]},
+		],
 		"spawns": {
 			"hiders": [
 				{"at": [-5.0, 0.1, 0.0], "yaw": 90.0}, {"at": [-6.0, 0.1, 2.0], "yaw": 90.0},

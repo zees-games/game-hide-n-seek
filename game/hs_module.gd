@@ -336,6 +336,9 @@ func _add_tunables(world: HsGame) -> void:
 			config.forced_taunt_points = clampi(int(value), 0, 100)
 			if world.taunts != null:
 				world.taunts.points_forced = config.forced_taunt_points)
+	_tunable("hs_doors", 1.0 if config.doors_enabled else 0.0,
+		"1 = the use key opens and shuts doors, 0 = every door stays as the map has it",
+		func(value: float) -> void: config.doors_enabled = value >= 0.5)
 	_tunable("hs_beacon_hiders_left", float(config.beacon_hiders_left),
 		"Beacon every hider still hidden once this few are left (0 never)",
 		func(value: float) -> void: config.beacon_hiders_left = clampi(int(value), 0, 32))

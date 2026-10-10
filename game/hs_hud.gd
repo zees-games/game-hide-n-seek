@@ -3,6 +3,7 @@ extends CanvasLayer
 const HsGame := preload("hs_game.gd")
 const HsPlayer := preload("hs_player.gd")
 const HsBindings := preload("hs_bindings.gd")
+const HsController := preload("hs_controller.gd")
 
 ## What a player needs on screen: the clock and who it is counting for, which side they are on,
 ## how close they are to being caught, and — while the hiders hide — a blindfold for the
@@ -61,6 +62,7 @@ var _meter_fill: ColorRect = null
 var _meter_label: Label = null
 var _blindfold_label: Label = null
 var _crosshair: ColorRect = null
+var _door_prompt: Label = null
 var _shout_for: float = 0.0
 
 
@@ -209,6 +211,17 @@ func _build() -> void:
 	watching_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	watching_label.add_theme_color_override("font_color", Color(0.80, 0.90, 1.0))
 
+	# What the use key would do, under the crosshair while a door is in reach.
+	_door_prompt = _label(15)
+	_door_prompt.name = "DoorPrompt"
+	_door_prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	_door_prompt.offset_left = -200.0
+	_door_prompt.offset_right = 200.0
+	_door_prompt.offset_top = 16.0
+	_door_prompt.offset_bottom = 38.0
+	_door_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_door_prompt.add_theme_color_override("font_color", Color(0.92, 0.94, 1.0, 0.9))
+
 	_crosshair = ColorRect.new()
 	_crosshair.name = "Crosshair"
 	_crosshair.color = Color(1.0, 1.0, 1.0, 0.75)
@@ -314,6 +327,7 @@ func _process(delta: float) -> void:
 	_draw_hints(side)
 	_draw_meter(side)
 	_draw_seen(side)
+	_draw_door_prompt()
 	_crosshair.visible = player != null and player.is_alive() and not is_blindfolded()
 
 	if _shout_for > 0.0:
@@ -362,13 +376,15 @@ func _draw_hints(side: int) -> void:
 
 	var lines := PackedStringArray()
 
+	var moving := "Shift  Sprint    Ctrl  Crouch    %s  Doors" % _key(HsBindings.USE)
+
 	if side == HsGame.HIDERS:
 		lines.append("Hide. Don't get caught.")
-		lines.append("Shift  Sprint    Ctrl  Crouch")
+		lines.append(moving)
 		lines.append("%s / %s  Taunt / pick one" % [_key(HsBindings.TAUNT), _key(HsBindings.TAUNT_MENU)])
 	else:
 		lines.append("Find the hiders and %s them." % ("tag" if game.config.catches_by_touch() else "watch"))
-		lines.append("Shift  Sprint    Ctrl  Crouch")
+		lines.append(moving)
 
 	_hints.text = "\n".join(lines)
 
@@ -401,6 +417,26 @@ func _draw_seen(side: int) -> void:
 
 	_seen_fill.offset_right = -120.0 + 240.0 * clampf(player.sight_meter, 0.0, 1.0)
 	_seen_label.text = "YOU'RE BEING WATCHED"
+
+
+## "E  Open the pantry door", while one is in reach and the key would do something.
+func _draw_door_prompt() -> void:
+	_door_prompt.text = ""
+
+	if player == null or not player.is_alive() or player.watching or is_blindfolded() \
+			or game.map == null or game.map.doors == null or not game.config.doors_enabled \
+			or player.controller.has_modifier(HsController.HOLD):
+		return
+
+	var doors := game.map.doors
+	var index := doors.door_for(player.eye_position(), player.aim_direction())
+
+	if index < 0:
+		return
+
+	var name := str((doors.doors[index]["spec"] as Dictionary)["name"])
+	var what := "Shut" if doors.is_open(index) else "Open"
+	_door_prompt.text = "%s  %s%s" % [_key(HsBindings.USE), what, " the " + name if name != "" else ""]
 
 
 func _key(action: StringName) -> String:

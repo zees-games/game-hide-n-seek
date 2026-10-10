@@ -42,6 +42,9 @@ enum Kind {
 	TAUNT,
 	## A hider was caught: by whom (0 for a fall), and how. The side change follows as a TEAM.
 	CAUGHT,
+	## A door set off: which, which way, and the tick it went. A joiner is sent one per door
+	## that has moved this round.
+	DOOR,
 }
 
 enum Ask {
@@ -412,6 +415,25 @@ static func read_caught(r: DotNetReader) -> Dictionary:
 	var by := r.read_varint()
 	var how := r.read_string(ID_BYTES)
 	return {"player_id": player_id, "by": by, "how": StringName(how), "ok": r.ok()}
+
+
+## A door set off on [param tick], towards open or shut, swinging the map's way or the other.
+## The tick is the server's and is the whole of a door's state: see HsDoors.
+static func write_door(index: int, open: bool, flip: bool, tick: int) -> PackedByteArray:
+	var w := _w()
+	w.write_varint(maxi(index, 0))
+	w.write_bool(open)
+	w.write_bool(flip)
+	w.write_varint(maxi(tick, 0))
+	return w.to_bytes()
+
+
+static func read_door(r: DotNetReader) -> Dictionary:
+	var index := r.read_varint()
+	var open := r.read_bool()
+	var flip := r.read_bool()
+	var tick := r.read_varint()
+	return {"index": index, "open": open, "flip": flip, "tick": tick, "ok": r.ok()}
 
 
 ## A taunt asked for: an id from the list, or empty for any.

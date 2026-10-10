@@ -26,6 +26,10 @@ const BODY_HEIGHT := 1.8
 const BODY_CROUCH := 0.95
 const BODY_STEP := 0.4
 
+## The use key, in the movement command's buttons: one dot-player-controller leaves to games,
+## so it rides in every input packet with the movement and needs no field of its own.
+const USE_BUTTON := DotFpsCommand.BUTTON_USER_0
+
 @export var player_id: StringName = &"local"
 @export var display_name: String = "Player"
 @export var samples_input: bool = false
@@ -72,6 +76,13 @@ var watched_by: StringName = &""
 ## Simulated second a newly made seeker may move again. Server side; the hold itself is the
 ## controller's [constant HsController.HOLD] modifier, which travels.
 var held_until: float = -1.0
+
+## Whether the use key is held this tick: the game makes the press from the edge. Set by the
+## bridge from the player's input on a server, by the client offline, by the game for a bot.
+var wants_use: bool = false
+
+## What [member wants_use] was last tick. The game's, for the edge.
+var use_was_held: bool = false
 
 ## How full the forced-taunt meter is, 0..1. Server side, replicated to the owner.
 var taunt_meter: float = 0.0

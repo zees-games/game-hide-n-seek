@@ -17,6 +17,7 @@ Each round starts with the **hide**. The hiders get 40 seconds to run off and fi
 - **Caught hiders become seekers** where they stand, frozen for a few seconds first so they can't tag whoever was hiding next to them. A server can turn this off, and then the caught just watch the rest of the round.
 - **Taunts.** Once the seekers are let go, a hider can press **T** to play a sound from where they are standing (or **F3** to pick one). Every taunt is worth points, but everybody hears where it came from. Stand still for too long and the game taunts for you, with a meter on screen showing how close it is.
 - **The beacon.** When only one hider is left, or with 30 seconds to go, every hider still hidden pings out a sound and a ring everybody can see.
+- **Doors.** Press **E** at a door to open or shut it: every room, cupboard, toilet stall, gate and shipping container has one, and the loading bays have shutters. A shut door is a wall, to a seeker's eyes and hands as much as to anybody's feet, so shutting yourself in is hiding, and opening every door is seeking. A door swings away from whoever opens it, and never opens into anybody, which can give away who is standing behind it. Somewhere on most maps is a panel of wall that slides.
 - **Falling** off the map catches a hider. A seeker who falls is put back at the start.
 
 The hiders win if any of them is still hidden when the clock runs out. The seekers win if they catch everybody. Winning is worth 10 points to everyone on that side, a catch 5 and surviving a round 5. Catches, rounds survived, times caught and the rest go to your stats and the leaderboards on TMC.
@@ -27,11 +28,11 @@ There are six maps: a small practice house built into the game, and five from [h
 
 | Map | What it is |
 | --- | --- |
-| **Larkspur Court** | Three floors of flats with a stairwell up to the roof, a fire escape down the side, an alley, a back yard, a corner shop and a street of parked cars |
-| **Dockside Warehouse** | Racks you can crawl into, a maze of crate stacks, a mezzanine office, and a container yard on the quay at dusk |
-| **Hollowmere Manor** | A two-storey house with a gallery round the hall, a hedge maze, a greenhouse, a gazebo and a shed |
-| **Thistle Green** | A village of cottages round a square with a market, a barn with a hayloft, a meeting hall and a pond with a bridge |
-| **Pinecrest Park** | A playground of towers and play tubes, a picnic shelter, the toilets, a tennis court, a pond and the woods all round |
+| **Larkspur Court** | Three floors of flats with a stairwell up to the roof, a fire escape down the side, an alley, a back yard, a corner shop and a street of parked cars. Every flat has its doors, and one wall upstairs is not a wall |
+| **Dockside Warehouse** | Racks you can crawl into, a maze of crate stacks, a mezzanine office, and a container yard on the quay at dusk where you can shut yourself into a container |
+| **Hollowmere Manor** | A two-storey house with a gallery round the hall, a cupboard under the stairs nobody can see the door of, a hedge maze, a greenhouse, a gazebo and a shed |
+| **Thistle Green** | A village of cottages round a square with a market, a barn with a hayloft, a meeting hall with a hollow stage and a pond with a bridge |
+| **Pinecrest Park** | A playground of towers and play tubes, a picnic shelter, the toilets with a door on every stall, a tennis court, a pond and the woods all round |
 
 ## Controls
 
@@ -42,6 +43,7 @@ There are six maps: a small practice house built into the game, and five from [h
 | **Ctrl** | Crouch |
 | **Alt** | Walk quietly |
 | **Space** | Jump |
+| **E** | Open or shut a door |
 | **T** / **F3** | Taunt / pick a taunt (hiders) |
 | **V** | Talk (voice) |
 | **F5** | First or third person |
@@ -96,6 +98,7 @@ hs_min_seekers 1               // never fewer than this many at the start
 hs_max_seekers 3               // never more than this many at the start
 hs_seeker_pick 3               // 0 random, 1 an equal share, 2 the sides swap, 3 the first caught
 hs_side_choice 1               // 1 = !seek and !hide count in the draw
+hs_doors 1                     // 1 = E opens and shuts doors, 0 = every door stays as the map has it
 hs_auto_taunt_seconds 60       // a hider standing still this long is taunted for (0 never)
 hs_auto_taunt_radius 1.5       // metres a hider has to move for it to count as moving
 hs_taunt_points 2              // points for a taunt a hider chose
@@ -128,7 +131,7 @@ Console commands:
 These come from [dot-moderation](https://github.com/modcommunity/dot-moderation): `noclip`, `freeze`, `speed`, `gravity`, `god`, `buddha`, `hp`, `slay`, `slap`, `rename`, the teleports, `blind` and `beacon`. `respawn` puts somebody back at their side's spawn. `give` and `strip` are turned off, because nobody here carries anything.
 
 ## Writing a map
-A map is a JSON file: the building as boxes, the furniture as props, the lights, and where each side starts. The maps are in [hide-n-seek-maps](https://github.com/gamemann/hide-n-seek-maps), whose `tools/build_maps.py` writes them (a wall with its doors and windows, a flight of stairs, a crawl space or a whole hedge maze is one line there). [`maps/README.md`](maps/README.md) describes the format. The server sends the map to each player when it changes, so players don't need the map files.
+A map is a JSON file: the building as boxes, the furniture as props, the doors, the lights, and where each side starts. The maps are in [hide-n-seek-maps](https://github.com/gamemann/hide-n-seek-maps), whose `tools/build_maps.py` writes them (a wall with its doors and windows, a flight of stairs, a crawl space or a whole hedge maze is one line there). [`maps/README.md`](maps/README.md) describes the format. The server sends the map to each player when it changes, so players don't need the map files.
 
 ## Testing
 
@@ -139,10 +142,10 @@ A map is a JSON file: the building as boxes, the furniture as props, the lights,
 
 | Suite | What it covers |
 | --- | --- |
-| `headless_run` | The game itself: the draw, the hide, tagging, being watched, the caught, taunts, falls, the beacon, bots |
-| `headless_maps` | Every map: it fits on the wire, every spawn is clear, every prop stands on something, there is enough to hide behind |
+| `headless_run` | The game itself: the draw, the hide, tagging, being watched, the caught, taunts, falls, the beacon, doors, bots |
+| `headless_maps` | Every map: it fits on the wire, every spawn is clear, every prop stands on something, there is enough to hide behind, every door swings clear and every doorway can be walked through |
 | `headless_climb` | Somebody climbs every stairway that matters and crawls through a play tube |
-| `headless_net` | A server and a client in one process, over the network code: the blindfold, a catch, the sight meter, taunts |
+| `headless_net` | A server and a client in one process, over the network code: the blindfold, a door, a catch, the sight meter, taunts |
 | `dedicated` | A real server: boots, loads the game, runs its commands, a round of bots, the map vote |
 
 [`CLAUDE.md`](CLAUDE.md) has the design decisions and the reasoning behind them.

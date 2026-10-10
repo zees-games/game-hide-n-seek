@@ -22,9 +22,9 @@ const HsProps := preload("../game/hs_props.gd")
 ## ([method HsCatalogue.practice]), whose comment lists where everything is: the wall between
 ## the rooms at x 0 with its door at z -1..0.8, the kitchen east of it, the living room west.
 
-const SECTIONS := 19
+const SECTIONS := 20
 
-const CHECKS := 84
+const CHECKS := 94
 
 const TICK_RATE := 64
 const TICK := 1.0 / float(TICK_RATE)
@@ -73,6 +73,7 @@ func _run() -> void:
 	_test_interest()
 	await _test_progress()
 	await _test_bots()
+	await _test_doors()
 	await _test_the_client()
 
 	for world in _worlds.duplicate():
@@ -640,6 +641,108 @@ func _check(ok: bool, what: String, detail: String = "") -> void:
 
 ## A world on the practice house, stepped by hand. The previous one is freed first: every
 ## world here shares ONE physics space, and every map is built at the origin.
+## The practice house's garden door: shut, in the east wall, swinging out into the garden.
+const GARDEN_DOOR := 1
+const GARDEN_DOOR_AT := Vector3(10.1, 1.1, 0.0)
+
+
+func _test_doors() -> void:
+	_section("a door opens with the use key, stops what a wall stops, and never shuts on anybody")
+	var game := await _seek_round()
+	var doors := game.map.doors
+	var seeker: HsPlayer = game.players_on(HsGame.SEEKERS)[0]
+	var hider: HsPlayer = game.players_on(HsGame.HIDERS)[0]
+	var other: HsPlayer = game.players_on(HsGame.HIDERS)[1]
+	other.place_at(Vector3(-6.0, 0.05, 5.0), 0.0)
+	seeker.place_at(Vector3(-6.0, 0.05, -5.0), 0.0)
+	var used: Array = []
+	var refusals: Array = []
+	game.door_used.connect(func(index: int, open: bool, _flip: bool, _tick: int, by: StringName) -> void:
+		used.append([index, open, by]))
+	game.refused.connect(func(id: StringName, why: String) -> void: refusals.append([id, why]))
+
+	# From inside: the use key, looking at it.
+	hider.place_at(Vector3(8.6, 0.05, 0.0), -90.0)
+	_aim(hider, GARDEN_DOOR_AT)
+	await _press(game, hider)
+	_check(doors.is_open(GARDEN_DOOR) and used.size() == 1 and used[0][2] == hider.player_id,
+		"the use key opens the door in front of them", str(used))
+	await _step(game, TICK_RATE)
+	var panel := (doors.doors[GARDEN_DOOR]["body"] as Node3D).global_position
+	_check(panel.x > GARDEN_DOOR_AT.x + 0.4 and doors.flips_for(GARDEN_DOOR, Vector3(12.0, 1.6, 0.4)),
+		"it swings away from whoever opened it, whichever side they are on", "panel at %s" % panel.snapped(Vector3.ONE * 0.1))
+
+	for i in range(TICK_RATE * 2):
+		_drive(hider, Vector2(0.0, 1.0))
+		await _step(game, 1)
+	_check(hider.controller.state.position.x > 11.0, "an open door is a way through",
+		"x %.2f" % hider.controller.state.position.x)
+
+	# From the garden, out of its way: shut it.
+	hider.place_at(Vector3(12.8, 0.05, 0.4), 90.0)
+	_aim(hider, panel)
+	await _press(game, hider)
+	await _step(game, TICK_RATE)
+	_check(not doors.is_open(GARDEN_DOOR) and not doors.moving(GARDEN_DOOR, game.current_tick()),
+		"and the use key shuts it again", str(used))
+
+	hider.place_at(Vector3(11.5, 0.05, 0.0), 90.0)
+	for i in range(TICK_RATE * 2):
+		_drive(hider, Vector2(0.0, 1.0))
+		await _step(game, 1)
+	_check(hider.controller.state.position.x > GARDEN_DOOR_AT.x, "a shut door stops a body, as a wall does",
+		"x %.2f" % hider.controller.state.position.x)
+
+	# A metre apart with the door between: no touch, as through a wall.
+	hider.place_at(Vector3(10.65, 0.05, 0.0), 90.0)
+	seeker.place_at(Vector3(9.55, 0.05, 0.0), -90.0)
+	await _step(game, 4)
+	_check(not hider.caught, "and a touch through it")
+
+	# The seeker opens it, into the hider standing against it: refused, and the door stays.
+	_aim(seeker, GARDEN_DOOR_AT)
+	var before := used.size()
+	await _press(game, seeker)
+	_check(not doors.is_open(GARDEN_DOOR) and used.size() == before and not refusals.is_empty()
+		and refusals[-1][0] == seeker.player_id, "a door does not open into somebody", str(refusals))
+
+	hider.place_at(Vector3(16.0, 0.05, 6.0), 0.0)
+	game._hold(seeker, 5.0)
+	await _press(game, seeker)
+	_check(not doors.is_open(GARDEN_DOOR), "somebody held still cannot use a door")
+	game._hold(seeker, 0.0)
+	await _press(game, seeker)
+	await _step(game, 4)
+
+	await _end_round(game)
+	_check(not doors.is_open(GARDEN_DOOR) and doors.is_open(0), "a new round puts every door back as the map has it",
+		"garden %s, kitchen %s" % [doors.is_open(GARDEN_DOOR), doors.is_open(0)])
+
+	# A stand-in walking out to the garden opens the door on its way.
+	var bot := game.add_player(&"u990", "DoorBot")
+	bot.is_bot = true
+	game.wish_side(bot.player_id, HsGame.HIDERS)
+	game._set_side(bot.player_id, HsGame.HIDERS)
+	bot.place_at(Vector3(8.4, 0.05, 0.2), -90.0)
+	game._bot[bot.player_id] = {"goal": Vector3(16.0, 0.0, 0.2), "since": game.current_tick(),
+		"stuck": [bot.controller.state.position, game.current_tick()]}
+	for i in range(TICK_RATE * 4):
+		await _step(game, 1)
+		if bot.controller.state.position.x > 12.0:
+			break
+	_check(bot.controller.state.position.x > 12.0, "a stand-in opens a shut door it walks into",
+		"at %s; the door is %s" % [bot.controller.state.position.snapped(Vector3.ONE * 0.1), "open" if doors.is_open(GARDEN_DOOR) else "shut"])
+	_finished()
+
+
+## The use key down for a tick and up again: the game makes a press from the edge.
+func _press(game: HsGame, player: HsPlayer) -> void:
+	player.wants_use = true
+	await _step(game, 1)
+	player.wants_use = false
+	await _step(game, 1)
+
+
 func _world(configure: Callable = Callable()) -> HsGame:
 	for old in _worlds.duplicate():
 		await _dispose(old)

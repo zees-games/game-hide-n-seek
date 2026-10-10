@@ -94,6 +94,9 @@ signal caught(player_id: StringName, by: StringName, how: StringName)
 ## Somebody taunted: [param taunt_id] from the taunt list, forced or chosen.
 signal taunted(player_id: StringName, taunt_id: StringName, forced: bool)
 
+## Somebody used door [param index] on [param tick]: it is on its way to [param open].
+signal door_used(index: int, open: bool, flip: bool, tick: int, by: StringName)
+
 ## Something a player asked for was refused, and why. Told to them alone.
 signal refused(player_id: StringName, why: String)
 
@@ -272,6 +275,7 @@ func _build_map() -> void:
 	map.physics = physics
 	map.catalogue = props_catalogue
 	map.draw_world = draw_world
+	map.tick_rate = tick_rate
 	add_child(map)
 
 
@@ -667,6 +671,11 @@ func _on_round_started(number: int) -> void:
 
 	if taunts != null:
 		taunts.reset()
+
+	# Every door back to how the map has it: last round's open cupboard is not this round's
+	# clue.
+	if map.doors != null:
+		map.doors.reset()
 
 	_draw_sides()
 	_first_caught_before = first_caught
@@ -1140,6 +1149,91 @@ func _advance_holds() -> void:
 				var _let_go := player.controller.remove_modifier(HsController.HOLD)
 
 
+# --- Doors ----------------------------------------------------------------------
+
+## Everybody's hand on the doors: a use is the use key going down in front of one, and then
+## every door is posed for this tick, before anybody moves against it.
+##
+## [b]An edge, made here from the held state,[/b] as mg-deathrun makes its button presses: the
+## key rides in every input packet, so a use is never a round trip behind the key that made it.
+func _advance_doors() -> void:
+	if map == null or map.doors == null or map.doors.count() == 0:
+		return
+
+	for id: StringName in players:
+		var player: HsPlayer = players[id]
+		var pressed := player.wants_use and not player.use_was_held
+		player.use_was_held = player.wants_use
+
+		if not pressed or not player.is_alive() or player.watching:
+			continue
+
+		# Held is held: a seeker counting with the blindfold on does not open the cupboard
+		# they are facing, and a hider just caught does not shut the door on the next one.
+		if player.controller.has_modifier(HsController.HOLD):
+			continue
+
+		var index := map.doors.door_for(player.eye_position(), player.aim_direction())
+
+		if index >= 0:
+			var _used := use_door(index, id)
+
+	map.doors.pose_at(_tick)
+
+
+## Opens or shuts door [param index] for [param by], now, if it can be. What the use key does,
+## and what a suite and a bot do directly.
+func use_door(index: int, by: StringName) -> bool:
+	if map == null or map.doors == null or index < 0 or index >= map.doors.count():
+		return false
+
+	if not config.doors_enabled:
+		return false
+
+	if map.doors.moving(index, _tick):
+		return false
+
+	# Nobody anywhere the panel will pass through: see HsDoors. Opening, it goes away from
+	# whoever opened it.
+	var from := map.doors.fraction(index, _tick)
+	var to := 0.0 if map.doors.is_open(index) else 1.0
+	var user := (players[by] as HsPlayer).eye_position() if players.has(by) else Vector3.INF
+	var flip := map.doors.is_flipped(index)
+
+	if to > 0.5 and user != Vector3.INF:
+		flip = map.doors.flips_for(index, user)
+
+	for id: StringName in players:
+		var player: HsPlayer = players[id]
+
+		if not player.is_alive() or player.watching:
+			continue
+
+		if map.doors.sweeps(index, player.controller.state.position, HsPlayer.BODY_RADIUS,
+				player.hull_height(), from, to, 1 if flip else 0):
+			if players.has(by) and not (players[by] as HsPlayer).is_bot:
+				refused.emit(by, "Somebody is in the way of the %s." % map.doors.name_of(index))
+			return false
+
+	var open := to > 0.5
+	map.doors.apply(index, open, flip, _tick)
+	door_used.emit(index, open, flip, _tick, by)
+
+	if progress != null and players.has(by):
+		progress.on_door(by)
+
+	DotLog.debug(CHANNEL, "a door was used", {
+		"door": map.doors.name_of(index), "open": open, "by": String(by), "tick": _tick,
+	})
+	return true
+
+
+## A use the server made, applied on a client.
+func apply_door(index: int, open: bool, flip: bool, tick: int) -> void:
+	if map != null and map.doors != null:
+		map.doors.apply(index, open, flip, tick)
+
+
 # --- Taunts ---------------------------------------------------------------------
 
 ## A hider taunts, by choice. [param taunt_id] empty picks one. Server side.
@@ -1257,6 +1351,7 @@ func _step(delta: float) -> void:
 	_advance_phase(delta)
 	_advance_holds()
 	_drive_bots()
+	_advance_doors()
 
 	for id: StringName in players:
 		var player: HsPlayer = players[id]
@@ -1347,6 +1442,12 @@ func set_tick_rate(rate: int) -> bool:
 	if match_node != null and match_node.config != null:
 		match_node.config.tick_rate = rate
 
+	if map != null:
+		map.tick_rate = rate
+
+		if map.doors != null:
+			map.doors.set_tick_rate(rate)
+
 	return true
 
 
@@ -1391,6 +1492,19 @@ func _drive_bots() -> void:
 			_bot_seek(player, command)
 
 		player.controller.apply_command(command)
+		player.wants_use = _bot_wants_door(player, command)
+
+
+## A stand-in opens a shut door it is walking into, and leaves open ones alone: a bot that
+## shut every door it passed would be a bot that shuts one on itself. Released between
+## presses, so the game sees an edge.
+func _bot_wants_door(player: HsPlayer, command: DotFpsCommand) -> bool:
+	if map.doors == null or map.doors.count() == 0 or command.move.length() < 0.1 or player.wants_use:
+		return false
+
+	var ahead := Vector3(0.0, 0.0, -1.0).rotated(Vector3.UP, deg_to_rad(command.yaw))
+	var index := map.doors.door_for(player.eye_position(), ahead, 1.6)
+	return index >= 0 and not map.doors.is_open(index) and not map.doors.moving(index, _tick)
 
 
 func _bot_state(player: HsPlayer) -> Dictionary:

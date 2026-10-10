@@ -8,6 +8,7 @@
 #   tools/shot.sh --view=caught                                   # the moment a hider is caught
 #   tools/shot.sh --view=blind                                    # a seeker while the hiders hide
 #   tools/shot.sh --view=seeker --board                           # with the Tab scoreboard open
+#   tools/shot.sh --view=room --doors=open --at=... --look=...    # every door open (or shut)
 #   tools/shot.sh --view=overview --out=res://screenshots/x.png   # any --hs-* is the game's config
 #
 # xvfb-run because this needs a rendering context: `--headless` gives a null renderer and saves
@@ -28,7 +29,7 @@ for arg in "$@"; do
         --seconds=*) seconds="${arg#*=}" ;;
         --out=*)     out="${arg#*=}" ;;
         --hs-*)      config+=("$arg") ;;
-        --at=*|--look=*|--third|--board|--name=*) extra+=("$arg") ;;
+        --at=*|--look=*|--third|--board|--name=*|--doors=*) extra+=("$arg") ;;
         *)           echo "unknown argument: $arg" >&2; exit 2 ;;
     esac
 done

@@ -87,6 +87,9 @@ signal map_received(map_id: StringName)
 ## Client side: somebody taunted.
 signal taunt_received(player_id: int, taunt_id: StringName, forced: bool)
 
+## Client side: a door set off, on the server's [param tick].
+signal door_received(index: int, open: bool, tick: int)
+
 ## Client side: a hider was caught. [param by] is the seeker's session, 0 for a fall.
 signal caught_received(player_id: int, by: int, how: StringName)
 
@@ -237,6 +240,8 @@ func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
 		)
 		game.taunted.connect(func(id: StringName, taunt_id: StringName, forced: bool) -> void:
 			_broadcast(HsEvents.Kind.TAUNT, HsEvents.write_taunt(session_of(id), taunt_id, forced)))
+		game.door_used.connect(func(index: int, open: bool, flip: bool, tick: int, _by: StringName) -> void:
+			_broadcast(HsEvents.Kind.DOOR, HsEvents.write_door(index, open, flip, tick)))
 		game.caught.connect(func(id: StringName, by: StringName, how: StringName) -> void:
 			_broadcast(HsEvents.Kind.CAUGHT, HsEvents.write_caught(
 				session_of(id), session_of(by) if by != &"" else 0, how)))
@@ -596,6 +601,7 @@ func ensure_game_ticked(tick: int) -> void:
 		if behaviour.player != null and behaviour.identity != null \
 				and behaviour.identity.owner_peer_id > 0:
 			behaviour.player.controller.apply_command(behaviour.last_move.duplicate_command())
+			behaviour.player.wants_use = behaviour.last_move.is_pressed(HsPlayer.USE_BUTTON)
 
 	game.tick_once(tick)
 
@@ -630,9 +636,13 @@ func client_tick(tick: int, command: DotFpsCommand) -> void:
 		payload.append_array(writer.to_bytes())
 		link.send_input(payload)
 
-	# One predicted player, and nothing else: everybody else is drawn from snapshots.
+	# One predicted player, and nothing else: everybody else is drawn from snapshots. The
+	# doors first, posed for this tick, because the player is predicted against them.
 	if _client_ticked_for != tick:
 		_client_ticked_for = tick
+
+		if game.map != null and game.map.doors != null:
+			game.map.doors.pose_at(tick)
 
 		for identity in net.registry.predicted():
 			for behaviour in identity.behaviours:
@@ -852,6 +862,16 @@ func _admit(peer_id: int) -> void:
 	_tell(peer_id, HsEvents.Kind.PHASE, HsEvents.write_phase(game.phase))
 	_tell(peer_id, HsEvents.Kind.CLOCK, _clock_body())
 
+	# Every door that has moved this round, with the tick it went: a joiner who was not told
+	# would draw a door shut that is open, and predict themselves into it.
+	if game.map != null and game.map.doors != null:
+		var doors := game.map.doors
+
+		for index in range(doors.count()):
+			if int(doors.doors[index]["since"]) >= 0:
+				_tell(peer_id, HsEvents.Kind.DOOR, HsEvents.write_door(
+					index, doors.is_open(index), doors.is_flipped(index), int(doors.doors[index]["since"])))
+
 
 func _join_body(session_id: int) -> PackedByteArray:
 	var behaviour: HsPlayerNet = _behaviours.get(session_id)
@@ -998,6 +1018,10 @@ func _on_event(message: DotNetMessage) -> void:
 					game.phase_elapsed = 0.0
 					game.seek_elapsed = 0.0
 
+					# Every door home: the uses were last round's.
+					if game.map != null and game.map.doors != null:
+						game.map.doors.reset()
+
 				round_changed.emit(
 					int(round_info["round"]),
 					bool(round_info["began"]),
@@ -1048,6 +1072,13 @@ func _on_event(message: DotNetMessage) -> void:
 
 			if bool(heard["ok"]):
 				taunt_received.emit(int(heard["player_id"]), heard["taunt_id"], bool(heard["forced"]))
+		HsEvents.Kind.DOOR:
+			var door := HsEvents.read_door(reader)
+
+			if bool(door["ok"]) and game.map != null and game.map.doors != null \
+					and int(door["index"]) < game.map.doors.count():
+				game.apply_door(int(door["index"]), bool(door["open"]), bool(door["flip"]), int(door["tick"]))
+				door_received.emit(int(door["index"]), bool(door["open"]), int(door["tick"]))
 		HsEvents.Kind.CAUGHT:
 			var got := HsEvents.read_caught(reader)
 

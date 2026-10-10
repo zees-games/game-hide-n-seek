@@ -50,6 +50,8 @@ const TAUNTS := &"hs.taunts"
 const FORCED_TAUNTS := &"hs.forced_taunts"
 ## A fall below the map.
 const FALLS := &"hs.falls"
+## A door opened or shut.
+const DOORS := &"hs.doors"
 
 signal earned(player_id: StringName, title: String, points: int)
 
@@ -106,6 +108,7 @@ static func schema() -> DotStatsSchema:
 	_add(out, TAUNTS, DotStatsDef.Kind.COUNTER, "Taunts", "taunts", true)
 	_add(out, FORCED_TAUNTS, DotStatsDef.Kind.COUNTER, "Taunts forced by standing still", "taunts", false)
 	_add(out, FALLS, DotStatsDef.Kind.COUNTER, "Falls", "falls", false)
+	_add(out, DOORS, DotStatsDef.Kind.COUNTER, "Doors opened or shut", "doors", false)
 	return out
 
 
@@ -392,6 +395,10 @@ func on_caught(player_id: StringName, by: StringName, how: StringName) -> void:
 
 func on_fell(player_id: StringName) -> void:
 	record(player_id, FALLS)
+
+
+func on_door(player_id: StringName) -> void:
+	record(player_id, DOORS)
 
 
 func _on_unlocked(player: String, achievement: DotAchievement) -> void:

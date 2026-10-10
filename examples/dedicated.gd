@@ -223,12 +223,20 @@ func _test_a_round_runs() -> void:
 	game.round_over.connect(func(n: int, winner: int, why: String) -> void: rounds.append([n, winner, why]))
 	game.round_began.connect(func(_n: int, _map: StringName) -> void: drawn.append(game.players_on(HsGame.SEEKERS).size()))
 
-	# Real time: the server ticks itself. The module tops the server up every two seconds. A
+	# The server ticks itself, in real time. The module tops the server up every two seconds. A
 	# round is three seconds of hiding and at most forty-five of seeking here: the stand-in
 	# seekers catch everybody or the clock gives it to the hiders.
-	var until := Time.get_ticks_msec() + 75000
+	#
+	# [b]Bounded in the server's ticks, not the wall clock's seconds.[/b] The claim is that the
+	# simulation decides a round, and a wall-clock bound turns a busy machine into a failure: at
+	# 75 s it held 45 s of round with room to spare until the doors made the stand-ins take most
+	# of the seek, and then a build running alongside made it fail one run in three. The wall
+	# clock is only the cap for a server that stopped ticking at all.
+	var started := Time.get_ticks_msec()
+	var sim_limit := game.current_tick() + int((game.config.hide_seconds + game.config.round_seconds + 20.0) * game.tick_rate)
+	var hard := started + 300000
 
-	while Time.get_ticks_msec() < until and rounds.is_empty():
+	while rounds.is_empty() and game.current_tick() < sim_limit and Time.get_ticks_msec() < hard:
 		await get_tree().physics_frame
 
 	var bots := 0
@@ -239,6 +247,7 @@ func _test_a_round_runs() -> void:
 
 	_check(bots == game.config.minimum_players, "the module seated stand-ins up to the minimum", "%d" % bots)
 	_check(not drawn.is_empty() and drawn[0] == 1, "and drew one of them to seek", str(drawn))
+	print("(the round took %.1f s of real time)" % ((Time.get_ticks_msec() - started) / 1000.0))
 	_check(not rounds.is_empty(), "and a round was decided", str(rounds))
 	_check(not rounds.is_empty() and str(rounds[0][2]) != "", "with a sentence saying why", str(rounds))
 	_check(_said(_run_command("hs_status"), "round"), "and hs_status still answers")

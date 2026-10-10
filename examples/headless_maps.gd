@@ -7,7 +7,8 @@ const HsMapDoc := preload("../game/hs_map_doc.gd")
 ## Every map the game can be sent, built the way a server builds it and looked over for the
 ## mistakes a map document makes without any error: a spawn inside a wall or over nothing, a
 ## prop the catalogue does not have (built as nothing), a prop sunk into a wall or floating
-## over the floor, too little to hide behind, and a document too big to send.
+## over the floor, too little to hide behind, a door that opens into a wall or a wardrobe,
+## and a doorway something stands in, and a document too big to send.
 ##
 ## [b]Why this exists apart from `headless_run`.[/b] The maps are generated in
 ## hide-n-seek-maps by `tools/build_maps.py`, a few hundred boxes and props each, and none of
@@ -19,7 +20,7 @@ const HsMapDoc := preload("../game/hs_map_doc.gd")
 ## Adding a map adds a section and CHECKS_PER_MAP checks.
 
 const MAPS := ["hs_practice", "hs_apartments", "hs_warehouse", "hs_manor", "hs_village", "hs_park"]
-const CHECKS_PER_MAP := 8
+const CHECKS_PER_MAP := 10
 
 ## The maps actually checked: all of MAPS, or only the practice house where `maps/` is not
 ## linked in (CI, which clones this repository alone). As mg-deathrun's headless_courses
@@ -171,8 +172,86 @@ func _test_map(id: StringName) -> void:
 
 	_check(buried.is_empty(), "no prop is sunk into a wall or a floor", "; ".join(buried.slice(0, 6)))
 	_check(floating.is_empty(), "every prop stands on something", "%d: %s" % [floating.size(), "; ".join(floating.slice(0, 6))])
+
+	var doors := game.map.doors
+	var swung_into: Array = []
+	var blocked: Array = []
+
+	for index in range(doors.count()):
+		var spec: Dictionary = doors.doors[index]["spec"]
+		var ways := [0, 1] if str(spec["motion"]) == "swing" and bool(spec["away"]) else [0]
+
+		if str(spec["motion"]) == "swing":
+			for flip: int in ways:
+				for f in [0.5, 1.0]:
+					var hit := _door_hits(game, index, f, flip)
+					if hit != "":
+						swung_into.append("%s at %s%s, %d%% open: %s" % [doors.name_of(index), HsMapDoc.v3(spec["at"]),
+							" the other way" if flip == 1 else "", int(f * 100.0), hit])
+
+		var through := _doorway_fault(game, index)
+		if through != "":
+			blocked.append("%s at %s: %s" % [doors.name_of(index), HsMapDoc.v3(spec["at"]), through])
+
+		doors.apply(index, bool(spec["open"]), false, -1)
+		doors.pose_at(0)
+
+	_check(swung_into.is_empty(), "every door swings into free space", "%d doors; %s" % [doors.count(), "; ".join(swung_into.slice(0, 6))])
+	_check(blocked.is_empty(), "every doorway is clear to walk through once its door is open", "; ".join(blocked.slice(0, 6)))
 	await _dispose(game)
 	_finished()
+
+
+## What door [param index]'s panel, [param f] of the way open and swung the map's way or (with
+## [param flip]) the other, is inside, or "". Its outer four fifths at a sliver's thickness: the
+## edge at the hinge sits in the jamb by design.
+func _door_hits(game: HsGame, index: int, f: float, flip: int) -> String:
+	var doors := game.map.doors
+	var spec: Dictionary = doors.doors[index]["spec"]
+	var size := HsMapDoc.v3(spec["size"])
+	var side := 1.0 if str(spec["hinge"]) == "right" else -1.0
+	var frame := doors.panel_transform(index, f, flip)
+	var box := BoxShape3D.new()
+	box.size = Vector3(size.x * 0.8, size.y - 0.1, 0.02)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = box
+	query.collision_mask = game.physics.layer_mask(&"world") | game.physics.layer_mask(&"prop")
+	query.transform = frame * Transform3D(Basis.IDENTITY, Vector3(-side * size.x * 0.1, 0.0, 0.0))
+	query.exclude = [(doors.doors[index]["body"] as CollisionObject3D).get_rid()]
+	var what: Array = []
+
+	for hit: Dictionary in game.get_world_3d().direct_space_state.intersect_shape(query, 4):
+		var prop := game.map.prop_from_hit(hit["collider"], int(hit["shape"]))
+		var collider: Object = hit["collider"]
+		what.append(String(game.map.prop_id(prop)) if prop >= 0 \
+			else "another door" if collider is Node and (collider as Node).get_parent() == doors else "a wall")
+
+	return ", ".join(what)
+
+
+## Whether somebody can walk through door [param index]'s doorway with it open: a ray straight
+## through the middle of the hole, at a knee's height and a head's, finds nothing.
+func _doorway_fault(game: HsGame, index: int) -> String:
+	var doors := game.map.doors
+	var spec: Dictionary = doors.doors[index]["spec"]
+	doors.apply(index, true, false, -1)
+	doors.pose_at(0)
+	var shut := doors.panel_transform(index, 0.0, 0)
+	var size := HsMapDoc.v3(spec["size"])
+	var space := game.get_world_3d().direct_space_state
+	var mask := game.physics.layer_mask(&"world") | game.physics.layer_mask(&"prop")
+
+	for height in [0.5, minf(1.6, size.y - 0.3)]:
+		var middle := shut * Vector3(0.0, -size.y * 0.5 + height, 0.0)
+		var across := shut.basis * Vector3(0.0, 0.0, 0.5)
+		var ray := PhysicsRayQueryParameters3D.create(middle - across, middle + across, mask)
+		var hit := space.intersect_ray(ray)
+
+		if not hit.is_empty():
+			var prop := game.map.prop_from_hit(hit["collider"], int(hit["shape"]))
+			return "at %.1f m, %s" % [height, String(game.map.prop_id(prop)) if prop >= 0 else "something solid"]
+
+	return ""
 
 
 ## Why a person could not stand at [param at], or "" when they can.

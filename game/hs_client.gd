@@ -678,13 +678,19 @@ func _on_taunt_picked(id: StringName) -> void:
 # --- The frame -------------------------------------------------------------
 
 func _physics_process(delta: float) -> void:
+	# The use key, held: the game makes the press from the edge, on the server or here.
+	var use := _captured and InputMap.has_action(HsBindings.USE) and Input.is_action_pressed(HsBindings.USE)
+
 	if _offline:
+		if player != null:
+			player.wants_use = use
 		return
 
 	if net == null or not net.is_running() or bridge == null:
 		return
 
 	var move := _sampler.sample(delta) if _sampler != null else DotFpsCommand.new()
+	move.set_button(HsPlayer.USE_BUTTON, use)
 
 	var ticks := net.clock.advance(delta)
 

@@ -14,6 +14,8 @@ var _out := "res://screenshots/shot.png"
 var _at := Vector3.INF
 var _look := Vector3.INF
 var _third := false
+## "open" or "shut": every door one way, to see a door's other pose; empty leaves the map's.
+var _doors := ""
 var _client: Node = null
 
 
@@ -33,6 +35,8 @@ func _ready() -> void:
 			_look = _v3(arg.trim_prefix("--look="))
 		elif arg == "--third":
 			_third = true
+		elif arg.begins_with("--doors="):
+			_doors = arg.trim_prefix("--doors=")
 
 	_client = HsClient.new()
 	_client.name = "Client"
@@ -66,6 +70,10 @@ func _run() -> void:
 
 	game._place_everybody()
 	game._set_phase(HsGame.Phase.HIDE)
+
+	if _doors != "" and game.map.doors != null:
+		for index in range(game.map.doors.count()):
+			game.map.doors.apply(index, _doors == "open", false, -1)
 
 	if _third:
 		_client.call("toggle_view")

@@ -17,6 +17,7 @@ game/
   hs_config.gd       every rule a round is played under (maps are documents)
   hs_map_doc.gd      what a map IS: boxes, props by catalogue id, lights, spawns (hiders, seekers); validated
   hs_map.gd          a document built: solid boxes, furniture shapes, drawn batches, spawns
+  hs_doors.gd        the doors: built, posed from (open, since), found by the use key, swept
   hs_props.gd        the prop catalogue (props/catalogue.json): sizes, models, recolour, parts
   hs_materials.gd    the surfaces a box is drawn with, textures made in code
   hs_catalogue.gd    every map the server has, the built-in practice house, which is next
@@ -37,8 +38,8 @@ props/               kits.json (which Kenney models, at what scale), catalogue.j
 assets/props/        the vendored furniture and nature models (Kenney, CC0)
 taunts/              the taunt sounds and taunts.json (Kenney, CC0); edit freely
 maps/                link to ../hide-n-seek-maps/maps
-examples/            headless_run (84), headless_maps (49), headless_climb (9), headless_net (41), dedicated (42)
-tools/               shot.sh/.gd (render a view), measure_props.gd, audio_probe (xvfb only)
+examples/            headless_run (94), headless_maps (61), headless_climb (9), headless_net (44), dedicated (42)
+tools/               shot.sh/.gd (render a view; --doors=open), measure_props.gd, audio_probe (xvfb only)
 ```
 
 ## Decision 1: a catch is a measurement, and only the server makes one
@@ -67,9 +68,21 @@ Unchanged from prop hunt: the HUD paints a seeker's screen black during the hide
 
 A hider is their TMC avatar (dot-platform, `HsAvatars`) with the torso painted the side's colour outright: hiders blue, seekers orange. **Painted, not tinted**: prop hunt's figure tinted the torso over the atlas, and a render of the park showed a teal shirt tinted blue reads as teal and a red one as purple. A side change rebuilds the figure, so a caught hider turns orange on the next frame.
 
+## Decision 6: doors are a pure function of the tick, and a shut one is a wall
+
+The brief asked for maps as interactive as the genre's best, and what those have that a building of boxes does not is things that open. Every map has doors (119 across the five), and they are the only thing in a map that moves, so they are built the way mg-deathrun builds a trap: **a door's state is `(open, since, flip)`**, where it is going, the tick it set off and which way it swings, and its pose on any tick follows from those and the document (`HsDoors.fraction`, `panel_transform`). The only thing ever sent is a use, `DOOR` (door, open, flip, tick), broadcast when it happens and sent to a joiner for every door that has moved this round. A client poses the doors for its own input tick before it predicts its player (`HsNetBridge.client_tick`), so it is predicted into a shut door exactly where the server stops it; `headless_net` arms the posing (taken out, the client's panel is 1.8 m from the server's).
+
+**The use key is a button in the movement command** (`DotFpsCommand.BUTTON_USER_0`, `HsPlayer.USE_BUTTON`), held, and the game makes the press from the edge, as mg-deathrun makes its button presses: a reliable request would arrive a round trip after the key. Held players (the blindfold, a new seeker's freeze) cannot use a door.
+
+**A static body on the world layer, moved through the physics server.** On the world layer, because the touch rule and the sight rule both ask "is there a wall between", and a shut door has to be one (`headless_run`: a touch through a shut door is not a touch). Moved by `PhysicsServer3D.body_set_state`, because a kinematic body is a step late (mg-wipeout).
+
+**A door swings away from whoever opens it** (unless the map pins it with `away: false`), and **never moves into anybody**: a use is refused while any body stands anywhere the panel will pass (`HsDoors.sweeps`, seven poses along its path), because a static panel posed inside a capsule leaves the controller to push its way out, and a seeker slamming a door on a hider pinned in its frame would be the door deciding a catch. The refusal says somebody is in the way, which tells a seeker somebody is behind it: so does a real door, and it is a fair clue. `headless_run` arms the sweep (taken out, two checks fail).
+
+Bots open a shut door they walk into and leave open ones alone. `hs_doors 0` freezes every door as its map has it. Every door goes back to its map state at the top of a round.
+
 ## Taunts, the beacon, points and stats
 
-Taunts are prop hunt's (`DotPropTaunts`): hiders only, from the seek on, forced after `auto_taunt_seconds` (60) within `auto_taunt_radius`. The beacon marks every hidden hider with `beacon_hiders_left` (1) left or `beacon_seconds_left` (30) to go. Points: winning side 10, a catch 5, surviving 5, taunts. `HsProgress` keeps thirteen stats and seven achievements (catches, the best round, times caught, caught first, spotted, rounds never found).
+Taunts are prop hunt's (`DotPropTaunts`): hiders only, from the seek on, forced after `auto_taunt_seconds` (60) within `auto_taunt_radius`. The beacon marks every hidden hider with `beacon_hiders_left` (1) left or `beacon_seconds_left` (30) to go. Points: winning side 10, a catch 5, surviving 5, taunts. `HsProgress` keeps fourteen stats (doors used is the fourteenth) and seven achievements (catches, the best round, times caught, caught first, spotted, rounds never found).
 
 ## Bots
 
@@ -82,6 +95,10 @@ A stand-in hider runs to a spot beside a piece of furniture as far from the seek
 - **"You was caught"**: the local player is "You" offline. Found by rendering.
 - **Two HUD lines on top of each other** for a hider (the old disguise line under the taunt meter). Found by rendering.
 - **A warehouse washed orange** by fog over a sunset sky, as prop hunt's woods once were. Found by rendering.
+- **Two doorways nobody could ever use**, found by `headless_maps`' door checks the moment there were doors: the manor's lounge sofa stood in its doorway, and every village cottage's garden fence ran across its back door. Both maps fixed in hide-n-seek-maps.
+- **Every building's floor striped with the grass under it**, both tops at y 0. Found by rendering the doors.
+- **A secret door's outline**, with the 3 cm gap a plain door has. Found by rendering; 6 mm now.
+- **`dedicated` failed one run in three once the doors were in**: its round was bounded at 75 s of wall clock, the stand-ins now take most of a 45 s seek to open the garden door and find everybody, and a build running alongside slowed the server enough. Bounded in server ticks now, with the wall clock only as the cap for a server that stopped.
 - **dot-combat warned at every boot that shots pass through walls**, because nothing here shoots and the trace was left out; it is set anyway. Found by `hideseek_client` in dot-server-deploy.
 
 ## Validating
@@ -95,6 +112,7 @@ tools/shot.sh --view=hider --third                      # your own body, in blue
 tools/shot.sh --view=seeker --board --name=board
 tools/shot.sh --view=blind
 tools/shot.sh --view=caught
+tools/shot.sh --view=room --doors=open --hs-map-ids=hs_manor --at=-1.5,1.6,-9.5 --look=0,1,-6   # the cupboard under the stair
 ```
 
 `headless_climb` stands somebody at the foot of every stairway that matters and holds forward, and tries a play tube standing and crouched; its coordinates are the maps repo's, so a map moved there is a climb that fails here. Without `maps/` linked in (CI clones this repository alone) `headless_maps` checks the practice house only and `headless_climb` has nothing to climb, and both say so.

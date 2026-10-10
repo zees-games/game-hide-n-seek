@@ -3,6 +3,7 @@ extends Node3D
 const HsMapDoc := preload("hs_map_doc.gd")
 const HsMaterials := preload("hs_materials.gd")
 const HsProps := preload("hs_props.gd")
+const HsDoors := preload("hs_doors.gd")
 
 ## A map document, built: the building, the furniture, the lights and the sky.
 ##
@@ -51,6 +52,12 @@ var doc: Dictionary = {}
 ## of the prop's footprint on the floor.
 var props: Array[Dictionary] = []
 
+## The doors, which move: their own node, because everything else here never does.
+var doors: HsDoors = null
+
+## The tick rate a door's seconds are counted in. Set by the game before it builds.
+var tick_rate: int = 64
+
 var _solid: StaticBody3D = null
 var _furniture: StaticBody3D = null
 var _drawn: Node3D = null
@@ -87,6 +94,14 @@ func build(p_doc: Dictionary) -> DotResult:
 	_build_boxes()
 	_build_props()
 
+	doors = HsDoors.new()
+	doors.name = "Doors"
+	doors.physics = physics
+	doors.draw_world = draw_world
+	doors.tick_rate = tick_rate
+	add_child(doors)
+	doors.build(doc)
+
 	if draw_world:
 		_build_lights()
 		_build_environment()
@@ -113,6 +128,7 @@ func clear() -> void:
 	_bounds = AABB()
 	_solid = null
 	_furniture = null
+	doors = null
 	_drawn = null
 	_environment = null
 	_sun = null
@@ -396,6 +412,7 @@ func describe_lines() -> PackedStringArray:
 	return PackedStringArray([
 		"map        %s (%s)" % [str(doc.get("name", "")), String(id())],
 		"boxes      %d" % (doc.get("boxes", []) as Array).size(),
+		"doors      %d" % (doc.get("doors", []) as Array).size(),
 		"props      %d" % props.size(),
 		"lights     %d" % (doc.get("lights", []) as Array).size(),
 	])

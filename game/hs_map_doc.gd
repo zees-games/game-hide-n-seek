@@ -13,8 +13,8 @@ const HsMaterials := preload("hs_materials.gd")
 ## and it travelled.
 ##
 ## [b]What is in one:[/b] boxes (the building: floors, walls, ceilings, glass, a pool), props
-## (the furniture a player hides among and as, by catalogue id), lights, the two sides' spawns,
-## and how the sky and the sun look. Every length is metres, every angle degrees. A box's `at`
+## (the furniture a player hides among, by catalogue id), lights, doors (see HsDoors), the
+## two sides' spawns, and how the sky and the sun look. Every length is metres, every angle degrees. A box's `at`
 ## is its CENTRE; a prop's `at` is the middle of its footprint ON the floor, so a mapper places
 ## a chair by where it stands.
 ##
@@ -41,6 +41,10 @@ const MAX_BOXES := 6000
 const MAX_PROPS := 2000
 const MAX_LIGHTS := 128
 const MAX_SPAWNS := 64
+const MAX_DOORS := 256
+
+## How a door moves: about a hinge at one edge, sideways into the wall, or up like a shutter.
+const DOOR_MOTIONS := ["swing", "slide", "lift"]
 
 ## Every top-level field, and what a missing one becomes.
 const DEFAULT_ENV := {
@@ -151,6 +155,18 @@ static func validate(source: Dictionary) -> DotResult:
 
 	doc["lights"] = lights
 
+	var doors: Array = []
+	for raw: Variant in source.get("doors", []):
+		var door := _door(raw)
+		if door.is_empty():
+			return _refuse("door %d is not {at, size} with a known motion" % doors.size(), source)
+		doors.append(door)
+
+	if doors.size() > MAX_DOORS:
+		return _refuse("%d doors; the most is %d" % [doors.size(), MAX_DOORS], source)
+
+	doc["doors"] = doors
+
 	var spawns: Variant = source.get("spawns", {})
 	if not (spawns is Dictionary):
 		return _refuse("'spawns' is not {hiders, seekers}", source)
@@ -224,6 +240,60 @@ static func _prop(raw: Variant) -> Dictionary:
 	for angle in ["yaw", "pitch", "roll"]:
 		if float(p.get(angle, 0.0)) != 0.0:
 			out[angle] = _r(float(p[angle]))
+
+	return out
+
+
+## A door: a panel that a player opens and shuts with the use key. `at` is the middle of the
+## panel SHUT and `size` is its width, height and thickness, turned by `yaw` like a box; it
+## swings about its `hinge` edge (left is the panel's own -x) by `angle` degrees (the sign is
+## the side it opens to), slides that way by its width, or lifts by its height. Every field but
+## `at` and `size` has a default, so a hand-written door is two lines.
+static func _door(raw: Variant) -> Dictionary:
+	if not (raw is Dictionary):
+		return {}
+
+	var d := raw as Dictionary
+
+	if not d.has("at") or not d.has("size"):
+		return {}
+
+	var size := _floats(d["size"], 3)
+
+	if size[0] <= 0.0 or size[1] <= 0.0 or size[2] <= 0.0:
+		return {}
+
+	var motion := str(d.get("motion", "swing"))
+
+	if not DOOR_MOTIONS.has(motion):
+		return {}
+
+	var hinge := str(d.get("hinge", "left"))
+	var mat := str(d.get("mat", "wood"))
+
+	if not HsMaterials.has(mat):
+		mat = "wood"
+
+	var out := {
+		"at": _floats(d["at"], 3),
+		"size": size,
+		"yaw": _r(float(d.get("yaw", 0.0))),
+		"motion": motion,
+		"hinge": "right" if hinge == "right" else "left",
+		"angle": _r(clampf(float(d.get("angle", 100.0)), -170.0, 170.0)),
+		"seconds": _r(clampf(float(d.get("seconds", 0.6)), 0.1, 5.0)),
+		# How far a slide or a lift goes, in metres; 0 is all the way (its width, its height).
+		"travel": _r(clampf(float(d.get("travel", 0.0)), 0.0, 50.0)),
+		"open": bool(d.get("open", false)),
+		# A swinging door opens away from whoever opens it, unless the map pins its way.
+		"away": bool(d.get("away", true)),
+		"mat": mat,
+		"tint": _floats(_colour_list(d.get("tint", [1.0, 1.0, 1.0])), 3),
+		"name": str(d.get("name", "")),
+		# A secret door has no handle and is drawn in the wall's own material, so it reads as
+		# wall until somebody tries it.
+		"secret": bool(d.get("secret", false)),
+	}
 
 	return out
 

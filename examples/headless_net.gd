@@ -22,8 +22,8 @@ const HsPlayer := preload("../game/hs_player.gd")
 ##
 ## Sections and checks are both counted; mg-smash-copter's notes say why the second matters.
 
-const SECTIONS := 11
-const CHECKS := 41
+const SECTIONS := 12
+const CHECKS := 44
 
 const CLIENT_PEER := 7
 const SESSION := 42
@@ -75,6 +75,7 @@ func _run() -> void:
 		await _test_the_map_arrives()
 		await _test_the_blindfold_is_on_the_wire()
 		await _test_the_local_player_is_predicted()
+		await _test_a_door_crosses()
 		await _test_the_sight_meter_is_the_owners()
 		await _test_a_catch_crosses()
 		await _test_taunting()
@@ -302,6 +303,45 @@ func _test_the_local_player_is_predicted() -> void:
 	await _steps(24)
 	var apart := mine.controller.state.position.distance_to(server_me.controller.state.position)
 	_check(apart < 0.25, "and after running, the two ends agree", "%.3f m" % apart)
+	_finished()
+
+
+## A door is the server's: a use is one event, a door and the tick it went, and the client
+## poses it from that and predicts itself against it. The practice house's garden door.
+func _test_a_door_crosses() -> void:
+	_section("a door is the server's, and the client predicts against it")
+	var heard: Array = []
+	_client_bridge.door_received.connect(func(index: int, open: bool, tick: int) -> void:
+		heard.append([index, open, tick]))
+	var server_doors := _server_game.map.doors
+	var client_doors := _client_game.map.doors
+	var server_me := _server_me()
+	var mine := _mine()
+	server_me.place_at(Vector3(8.6, 0.05, 0.0), -90.0)
+	await _steps(20)
+
+	var _opened := _server_game.use_door(1, _me())
+	await _steps(SERVER_TICK_RATE)
+	_check(heard.size() == 1 and int(heard[0][0]) == 1 and bool(heard[0][1]) and client_doors.is_open(1),
+		"the client is told a door opened, and on which tick", str(heard))
+	var server_panel := (server_doors.doors[1]["body"] as Node3D).global_transform
+	var client_panel := (client_doors.doors[1]["body"] as Node3D).global_transform
+	_check(server_panel.origin.distance_to(client_panel.origin) < 0.05
+		and server_panel.basis.z.dot(client_panel.basis.z) > 0.999,
+		"and poses it where the server has it", "%.3f m apart" % server_panel.origin.distance_to(client_panel.origin))
+
+	var _shut := _server_game.use_door(1, _me())
+	await _steps(SERVER_TICK_RATE)
+	var east := DotFpsCommand.new()
+	east.yaw = -90.0
+	east.move = Vector2(0.0, 1.0)
+	await _steps(SERVER_TICK_RATE * 2, east)
+	await _steps(24)
+	var apart := mine.controller.state.position.distance_to(server_me.controller.state.position)
+	_check(not client_doors.is_open(1) and mine.controller.state.position.x < 10.1
+		and server_me.controller.state.position.x < 10.1 and apart < 0.25,
+		"a shut door stops the client's own prediction where it stops the server",
+		"client x %.2f, server x %.2f, %.3f m apart" % [mine.controller.state.position.x, server_me.controller.state.position.x, apart])
 	_finished()
 
 
