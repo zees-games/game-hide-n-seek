@@ -1,0 +1,113 @@
+{
+  "comment": "The taunts a prop can make. Edit freely: id, title, seconds (how long it plays), sound (a path under this game's root). Kenney's Voiceover Pack and Music Jingles, CC0.",
+  "taunts": [
+    {
+      "id": "you_lose",
+      "title": "You lose",
+      "seconds": 1.37,
+      "sound": "taunts/you_lose.ogg"
+    },
+    {
+      "id": "game_over",
+      "title": "Game over",
+      "seconds": 1.28,
+      "sound": "taunts/game_over.ogg"
+    },
+    {
+      "id": "hurry_up",
+      "title": "Hurry up",
+      "seconds": 0.68,
+      "sound": "taunts/hurry_up.ogg"
+    },
+    {
+      "id": "look_out",
+      "title": "Look out",
+      "seconds": 0.65,
+      "sound": "taunts/look_out.ogg"
+    },
+    {
+      "id": "watch_my_back",
+      "title": "Watch my back",
+      "seconds": 0.96,
+      "sound": "taunts/watch_my_back.ogg"
+    },
+    {
+      "id": "cover_me",
+      "title": "Cover me",
+      "seconds": 0.57,
+      "sound": "taunts/cover_me.ogg"
+    },
+    {
+      "id": "congratulations",
+      "title": "Congratulations",
+      "seconds": 1.3,
+      "sound": "taunts/congratulations.ogg"
+    },
+    {
+      "id": "new_highscore",
+      "title": "New high score",
+      "seconds": 1.23,
+      "sound": "taunts/new_highscore.ogg"
+    },
+    {
+      "id": "mission_failed",
+      "title": "Mission failed",
+      "seconds": 1.11,
+      "sound": "taunts/mission_failed.ogg"
+    },
+    {
+      "id": "its_a_tie",
+      "title": "It's a tie",
+      "seconds": 0.89,
+      "sound": "taunts/its_a_tie.ogg"
+    },
+    {
+      "id": "wrong",
+      "title": "Wrong",
+      "seconds": 0.71,
+      "sound": "taunts/wrong.ogg"
+    },
+    {
+      "id": "you_win",
+      "title": "You win",
+      "seconds": 0.94,
+      "sound": "taunts/you_win.ogg"
+    },
+    {
+      "id": "ready",
+      "title": "Ready?",
+      "seconds": 0.5,
+      "sound": "taunts/ready.ogg"
+    },
+    {
+      "id": "time_over",
+      "title": "Time over",
+      "seconds": 0.95,
+      "sound": "taunts/time_over.ogg"
+    },
+    {
+      "id": "pizzicato",
+      "title": "Pizzicato",
+      "seconds": 0.56,
+      "sound": "taunts/pizzicato.ogg"
+    },
+    {
+      "id": "saxophone",
+      "title": "Saxophone",
+      "seconds": 0.46,
+      "sound": "taunts/saxophone.ogg"
+    },
+    {
+      "id": "steeldrum",
+      "title": "Steel drum",
+      "seconds": 0.94,
+      "sound": "taunts/steeldrum.ogg"
+    },
+    {
+      "id": "retro",
+      "title": "Retro",
+      "seconds": 0.75,
+      "sound": "taunts/retro.ogg"
+    }
+  ]
+}

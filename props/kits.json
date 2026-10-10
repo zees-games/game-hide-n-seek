@@ -1,0 +1,123 @@
+{
+  "comment": "What tools/measure_props.gd measures into catalogue.json. A kit is a directory of CC0 models at one scale; a model not listed under 'fixed' may be hidden as. Re-run the tool after adding a model. A kit's 'recolour' replaces a named material's colour when the game loads the model: Kenney's Nature Kit is teal and coral by design, which reads as a cartoon beside realistic rooms.",
+  "kits": [
+    {
+      "id": "furniture",
+      "dir": "assets/props/furniture",
+      "scale": 2.3,
+      "credit": "Kenney Furniture Kit (CC0)",
+      "fixed": [
+        "ceilingFan",
+        "lampSquareCeiling",
+        "lampWall",
+        "hoodLarge",
+        "hoodModern",
+        "bathroomMirror",
+        "kitchenCabinetUpper",
+        "kitchenCabinetUpperCorner",
+        "kitchenCabinetUpperDouble",
+        "kitchenCabinetUpperLow",
+        "wallWindow",
+        "wallWindowSlide",
+        "wallHalf",
+        "wallCorner",
+        "wallCornerRond",
+        "showerRound",
+        "shower"
+      ],
+      "recolour": {
+        "plant": [
+          0.24,
+          0.52,
+          0.24
+        ]
+      }
+    },
+    {
+      "id": "nature",
+      "dir": "assets/props/nature",
+      "scale": 2.5,
+      "credit": "Kenney Nature Kit (CC0)",
+      "fixed": [
+        "hanging_moss",
+        "lily_large",
+        "fence_simple",
+        "fence_planks"
+      ],
+      "scales": {
+        "tree_*": 4.5
+      },
+      "recolour": {
+        "grass": [
+          0.34,
+          0.56,
+          0.22
+        ],
+        "leafsGreen": [
+          0.28,
+          0.52,
+          0.2
+        ],
+        "leafsDark": [
+          0.18,
+          0.38,
+          0.16
+        ],
+        "woodBark": [
+          0.4,
+          0.29,
+          0.19
+        ],
+        "woodBarkDark": [
+          0.32,
+          0.23,
+          0.15
+        ],
+        "dirt": [
+          0.44,
+          0.33,
+          0.22
+        ],
+        "stone": [
+          0.6,
+          0.6,
+          0.58
+        ],
+        "wood": [
+          0.6,
+          0.44,
+          0.29
+        ],
+        "woodDark": [
+          0.46,
+          0.32,
+          0.21
+        ],
+        "woodInner": [
+          0.86,
+          0.76,
+          0.6
+        ]
+      }
+    }
+  ],
+  "titles": {
+    "bear": "Teddy bear",
+    "tableCross": "Picnic table",
+    "tableCrossCloth": "Picnic table with cloth",
+    "cabinetBed": "Bedside cabinet",
+    "cabinetBedDrawer": "Bedside drawers",
+    "cabinetBedDrawerTable": "Bedside table",
+    "kitchenBar": "Kitchen island",
+    "kitchenBarEnd": "Kitchen island end",
+    "loungeSofaOttoman": "Ottoman",
+    "pottedPlant": "Potted plant",
+    "rugDoormat": "Doormat",
+    "tree_pineRoundA": "Round pine",
+    "tree_pineTallA": "Tall pine",
+    "plant_bushDetailed": "Leafy bush",
+    "crop_pumpkin": "Pumpkin",
+    "crop_melon": "Melon",
+    "campfire_logs": "Campfire"
+  }
+}

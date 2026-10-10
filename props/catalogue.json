@@ -1,0 +1,3001 @@
+{
+  "format": 1,
+  "comment": "Written by tools/measure_props.gd from props/kits.json. Do not edit by hand.",
+  "recolour": {
+    "furniture": {
+      "plant": [
+        0.24,
+        0.52,
+        0.24
+      ]
+    },
+    "nature": {
+      "grass": [
+        0.34,
+        0.56,
+        0.22
+      ],
+      "leafsGreen": [
+        0.28,
+        0.52,
+        0.2
+      ],
+      "leafsDark": [
+        0.18,
+        0.38,
+        0.16
+      ],
+      "woodBark": [
+        0.4,
+        0.29,
+        0.19
+      ],
+      "woodBarkDark": [
+        0.32,
+        0.23,
+        0.15
+      ],
+      "dirt": [
+        0.44,
+        0.33,
+        0.22
+      ],
+      "stone": [
+        0.6,
+        0.6,
+        0.58
+      ],
+      "wood": [
+        0.6,
+        0.44,
+        0.29
+      ],
+      "woodDark": [
+        0.46,
+        0.32,
+        0.21
+      ],
+      "woodInner": [
+        0.86,
+        0.76,
+        0.6
+      ]
+    }
+  },
+  "props": [
+    {
+      "id": "furniture_bathroom_cabinet",
+      "title": "Bathroom cabinet",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bathroomCabinet.glb",
+      "scale": 2.3,
+      "size": [
+        0.529,
+        0.897,
+        0.299
+      ],
+      "offset": [
+        -0.725,
+        0.0,
+        0.333
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bathroom_cabinet_drawer",
+      "title": "Bathroom cabinet drawer",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bathroomCabinetDrawer.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        1.085,
+        0.736
+      ],
+      "offset": [
+        -0.495,
+        -0.134,
+        0.667
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bathroom_mirror",
+      "title": "Bathroom mirror",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bathroomMirror.glb",
+      "scale": 2.3,
+      "size": [
+        0.693,
+        1.0,
+        0.332
+      ],
+      "offset": [
+        -0.347,
+        0.0,
+        -0.054
+      ],
+      "disguise": false
+    },
+    {
+      "id": "furniture_bathroom_sink",
+      "title": "Bathroom sink",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bathroomSink.glb",
+      "scale": 2.3,
+      "size": [
+        0.782,
+        1.288,
+        0.667
+      ],
+      "offset": [
+        -0.391,
+        0.92,
+        0.333
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bathroom_sink_square",
+      "title": "Bathroom sink square",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bathroomSinkSquare.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        1.334,
+        0.69
+      ],
+      "offset": [
+        -0.495,
+        -0.131,
+        0.69
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bathtub",
+      "title": "Bathtub",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bathtub.glb",
+      "scale": 2.3,
+      "size": [
+        2.737,
+        0.966,
+        1.288
+      ],
+      "offset": [
+        -1.368,
+        0.0,
+        0.644
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bear",
+      "title": "Teddy bear",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bear.glb",
+      "scale": 2.3,
+      "size": [
+        0.896,
+        1.035,
+        0.569
+      ],
+      "offset": [
+        -0.448,
+        0.0,
+        0.285
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bed_bunk",
+      "title": "Bed bunk",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bedBunk.glb",
+      "scale": 2.3,
+      "size": [
+        1.313,
+        1.955,
+        2.519
+      ],
+      "offset": [
+        -0.657,
+        0.0,
+        1.259
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bed_double",
+      "title": "Bed double",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bedDouble.glb",
+      "scale": 2.3,
+      "size": [
+        2.199,
+        0.862,
+        2.587
+      ],
+      "offset": [
+        -1.099,
+        0.0,
+        1.294
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bed_single",
+      "title": "Bed single",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bedSingle.glb",
+      "scale": 2.3,
+      "size": [
+        1.313,
+        0.862,
+        2.587
+      ],
+      "offset": [
+        -1.542,
+        0.0,
+        1.294
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bench",
+      "title": "Bench",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bench.glb",
+      "scale": 2.3,
+      "size": [
+        0.92,
+        1.081,
+        0.46
+      ],
+      "offset": [
+        -0.46,
+        0.0,
+        0.23
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bench_cushion",
+      "title": "Bench cushion",
+      "kit": "furniture",
+      "model": "assets/props/furniture/benchCushion.glb",
+      "scale": 2.3,
+      "size": [
+        0.92,
+        1.058,
+        0.46
+      ],
+      "offset": [
+        -0.46,
+        0.0,
+        0.23
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bench_cushion_low",
+      "title": "Bench cushion low",
+      "kit": "furniture",
+      "model": "assets/props/furniture/benchCushionLow.glb",
+      "scale": 2.3,
+      "size": [
+        0.966,
+        0.46,
+        0.506
+      ],
+      "offset": [
+        -0.46,
+        0.0,
+        0.23
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bookcase_closed",
+      "title": "Bookcase closed",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bookcaseClosed.glb",
+      "scale": 2.3,
+      "size": [
+        0.92,
+        1.955,
+        0.575
+      ],
+      "offset": [
+        -0.46,
+        0.0,
+        0.287
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bookcase_closed_doors",
+      "title": "Bookcase closed doors",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bookcaseClosedDoors.glb",
+      "scale": 2.3,
+      "size": [
+        0.92,
+        1.955,
+        0.575
+      ],
+      "offset": [
+        -0.46,
+        0.0,
+        0.287
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bookcase_closed_wide",
+      "title": "Bookcase closed wide",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bookcaseClosedWide.glb",
+      "scale": 2.3,
+      "size": [
+        1.84,
+        1.817,
+        0.575
+      ],
+      "offset": [
+        -0.92,
+        0.0,
+        0.287
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bookcase_open",
+      "title": "Bookcase open",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bookcaseOpen.glb",
+      "scale": 2.3,
+      "size": [
+        0.92,
+        2.024,
+        0.575
+      ],
+      "offset": [
+        -0.46,
+        0.0,
+        0.287
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_bookcase_open_low",
+      "title": "Bookcase open low",
+      "kit": "furniture",
+      "model": "assets/props/furniture/bookcaseOpenLow.glb",
+      "scale": 2.3,
+      "size": [
+        0.92,
+        0.92,
+        0.575
+      ],
+      "offset": [
+        -0.46,
+        0.0,
+        0.287
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_books",
+      "title": "Books",
+      "kit": "furniture",
+      "model": "assets/props/furniture/books.glb",
+      "scale": 2.3,
+      "size": [
+        0.346,
+        0.239,
+        0.217
+      ],
+      "offset": [
+        -0.173,
+        0.0,
+        0.109
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_cabinet_bed",
+      "title": "Bedside cabinet",
+      "kit": "furniture",
+      "model": "assets/props/furniture/cabinetBed.glb",
+      "scale": 2.3,
+      "size": [
+        0.612,
+        0.536,
+        0.495
+      ],
+      "offset": [
+        -0.283,
+        0.0,
+        0.224
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_cabinet_bed_drawer",
+      "title": "Bedside drawers",
+      "kit": "furniture",
+      "model": "assets/props/furniture/cabinetBedDrawer.glb",
+      "scale": 2.3,
+      "size": [
+        0.612,
+        0.605,
+        0.5
+      ],
+      "offset": [
+        -0.283,
+        0.0,
+        0.222
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_cabinet_bed_drawer_table",
+      "title": "Bedside table",
+      "kit": "furniture",
+      "model": "assets/props/furniture/cabinetBedDrawerTable.glb",
+      "scale": 2.3,
+      "size": [
+        0.612,
+        0.605,
+        0.5
+      ],
+      "offset": [
+        -0.283,
+        0.0,
+        0.222
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_cabinet_television",
+      "title": "Cabinet television",
+      "kit": "furniture",
+      "model": "assets/props/furniture/cabinetTelevision.glb",
+      "scale": 2.3,
+      "size": [
+        1.84,
+        0.713,
+        0.575
+      ],
+      "offset": [
+        -0.92,
+        0.0,
+        0.287
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_cabinet_television_doors",
+      "title": "Cabinet television doors",
+      "kit": "furniture",
+      "model": "assets/props/furniture/cabinetTelevisionDoors.glb",
+      "scale": 2.3,
+      "size": [
+        1.84,
+        0.713,
+        0.598
+      ],
+      "offset": [
+        -0.92,
+        0.0,
+        0.276
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_cardboard_box_closed",
+      "title": "Cardboard box closed",
+      "kit": "furniture",
+      "model": "assets/props/furniture/cardboardBoxClosed.glb",
+      "scale": 2.3,
+      "size": [
+        0.489,
+        0.646,
+        0.489
+      ],
+      "offset": [
+        -0.244,
+        0.0,
+        0.244
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_cardboard_box_open",
+      "title": "Cardboard box open",
+      "kit": "furniture",
+      "model": "assets/props/furniture/cardboardBoxOpen.glb",
+      "scale": 2.3,
+      "size": [
+        0.855,
+        0.646,
+        0.489
+      ],
+      "offset": [
+        -0.244,
+        0.0,
+        0.244
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_ceiling_fan",
+      "title": "Ceiling fan",
+      "kit": "furniture",
+      "model": "assets/props/furniture/ceilingFan.glb",
+      "scale": 2.3,
+      "size": [
+        1.046,
+        0.308,
+        1.208
+      ],
+      "offset": [
+        -0.128,
+        0.308,
+        0.003
+      ],
+      "disguise": false
+    },
+    {
+      "id": "furniture_chair",
+      "title": "Chair",
+      "kit": "furniture",
+      "model": "assets/props/furniture/chair.glb",
+      "scale": 2.3,
+      "size": [
+        0.46,
+        1.081,
+        0.46
+      ],
+      "offset": [
+        -0.23,
+        0.0,
+        0.23
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_chair_cushion",
+      "title": "Chair cushion",
+      "kit": "furniture",
+      "model": "assets/props/furniture/chairCushion.glb",
+      "scale": 2.3,
+      "size": [
+        0.46,
+        1.058,
+        0.46
+      ],
+      "offset": [
+        -0.23,
+        0.0,
+        0.23
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_chair_desk",
+      "title": "Chair desk",
+      "kit": "furniture",
+      "model": "assets/props/furniture/chairDesk.glb",
+      "scale": 2.3,
+      "size": [
+        0.77,
+        1.397,
+        0.723
+      ],
+      "offset": [
+        -0.385,
+        0.0,
+        0.361
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_chair_modern_cushion",
+      "title": "Chair modern cushion",
+      "kit": "furniture",
+      "model": "assets/props/furniture/chairModernCushion.glb",
+      "scale": 2.3,
+      "size": [
+        0.46,
+        1.058,
+        0.46
+      ],
+      "offset": [
+        -0.23,
+        0.0,
+        0.23
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_chair_modern_frame_cushion",
+      "title": "Chair modern frame cushion",
+      "kit": "furniture",
+      "model": "assets/props/furniture/chairModernFrameCushion.glb",
+      "scale": 2.3,
+      "size": [
+        0.46,
+        1.058,
+        0.46
+      ],
+      "offset": [
+        -0.23,
+        0.0,
+        0.23
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_chair_rounded",
+      "title": "Chair rounded",
+      "kit": "furniture",
+      "model": "assets/props/furniture/chairRounded.glb",
+      "scale": 2.3,
+      "size": [
+        0.46,
+        1.046,
+        0.46
+      ],
+      "offset": [
+        -0.23,
+        0.0,
+        0.23
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_coat_rack",
+      "title": "Coat rack",
+      "kit": "furniture",
+      "model": "assets/props/furniture/coatRack.glb",
+      "scale": 2.3,
+      "size": [
+        1.03,
+        0.644,
+        0.309
+      ],
+      "offset": [
+        -0.515,
+        0.0,
+        0.155
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_coat_rack_standing",
+      "title": "Coat rack standing",
+      "kit": "furniture",
+      "model": "assets/props/furniture/coatRackStanding.glb",
+      "scale": 2.3,
+      "size": [
+        0.627,
+        1.771,
+        0.627
+      ],
+      "offset": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_computer_keyboard",
+      "title": "Computer keyboard",
+      "kit": "furniture",
+      "model": "assets/props/furniture/computerKeyboard.glb",
+      "scale": 2.3,
+      "size": [
+        0.649,
+        0.063,
+        0.272
+      ],
+      "offset": [
+        -0.325,
+        0.0,
+        0.136
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_computer_mouse",
+      "title": "Computer mouse",
+      "kit": "furniture",
+      "model": "assets/props/furniture/computerMouse.glb",
+      "scale": 2.3,
+      "size": [
+        0.114,
+        0.054,
+        0.196
+      ],
+      "offset": [
+        0.0,
+        0.0,
+        0.098
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_computer_screen",
+      "title": "Computer screen",
+      "kit": "furniture",
+      "model": "assets/props/furniture/computerScreen.glb",
+      "scale": 2.3,
+      "size": [
+        0.903,
+        0.677,
+        0.239
+      ],
+      "offset": [
+        -0.452,
+        0.0,
+        0.12
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_desk",
+      "title": "Desk",
+      "kit": "furniture",
+      "model": "assets/props/furniture/desk.glb",
+      "scale": 2.3,
+      "size": [
+        1.689,
+        0.884,
+        0.902
+      ],
+      "offset": [
+        -0.822,
+        0.0,
+        0.423
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_desk_corner",
+      "title": "Desk corner",
+      "kit": "furniture",
+      "model": "assets/props/furniture/deskCorner.glb",
+      "scale": 2.3,
+      "size": [
+        2.241,
+        0.884,
+        2.241
+      ],
+      "offset": [
+        -1.121,
+        0.0,
+        1.121
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_dryer",
+      "title": "Dryer",
+      "kit": "furniture",
+      "model": "assets/props/furniture/dryer.glb",
+      "scale": 2.3,
+      "size": [
+        0.897,
+        1.081,
+        0.874
+      ],
+      "offset": [
+        -0.449,
+        0.0,
+        0.368
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_hood_large",
+      "title": "Hood large",
+      "kit": "furniture",
+      "model": "assets/props/furniture/hoodLarge.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        0.85,
+        0.655
+      ],
+      "offset": [
+        -0.495,
+        0.0,
+        0.328
+      ],
+      "disguise": false
+    },
+    {
+      "id": "furniture_hood_modern",
+      "title": "Hood modern",
+      "kit": "furniture",
+      "model": "assets/props/furniture/hoodModern.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        0.919,
+        0.655
+      ],
+      "offset": [
+        -0.495,
+        0.069,
+        0.328
+      ],
+      "disguise": false
+    },
+    {
+      "id": "furniture_kitchen_bar",
+      "title": "Kitchen island",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenBar.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        0.966,
+        0.483
+      ],
+      "offset": [
+        -0.495,
+        0.0,
+        0.241
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_kitchen_bar_end",
+      "title": "Kitchen island end",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenBarEnd.glb",
+      "scale": 2.3,
+      "size": [
+        0.234,
+        0.966,
+        0.483
+      ],
+      "offset": [
+        -0.117,
+        0.0,
+        0.241
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_kitchen_blender",
+      "title": "Kitchen blender",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenBlender.glb",
+      "scale": 2.3,
+      "size": [
+        0.312,
+        0.523,
+        0.251
+      ],
+      "offset": [
+        -0.156,
+        0.0,
+        0.125
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_kitchen_cabinet",
+      "title": "Kitchen cabinet",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenCabinet.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        1.035,
+        1.035
+      ],
+      "offset": [
+        -0.495,
+        0.0,
+        0.517
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_kitchen_cabinet_corner_inner",
+      "title": "Kitchen cabinet corner inner",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenCabinetCornerInner.glb",
+      "scale": 2.3,
+      "size": [
+        1.058,
+        1.035,
+        1.058
+      ],
+      "offset": [
+        -0.529,
+        0.0,
+        0.529
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_kitchen_cabinet_corner_round",
+      "title": "Kitchen cabinet corner round",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenCabinetCornerRound.glb",
+      "scale": 2.3,
+      "size": [
+        1.035,
+        1.035,
+        1.035
+      ],
+      "offset": [
+        -0.517,
+        0.0,
+        0.517
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_kitchen_cabinet_drawer",
+      "title": "Kitchen cabinet drawer",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenCabinetDrawer.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        1.035,
+        1.035
+      ],
+      "offset": [
+        -0.495,
+        0.0,
+        0.517
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_kitchen_cabinet_upper",
+      "title": "Kitchen cabinet upper",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenCabinetUpper.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        0.897,
+        0.506
+      ],
+      "offset": [
+        -0.495,
+        0.0,
+        0.23
+      ],
+      "disguise": false
+    },
+    {
+      "id": "furniture_kitchen_cabinet_upper_corner",
+      "title": "Kitchen cabinet upper corner",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenCabinetUpperCorner.glb",
+      "scale": 2.3,
+      "size": [
+        0.495,
+        0.897,
+        0.483
+      ],
+      "offset": [
+        -0.247,
+        0.0,
+        0.241
+      ],
+      "disguise": false
+    },
+    {
+      "id": "furniture_kitchen_cabinet_upper_double",
+      "title": "Kitchen cabinet upper double",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenCabinetUpperDouble.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        0.897,
+        0.506
+      ],
+      "offset": [
+        -0.495,
+        0.0,
+        0.23
+      ],
+      "disguise": false
+    },
+    {
+      "id": "furniture_kitchen_cabinet_upper_low",
+      "title": "Kitchen cabinet upper low",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenCabinetUpperLow.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        0.449,
+        0.506
+      ],
+      "offset": [
+        -0.495,
+        0.0,
+        0.23
+      ],
+      "disguise": false
+    },
+    {
+      "id": "furniture_kitchen_coffee_machine",
+      "title": "Kitchen coffee machine",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenCoffeeMachine.glb",
+      "scale": 2.3,
+      "size": [
+        0.436,
+        0.408,
+        0.552
+      ],
+      "offset": [
+        -0.218,
+        0.0,
+        0.276
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_kitchen_fridge",
+      "title": "Kitchen fridge",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenFridge.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        2.116,
+        0.671
+      ],
+      "offset": [
+        -0.495,
+        0.0,
+        0.313
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_kitchen_fridge_built_in",
+      "title": "Kitchen fridge built in",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenFridgeBuiltIn.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        1.998,
+        1.035
+      ],
+      "offset": [
+        -0.495,
+        0.0,
+        0.517
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_kitchen_fridge_large",
+      "title": "Kitchen fridge large",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenFridgeLarge.glb",
+      "scale": 2.3,
+      "size": [
+        1.196,
+        2.116,
+        0.933
+      ],
+      "offset": [
+        -0.598,
+        0.0,
+        0.32
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_kitchen_fridge_small",
+      "title": "Kitchen fridge small",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenFridgeSmall.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        1.381,
+        0.671
+      ],
+      "offset": [
+        -0.495,
+        0.0,
+        0.313
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_kitchen_microwave",
+      "title": "Kitchen microwave",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenMicrowave.glb",
+      "scale": 2.3,
+      "size": [
+        0.667,
+        0.414,
+        0.529
+      ],
+      "offset": [
+        -0.333,
+        0.0,
+        0.241
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_kitchen_sink",
+      "title": "Kitchen sink",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenSink.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        1.127,
+        1.035
+      ],
+      "offset": [
+        -0.495,
+        0.0,
+        0.517
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_kitchen_stove",
+      "title": "Kitchen stove",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenStove.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        1.035,
+        1.035
+      ],
+      "offset": [
+        -0.495,
+        0.0,
+        0.517
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_kitchen_stove_electric",
+      "title": "Kitchen stove electric",
+      "kit": "furniture",
+      "model": "assets/props/furniture/kitchenStoveElectric.glb",
+      "scale": 2.3,
+      "size": [
+        0.989,
+        1.035,
+        1.035
+      ],
+      "offset": [
+        -0.495,
+        0.0,
+        0.517
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_lamp_round_floor",
+      "title": "Lamp round floor",
+      "kit": "furniture",
+      "model": "assets/props/furniture/lampRoundFloor.glb",
+      "scale": 2.3,
+      "size": [
+        0.35,
+        1.978,
+        0.404
+      ],
+      "offset": [
+        -0.138,
+        0.0,
+        0.138
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_lamp_round_table",
+      "title": "Lamp round table",
+      "kit": "furniture",
+      "model": "assets/props/furniture/lampRoundTable.glb",
+      "scale": 2.3,
+      "size": [
+        0.35,
+        0.723,
+        0.404
+      ],
+      "offset": [
+        -0.138,
+        0.0,
+        0.138
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_lamp_square_ceiling",
+      "title": "Lamp square ceiling",
+      "kit": "furniture",
+      "model": "assets/props/furniture/lampSquareCeiling.glb",
+      "scale": 2.3,
+      "size": [
+        0.276,
+        0.529,
+        0.276
+      ],
+      "offset": [
+        -0.138,
+        0.0,
+        0.138
+      ],
+      "disguise": false
+    },
+    {
+      "id": "furniture_lamp_square_floor",
+      "title": "Lamp square floor",
+      "kit": "furniture",
+      "model": "assets/props/furniture/lampSquareFloor.glb",
+      "scale": 2.3,
+      "size": [
+        0.276,
+        1.978,
+        0.276
+      ],
+      "offset": [
+        -0.138,
+        0.0,
+        0.138
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_lamp_square_table",
+      "title": "Lamp square table",
+      "kit": "furniture",
+      "model": "assets/props/furniture/lampSquareTable.glb",
+      "scale": 2.3,
+      "size": [
+        0.276,
+        0.667,
+        0.276
+      ],
+      "offset": [
+        -0.138,
+        0.0,
+        0.138
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_lamp_wall",
+      "title": "Lamp wall",
+      "kit": "furniture",
+      "model": "assets/props/furniture/lampWall.glb",
+      "scale": 2.3,
+      "size": [
+        0.521,
+        0.213,
+        0.346
+      ],
+      "offset": [
+        0.0,
+        0.0,
+        -0.173
+      ],
+      "disguise": false
+    },
+    {
+      "id": "furniture_laptop",
+      "title": "Laptop",
+      "kit": "furniture",
+      "model": "assets/props/furniture/laptop.glb",
+      "scale": 2.3,
+      "size": [
+        0.607,
+        0.372,
+        0.552
+      ],
+      "offset": [
+        -0.304,
+        0.0,
+        0.276
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_lounge_chair",
+      "title": "Lounge chair",
+      "kit": "furniture",
+      "model": "assets/props/furniture/loungeChair.glb",
+      "scale": 2.3,
+      "size": [
+        1.127,
+        1.058,
+        0.943
+      ],
+      "offset": [
+        -0.563,
+        0.0,
+        0.472
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_lounge_chair_relax",
+      "title": "Lounge chair relax",
+      "kit": "furniture",
+      "model": "assets/props/furniture/loungeChairRelax.glb",
+      "scale": 2.3,
+      "size": [
+        1.127,
+        1.449,
+        1.552
+      ],
+      "offset": [
+        -0.563,
+        0.0,
+        0.776
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_lounge_design_chair",
+      "title": "Lounge design chair",
+      "kit": "furniture",
+      "model": "assets/props/furniture/loungeDesignChair.glb",
+      "scale": 2.3,
+      "size": [
+        1.678,
+        0.92,
+        0.943
+      ],
+      "offset": [
+        -0.839,
+        0.0,
+        0.472
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_lounge_design_sofa",
+      "title": "Lounge design sofa",
+      "kit": "furniture",
+      "model": "assets/props/furniture/loungeDesignSofa.glb",
+      "scale": 2.3,
+      "size": [
+        2.576,
+        0.92,
+        0.943
+      ],
+      "offset": [
+        -1.288,
+        0.0,
+        0.472
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_lounge_design_sofa_corner",
+      "title": "Lounge design sofa corner",
+      "kit": "furniture",
+      "model": "assets/props/furniture/loungeDesignSofaCorner.glb",
+      "scale": 2.3,
+      "size": [
+        3.105,
+        0.92,
+        3.105
+      ],
+      "offset": [
+        -1.552,
+        0.0,
+        1.552
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_lounge_sofa",
+      "title": "Lounge sofa",
+      "kit": "furniture",
+      "model": "assets/props/furniture/loungeSofa.glb",
+      "scale": 2.3,
+      "size": [
+        2.254,
+        1.058,
+        0.943
+      ],
+      "offset": [
+        -1.127,
+        0.0,
+        0.472
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_lounge_sofa_corner",
+      "title": "Lounge sofa corner",
+      "kit": "furniture",
+      "model": "assets/props/furniture/loungeSofaCorner.glb",
+      "scale": 2.3,
+      "size": [
+        2.254,
+        1.058,
+        2.254
+      ],
+      "offset": [
+        -1.127,
+        0.0,
+        1.127
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_lounge_sofa_long",
+      "title": "Lounge sofa long",
+      "kit": "furniture",
+      "model": "assets/props/furniture/loungeSofaLong.glb",
+      "scale": 2.3,
+      "size": [
+        2.254,
+        1.058,
+        1.886
+      ],
+      "offset": [
+        -1.127,
+        0.0,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_lounge_sofa_ottoman",
+      "title": "Ottoman",
+      "kit": "furniture",
+      "model": "assets/props/furniture/loungeSofaOttoman.glb",
+      "scale": 2.3,
+      "size": [
+        1.012,
+        0.529,
+        1.035
+      ],
+      "offset": [
+        -1.587,
+        0.0,
+        -0.426
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_pillow",
+      "title": "Pillow",
+      "kit": "furniture",
+      "model": "assets/props/furniture/pillow.glb",
+      "scale": 2.3,
+      "size": [
+        0.529,
+        0.511,
+        0.204
+      ],
+      "offset": [
+        -0.264,
+        0.0,
+        0.102
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_pillow_blue",
+      "title": "Pillow blue",
+      "kit": "furniture",
+      "model": "assets/props/furniture/pillowBlue.glb",
+      "scale": 2.3,
+      "size": [
+        0.529,
+        0.296,
+        0.146
+      ],
+      "offset": [
+        -0.264,
+        0.0,
+        0.073
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_pillow_blue_long",
+      "title": "Pillow blue long",
+      "kit": "furniture",
+      "model": "assets/props/furniture/pillowBlueLong.glb",
+      "scale": 2.3,
+      "size": [
+        1.188,
+        0.511,
+        0.204
+      ],
+      "offset": [
+        -0.295,
+        0.0,
+        0.102
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_pillow_long",
+      "title": "Pillow long",
+      "kit": "furniture",
+      "model": "assets/props/furniture/pillowLong.glb",
+      "scale": 2.3,
+      "size": [
+        0.889,
+        0.511,
+        0.204
+      ],
+      "offset": [
+        -0.445,
+        0.0,
+        0.102
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_plant_small1",
+      "title": "Plant small1",
+      "kit": "furniture",
+      "model": "assets/props/furniture/plantSmall1.glb",
+      "scale": 2.3,
+      "size": [
+        0.218,
+        0.322,
+        0.218
+      ],
+      "offset": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_plant_small2",
+      "title": "Plant small2",
+      "kit": "furniture",
+      "model": "assets/props/furniture/plantSmall2.glb",
+      "scale": 2.3,
+      "size": [
+        0.218,
+        0.322,
+        0.218
+      ],
+      "offset": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_plant_small3",
+      "title": "Plant small3",
+      "kit": "furniture",
+      "model": "assets/props/furniture/plantSmall3.glb",
+      "scale": 2.3,
+      "size": [
+        0.225,
+        0.333,
+        0.195
+      ],
+      "offset": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_potted_plant",
+      "title": "Potted plant",
+      "kit": "furniture",
+      "model": "assets/props/furniture/pottedPlant.glb",
+      "scale": 2.3,
+      "size": [
+        0.488,
+        1.504,
+        0.555
+      ],
+      "offset": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_radio",
+      "title": "Radio",
+      "kit": "furniture",
+      "model": "assets/props/furniture/radio.glb",
+      "scale": 2.3,
+      "size": [
+        0.725,
+        0.525,
+        0.224
+      ],
+      "offset": [
+        -0.362,
+        0.0,
+        0.112
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_rug_doormat",
+      "title": "Doormat",
+      "kit": "furniture",
+      "model": "assets/props/furniture/rugDoormat.glb",
+      "scale": 2.3,
+      "size": [
+        0.987,
+        0.023,
+        0.545
+      ],
+      "offset": [
+        -0.494,
+        0.0,
+        0.273
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_rug_rectangle",
+      "title": "Rug rectangle",
+      "kit": "furniture",
+      "model": "assets/props/furniture/rugRectangle.glb",
+      "scale": 2.3,
+      "size": [
+        3.611,
+        0.023,
+        2.116
+      ],
+      "offset": [
+        -1.805,
+        0.0,
+        1.058
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_rug_round",
+      "title": "Rug round",
+      "kit": "furniture",
+      "model": "assets/props/furniture/rugRound.glb",
+      "scale": 2.3,
+      "size": [
+        2.116,
+        0.023,
+        2.116
+      ],
+      "offset": [
+        -1.058,
+        0.0,
+        1.058
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_rug_rounded",
+      "title": "Rug rounded",
+      "kit": "furniture",
+      "model": "assets/props/furniture/rugRounded.glb",
+      "scale": 2.3,
+      "size": [
+        3.611,
+        0.023,
+        2.116
+      ],
+      "offset": [
+        -1.805,
+        0.0,
+        1.058
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_rug_square",
+      "title": "Rug square",
+      "kit": "furniture",
+      "model": "assets/props/furniture/rugSquare.glb",
+      "scale": 2.3,
+      "size": [
+        2.08,
+        0.023,
+        2.116
+      ],
+      "offset": [
+        -1.04,
+        0.0,
+        1.058
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_shower",
+      "title": "Shower",
+      "kit": "furniture",
+      "model": "assets/props/furniture/shower.glb",
+      "scale": 2.3,
+      "size": [
+        1.292,
+        2.516,
+        1.338
+      ],
+      "offset": [
+        0.646,
+        0.0,
+        0.623
+      ],
+      "disguise": false
+    },
+    {
+      "id": "furniture_shower_round",
+      "title": "Shower round",
+      "kit": "furniture",
+      "model": "assets/props/furniture/showerRound.glb",
+      "scale": 2.3,
+      "size": [
+        1.292,
+        2.516,
+        1.292
+      ],
+      "offset": [
+        -0.646,
+        0.0,
+        0.646
+      ],
+      "disguise": false
+    },
+    {
+      "id": "furniture_side_table",
+      "title": "Side table",
+      "kit": "furniture",
+      "model": "assets/props/furniture/sideTable.glb",
+      "scale": 2.3,
+      "size": [
+        1.229,
+        0.884,
+        0.506
+      ],
+      "offset": [
+        -0.592,
+        0.0,
+        0.23
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_side_table_drawers",
+      "title": "Side table drawers",
+      "kit": "furniture",
+      "model": "assets/props/furniture/sideTableDrawers.glb",
+      "scale": 2.3,
+      "size": [
+        1.229,
+        0.884,
+        0.511
+      ],
+      "offset": [
+        -0.592,
+        0.0,
+        0.227
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_speaker",
+      "title": "Speaker",
+      "kit": "furniture",
+      "model": "assets/props/furniture/speaker.glb",
+      "scale": 2.3,
+      "size": [
+        0.34,
+        1.464,
+        0.34
+      ],
+      "offset": [
+        -0.17,
+        0.0,
+        0.17
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_speaker_small",
+      "title": "Speaker small",
+      "kit": "furniture",
+      "model": "assets/props/furniture/speakerSmall.glb",
+      "scale": 2.3,
+      "size": [
+        0.34,
+        0.685,
+        0.306
+      ],
+      "offset": [
+        -0.17,
+        0.0,
+        0.153
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_stool_bar",
+      "title": "Stool bar",
+      "kit": "furniture",
+      "model": "assets/props/furniture/stoolBar.glb",
+      "scale": 2.3,
+      "size": [
+        0.611,
+        1.0,
+        0.529
+      ],
+      "offset": [
+        -0.305,
+        0.0,
+        0.264
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_stool_bar_square",
+      "title": "Stool bar square",
+      "kit": "furniture",
+      "model": "assets/props/furniture/stoolBarSquare.glb",
+      "scale": 2.3,
+      "size": [
+        0.353,
+        0.931,
+        0.34
+      ],
+      "offset": [
+        -0.305,
+        0.0,
+        0.264
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_table",
+      "title": "Table",
+      "kit": "furniture",
+      "model": "assets/props/furniture/table.glb",
+      "scale": 2.3,
+      "size": [
+        1.935,
+        0.751,
+        1.029
+      ],
+      "offset": [
+        -0.968,
+        0.0,
+        0.514
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_table_cloth",
+      "title": "Table cloth",
+      "kit": "furniture",
+      "model": "assets/props/furniture/tableCloth.glb",
+      "scale": 2.3,
+      "size": [
+        1.935,
+        0.751,
+        1.029
+      ],
+      "offset": [
+        -0.968,
+        0.0,
+        0.514
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_table_coffee",
+      "title": "Table coffee",
+      "kit": "furniture",
+      "model": "assets/props/furniture/tableCoffee.glb",
+      "scale": 2.3,
+      "size": [
+        1.52,
+        0.529,
+        0.92
+      ],
+      "offset": [
+        0.3,
+        0.0,
+        0.23
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_table_coffee_glass",
+      "title": "Table coffee glass",
+      "kit": "furniture",
+      "model": "assets/props/furniture/tableCoffeeGlass.glb",
+      "scale": 2.3,
+      "size": [
+        1.52,
+        0.529,
+        0.92
+      ],
+      "offset": [
+        0.3,
+        0.0,
+        0.23
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_table_coffee_glass_square",
+      "title": "Table coffee glass square",
+      "kit": "furniture",
+      "model": "assets/props/furniture/tableCoffeeGlassSquare.glb",
+      "scale": 2.3,
+      "size": [
+        0.92,
+        0.529,
+        0.92
+      ],
+      "offset": [
+        0.6,
+        0.0,
+        0.23
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_table_coffee_square",
+      "title": "Table coffee square",
+      "kit": "furniture",
+      "model": "assets/props/furniture/tableCoffeeSquare.glb",
+      "scale": 2.3,
+      "size": [
+        0.92,
+        0.529,
+        0.92
+      ],
+      "offset": [
+        0.6,
+        0.0,
+        0.23
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_table_cross",
+      "title": "Picnic table",
+      "kit": "furniture",
+      "model": "assets/props/furniture/tableCross.glb",
+      "scale": 2.3,
+      "size": [
+        1.96,
+        0.799,
+        1.029
+      ],
+      "offset": [
+        -0.98,
+        0.0,
+        0.514
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_table_cross_cloth",
+      "title": "Picnic table with cloth",
+      "kit": "furniture",
+      "model": "assets/props/furniture/tableCrossCloth.glb",
+      "scale": 2.3,
+      "size": [
+        1.96,
+        0.799,
+        1.029
+      ],
+      "offset": [
+        -0.98,
+        0.0,
+        0.514
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_table_glass",
+      "title": "Table glass",
+      "kit": "furniture",
+      "model": "assets/props/furniture/tableGlass.glb",
+      "scale": 2.3,
+      "size": [
+        1.935,
+        0.752,
+        1.029
+      ],
+      "offset": [
+        -0.968,
+        0.0,
+        0.514
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_table_round",
+      "title": "Table round",
+      "kit": "furniture",
+      "model": "assets/props/furniture/tableRound.glb",
+      "scale": 2.3,
+      "size": [
+        1.593,
+        0.843,
+        1.84
+      ],
+      "offset": [
+        -0.797,
+        0.621,
+        0.92
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_television_antenna",
+      "title": "Television antenna",
+      "kit": "furniture",
+      "model": "assets/props/furniture/televisionAntenna.glb",
+      "scale": 2.3,
+      "size": [
+        0.608,
+        0.236,
+        0.184
+      ],
+      "offset": [
+        0.0,
+        0.0,
+        0.092
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_television_modern",
+      "title": "Television modern",
+      "kit": "furniture",
+      "model": "assets/props/furniture/televisionModern.glb",
+      "scale": 2.3,
+      "size": [
+        1.575,
+        1.046,
+        0.295
+      ],
+      "offset": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_television_vintage",
+      "title": "Television vintage",
+      "kit": "furniture",
+      "model": "assets/props/furniture/televisionVintage.glb",
+      "scale": 2.3,
+      "size": [
+        0.943,
+        0.621,
+        0.621
+      ],
+      "offset": [
+        -0.472,
+        0.0,
+        0.31
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_toaster",
+      "title": "Toaster",
+      "kit": "furniture",
+      "model": "assets/props/furniture/toaster.glb",
+      "scale": 2.3,
+      "size": [
+        0.432,
+        0.299,
+        0.23
+      ],
+      "offset": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_toilet",
+      "title": "Toilet",
+      "kit": "furniture",
+      "model": "assets/props/furniture/toilet.glb",
+      "scale": 2.3,
+      "size": [
+        0.719,
+        1.037,
+        1.098
+      ],
+      "offset": [
+        -0.359,
+        0.0,
+        -0.549
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_toilet_square",
+      "title": "Toilet square",
+      "kit": "furniture",
+      "model": "assets/props/furniture/toiletSquare.glb",
+      "scale": 2.3,
+      "size": [
+        0.698,
+        1.037,
+        0.891
+      ],
+      "offset": [
+        -0.349,
+        0.0,
+        0.445
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_trashcan",
+      "title": "Trashcan",
+      "kit": "furniture",
+      "model": "assets/props/furniture/trashcan.glb",
+      "scale": 2.3,
+      "size": [
+        0.478,
+        0.984,
+        0.538
+      ],
+      "offset": [
+        0.0,
+        0.0,
+        -0.012
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_washer",
+      "title": "Washer",
+      "kit": "furniture",
+      "model": "assets/props/furniture/washer.glb",
+      "scale": 2.3,
+      "size": [
+        0.897,
+        1.081,
+        0.897
+      ],
+      "offset": [
+        -0.449,
+        0.0,
+        0.356
+      ],
+      "disguise": true
+    },
+    {
+      "id": "furniture_washer_dryer_stacked",
+      "title": "Washer dryer stacked",
+      "kit": "furniture",
+      "model": "assets/props/furniture/washerDryerStacked.glb",
+      "scale": 2.3,
+      "size": [
+        0.897,
+        2.162,
+        0.897
+      ],
+      "offset": [
+        -0.449,
+        0.0,
+        0.356
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_cactus_tall",
+      "title": "Cactus tall",
+      "kit": "nature",
+      "model": "assets/props/nature/cactus_tall.glb",
+      "scale": 2.5,
+      "size": [
+        0.991,
+        1.875,
+        0.848
+      ],
+      "offset": [
+        0.003,
+        0.125,
+        -0.093
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_campfire_logs",
+      "title": "Campfire",
+      "kit": "nature",
+      "model": "assets/props/nature/campfire_logs.glb",
+      "scale": 2.5,
+      "size": [
+        0.73,
+        0.156,
+        0.73
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_crop_melon",
+      "title": "Melon",
+      "kit": "nature",
+      "model": "assets/props/nature/crop_melon.glb",
+      "scale": 2.5,
+      "size": [
+        1.044,
+        0.87,
+        0.904
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_crop_pumpkin",
+      "title": "Pumpkin",
+      "kit": "nature",
+      "model": "assets/props/nature/crop_pumpkin.glb",
+      "scale": 2.5,
+      "size": [
+        1.103,
+        0.835,
+        1.13
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_fence_planks",
+      "title": "Fence planks",
+      "kit": "nature",
+      "model": "assets/props/nature/fence_planks.glb",
+      "scale": 2.5,
+      "size": [
+        2.5,
+        0.863,
+        0.24
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        1.195
+      ],
+      "disguise": false
+    },
+    {
+      "id": "nature_fence_simple",
+      "title": "Fence simple",
+      "kit": "nature",
+      "model": "assets/props/nature/fence_simple.glb",
+      "scale": 2.5,
+      "size": [
+        2.5,
+        0.863,
+        0.175
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        1.163
+      ],
+      "disguise": false
+    },
+    {
+      "id": "nature_flower_purple_a",
+      "title": "Flower purple a",
+      "kit": "nature",
+      "model": "assets/props/nature/flower_purpleA.glb",
+      "scale": 2.5,
+      "size": [
+        0.398,
+        0.606,
+        0.453
+      ],
+      "offset": [
+        0.062,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_flower_red_a",
+      "title": "Flower red a",
+      "kit": "nature",
+      "model": "assets/props/nature/flower_redA.glb",
+      "scale": 2.5,
+      "size": [
+        0.398,
+        0.731,
+        0.453
+      ],
+      "offset": [
+        0.062,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_flower_yellow_a",
+      "title": "Flower yellow a",
+      "kit": "nature",
+      "model": "assets/props/nature/flower_yellowA.glb",
+      "scale": 2.5,
+      "size": [
+        0.398,
+        0.481,
+        0.453
+      ],
+      "offset": [
+        0.062,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_grass_large",
+      "title": "Grass large",
+      "kit": "nature",
+      "model": "assets/props/nature/grass_large.glb",
+      "scale": 2.5,
+      "size": [
+        1.022,
+        0.635,
+        1.02
+      ],
+      "offset": [
+        -0.013,
+        0.125,
+        0.02
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_hanging_moss",
+      "title": "Hanging moss",
+      "kit": "nature",
+      "model": "assets/props/nature/hanging_moss.glb",
+      "scale": 2.5,
+      "size": [
+        0.4,
+        1.196,
+        0.087
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        -1.206
+      ],
+      "disguise": false
+    },
+    {
+      "id": "nature_lily_large",
+      "title": "Lily large",
+      "kit": "nature",
+      "model": "assets/props/nature/lily_large.glb",
+      "scale": 2.5,
+      "size": [
+        0.68,
+        0.245,
+        0.785
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": false
+    },
+    {
+      "id": "nature_log",
+      "title": "Log",
+      "kit": "nature",
+      "model": "assets/props/nature/log.glb",
+      "scale": 2.5,
+      "size": [
+        0.585,
+        0.433,
+        1.775
+      ],
+      "offset": [
+        -0.019,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_log_large",
+      "title": "Log large",
+      "kit": "nature",
+      "model": "assets/props/nature/log_large.glb",
+      "scale": 2.5,
+      "size": [
+        2.5,
+        1.042,
+        1.373
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        -0.055
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_log_stack",
+      "title": "Log stack",
+      "kit": "nature",
+      "model": "assets/props/nature/log_stack.glb",
+      "scale": 2.5,
+      "size": [
+        1.062,
+        0.866,
+        1.775
+      ],
+      "offset": [
+        0.031,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_mushroom_red_tall",
+      "title": "Mushroom red tall",
+      "kit": "nature",
+      "model": "assets/props/nature/mushroom_redTall.glb",
+      "scale": 2.5,
+      "size": [
+        0.309,
+        0.626,
+        0.357
+      ],
+      "offset": [
+        -0.002,
+        0.125,
+        -0.009
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_plant_bush",
+      "title": "Plant bush",
+      "kit": "nature",
+      "model": "assets/props/nature/plant_bush.glb",
+      "scale": 2.5,
+      "size": [
+        0.99,
+        0.611,
+        0.99
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_plant_bush_detailed",
+      "title": "Leafy bush",
+      "kit": "nature",
+      "model": "assets/props/nature/plant_bushDetailed.glb",
+      "scale": 2.5,
+      "size": [
+        1.506,
+        0.901,
+        1.506
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_plant_bush_large",
+      "title": "Plant bush large",
+      "kit": "nature",
+      "model": "assets/props/nature/plant_bushLarge.glb",
+      "scale": 2.5,
+      "size": [
+        0.936,
+        0.607,
+        0.839
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_plant_bush_small",
+      "title": "Plant bush small",
+      "kit": "nature",
+      "model": "assets/props/nature/plant_bushSmall.glb",
+      "scale": 2.5,
+      "size": [
+        0.957,
+        0.518,
+        0.841
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_pot_large",
+      "title": "Pot large",
+      "kit": "nature",
+      "model": "assets/props/nature/pot_large.glb",
+      "scale": 2.5,
+      "size": [
+        1.409,
+        0.5,
+        1.22
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_pot_small",
+      "title": "Pot small",
+      "kit": "nature",
+      "model": "assets/props/nature/pot_small.glb",
+      "scale": 2.5,
+      "size": [
+        0.809,
+        0.67,
+        0.7
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_rock_large_a",
+      "title": "Rock large a",
+      "kit": "nature",
+      "model": "assets/props/nature/rock_largeA.glb",
+      "scale": 2.5,
+      "size": [
+        1.962,
+        0.649,
+        2.539
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_rock_small_a",
+      "title": "Rock small a",
+      "kit": "nature",
+      "model": "assets/props/nature/rock_smallA.glb",
+      "scale": 2.5,
+      "size": [
+        0.902,
+        0.478,
+        0.902
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_rock_tall_a",
+      "title": "Rock tall a",
+      "kit": "nature",
+      "model": "assets/props/nature/rock_tallA.glb",
+      "scale": 2.5,
+      "size": [
+        2.458,
+        2.49,
+        1.708
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_sign",
+      "title": "Sign",
+      "kit": "nature",
+      "model": "assets/props/nature/sign.glb",
+      "scale": 2.5,
+      "size": [
+        0.75,
+        1.022,
+        0.175
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.044
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_stone_large_a",
+      "title": "Stone large a",
+      "kit": "nature",
+      "model": "assets/props/nature/stone_largeA.glb",
+      "scale": 2.5,
+      "size": [
+        1.962,
+        0.649,
+        2.539
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_stone_small_a",
+      "title": "Stone small a",
+      "kit": "nature",
+      "model": "assets/props/nature/stone_smallA.glb",
+      "scale": 2.5,
+      "size": [
+        0.902,
+        0.478,
+        0.902
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_stump_old",
+      "title": "Stump old",
+      "kit": "nature",
+      "model": "assets/props/nature/stump_old.glb",
+      "scale": 2.5,
+      "size": [
+        0.891,
+        0.666,
+        0.928
+      ],
+      "offset": [
+        -0.044,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_stump_round",
+      "title": "Stump round",
+      "kit": "nature",
+      "model": "assets/props/nature/stump_round.glb",
+      "scale": 2.5,
+      "size": [
+        0.803,
+        0.516,
+        0.928
+      ],
+      "offset": [
+        0.0,
+        0.125,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_tree_cone",
+      "title": "Tree cone",
+      "kit": "nature",
+      "model": "assets/props/nature/tree_cone.glb",
+      "scale": 4.5,
+      "size": [
+        2.383,
+        6.436,
+        2.383
+      ],
+      "offset": [
+        0.0,
+        0.225,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_tree_default",
+      "title": "Tree default",
+      "kit": "nature",
+      "model": "assets/props/nature/tree_default.glb",
+      "scale": 4.5,
+      "size": [
+        3.398,
+        7.685,
+        2.942
+      ],
+      "offset": [
+        0.0,
+        0.225,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_tree_default_fall",
+      "title": "Tree default fall",
+      "kit": "nature",
+      "model": "assets/props/nature/tree_default_fall.glb",
+      "scale": 4.5,
+      "size": [
+        3.398,
+        7.685,
+        2.942
+      ],
+      "offset": [
+        0.0,
+        0.225,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_tree_detailed",
+      "title": "Tree detailed",
+      "kit": "nature",
+      "model": "assets/props/nature/tree_detailed.glb",
+      "scale": 4.5,
+      "size": [
+        3.812,
+        5.996,
+        3.427
+      ],
+      "offset": [
+        0.04,
+        0.225,
+        -0.039
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_tree_fat",
+      "title": "Tree fat",
+      "kit": "nature",
+      "model": "assets/props/nature/tree_fat.glb",
+      "scale": 4.5,
+      "size": [
+        3.398,
+        5.177,
+        2.942
+      ],
+      "offset": [
+        0.0,
+        0.225,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_tree_oak",
+      "title": "Tree oak",
+      "kit": "nature",
+      "model": "assets/props/nature/tree_oak.glb",
+      "scale": 4.5,
+      "size": [
+        2.882,
+        5.518,
+        3.328
+      ],
+      "offset": [
+        0.0,
+        0.225,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_tree_oak_fall",
+      "title": "Tree oak fall",
+      "kit": "nature",
+      "model": "assets/props/nature/tree_oak_fall.glb",
+      "scale": 4.5,
+      "size": [
+        2.882,
+        5.518,
+        3.328
+      ],
+      "offset": [
+        0.0,
+        0.225,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_tree_pine_round_a",
+      "title": "Round pine",
+      "kit": "nature",
+      "model": "assets/props/nature/tree_pineRoundA.glb",
+      "scale": 4.5,
+      "size": [
+        2.777,
+        6.149,
+        3.206
+      ],
+      "offset": [
+        0.0,
+        0.225,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_tree_pine_tall_a",
+      "title": "Tall pine",
+      "kit": "nature",
+      "model": "assets/props/nature/tree_pineTallA.glb",
+      "scale": 4.5,
+      "size": [
+        1.738,
+        6.883,
+        1.764
+      ],
+      "offset": [
+        -0.063,
+        0.225,
+        -0.009
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_tree_plateau",
+      "title": "Tree plateau",
+      "kit": "nature",
+      "model": "assets/props/nature/tree_plateau.glb",
+      "scale": 4.5,
+      "size": [
+        2.753,
+        5.622,
+        2.947
+      ],
+      "offset": [
+        0.1,
+        0.225,
+        -0.009
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_tree_simple",
+      "title": "Tree simple",
+      "kit": "nature",
+      "model": "assets/props/nature/tree_simple.glb",
+      "scale": 4.5,
+      "size": [
+        1.596,
+        6.837,
+        1.843
+      ],
+      "offset": [
+        0.0,
+        0.225,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_tree_small",
+      "title": "Tree small",
+      "kit": "nature",
+      "model": "assets/props/nature/tree_small.glb",
+      "scale": 4.5,
+      "size": [
+        1.596,
+        4.995,
+        1.843
+      ],
+      "offset": [
+        0.0,
+        0.225,
+        0.0
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_tree_tall",
+      "title": "Tree tall",
+      "kit": "nature",
+      "model": "assets/props/nature/tree_tall.glb",
+      "scale": 4.5,
+      "size": [
+        1.798,
+        7.595,
+        2.076
+      ],
+      "offset": [
+        0.0,
+        0.225,
+        0.0
+      ],
+      "disguise": true
+    }
+  ]
+}

@@ -1,0 +1,558 @@
+extends Node
+
+const HsCatalogue := preload("../game/hs_catalogue.gd")
+const HsConfig := preload("../game/hs_config.gd")
+const HsEvents := preload("../game/net/hs_events.gd")
+const HsGame := preload("../game/hs_game.gd")
+const HsMapDoc := preload("../game/hs_map_doc.gd")
+const HsNetBridge := preload("../game/net/hs_net_bridge.gd")
+const HsPlayer := preload("../game/hs_player.gd")
+
+## The real path minus the socket: two worlds, two managers, two bridges, two links with the
+## RPC replaced by a queue, so the codec, the seal, the snapshots, the prediction and the
+## reconciliation all run, in one process, in two physics worlds.
+##
+## [b]What this suite is for is the claims the game rests on over a wire.[/b] The blindfold is
+## true on the wire: a seeker's snapshots carry no hider while the hiders hide (`HsInterest`),
+## so a client that skipped drawing the black screen would still see nothing. A catch is the
+## server's and the client is told: the side, the flag, and a hold its own prediction applies
+## on exactly the ticks the server does, so a hider just caught is not predicted walking off
+## while the server holds them. The sight meter is its owner's and nobody else's. Then
+## everything else that crosses: the map document, the sides, a taunt, the result.
+##
+## Sections and checks are both counted; mg-smash-copter's notes say why the second matters.
+
+const SECTIONS := 11
+const CHECKS := 41
+
+const CLIENT_PEER := 7
+const SESSION := 42
+const SERVER_TICK_RATE := 64
+const CLIENT_ENGINE_TICK_RATE := 30
+const SNAPSHOT_RATE := 30
+const INPUT_LEAD := 3
+
+## Two open stretches of the practice house's kitchen floor, five metres apart.
+const KITCHEN_A := Vector3(3.0, 0.05, -3.0)
+const KITCHEN_B := Vector3(8.0, 0.05, -3.0)
+
+var _passed := 0
+var _failed := 0
+var _sections_entered := 0
+var _sections_finished := 0
+var _failures := PackedStringArray()
+
+var _server_game: HsGame = null
+var _client_game: HsGame = null
+var _server_net: DotNetManager = null
+var _client_net: DotNetManager = null
+var _server_bridge: HsNetBridge = null
+var _client_bridge: HsNetBridge = null
+var _stand_in: HsPlayer = null
+var _second: HsPlayer = null
+
+var _to_client: Array = []
+var _to_server: Array = []
+var _tick: int = 0
+
+## What the client was told, by kind, so a section can ask whether an event arrived.
+var _heard: Dictionary = {}
+
+
+func _ready() -> void:
+	DotLog.set_level(DotLog.Level.ERROR)
+	_run.call_deferred()
+
+
+func _run() -> void:
+	print("hideseek over the wire")
+	print("")
+
+	_test_the_codec()
+
+	if await _build():
+		await _test_a_client_joins()
+		await _test_the_map_arrives()
+		await _test_the_blindfold_is_on_the_wire()
+		await _test_the_local_player_is_predicted()
+		await _test_the_sight_meter_is_the_owners()
+		await _test_a_catch_crosses()
+		await _test_taunting()
+		await _test_the_round_ends()
+		await _test_leaving()
+
+	print("")
+	print("%d sections entered, %d finished" % [_sections_entered, _sections_finished])
+	print("%d passed, %d failed" % [_passed, _failed])
+
+	for line in _failures:
+		print("  FAIL  %s" % line)
+
+	var code := 1 if _failed > 0 else 0
+
+	if _sections_entered != _sections_finished or _sections_entered != SECTIONS:
+		print("ERROR: %d of %d sections finished, %d expected." % [
+			_sections_finished, _sections_entered, SECTIONS
+		])
+		code = 1
+
+	if _passed + _failed != CHECKS:
+		print("ERROR: %d checks ran, %d expected. A section aborted part-way." % [
+			_passed + _failed, CHECKS
+		])
+		code = 1
+
+	get_tree().quit(code)
+
+
+# --- The codec ------------------------------------------------------------------
+
+## Every encoder against its decoder. Nothing checks that two ends of a serialisation are
+## inverses for you: dot-moderation once wrote "voice muted" and read back a warning.
+func _test_the_codec() -> void:
+	_section("every event decodes to what was encoded")
+
+	var hello := HsEvents.read_hello(DotNetReader.new(HsEvents.write_hello(SESSION, 64, 1234, 40.0, 240.0, 2.0, 60.0)))
+	_check(bool(hello["ok"]) and int(hello["player_id"]) == SESSION
+		and absf(float(hello["round_seconds"]) - 240.0) < 0.1 and absf(float(hello["hide_seconds"]) - 40.0) < 0.05
+		and absf(float(hello["beacon_period"]) - 2.0) < 0.02 and absf(float(hello["taunt_range"]) - 60.0) < 0.2,
+		"HELLO", str(hello))
+
+	var doc := HsCatalogue.practice()
+	var sent := HsEvents.read_map(DotNetReader.new(HsEvents.write_map(HsMapDoc.encode(doc))))
+	var decoded := HsMapDoc.decode(sent["encoded"]) if bool(sent["ok"]) else DotResult.fail(DotError.CODE_PARSE, "no map")
+	_check(decoded.ok and HsMapDoc.digest(decoded.value) == HsMapDoc.digest(doc), "MAP carries the document whole")
+
+	var join := HsEvents.read_join(DotNetReader.new(HsEvents.write_join(SESSION, 9, "Ada", HsGame.SEEKERS, null)))
+	_check(bool(join["ok"]) and int(join["team"]) == HsGame.SEEKERS, "JOIN carries the side", str(join.get("team")))
+
+	var round_info := HsEvents.read_round(DotNetReader.new(HsEvents.write_round(3, false, HsGame.HIDERS, "time: 2 stayed hidden")))
+	_check(bool(round_info["ok"]) and int(round_info["winner"]) == HsGame.HIDERS
+		and str(round_info["why"]) == "time: 2 stayed hidden", "ROUND carries the winning side and the sentence")
+
+	var taunt := HsEvents.read_taunt(DotNetReader.new(HsEvents.write_taunt(SESSION, &"laugh", true)))
+	_check(bool(taunt["ok"]) and taunt["taunt_id"] == &"laugh" and bool(taunt["forced"]), "TAUNT", str(taunt))
+
+	var got := HsEvents.read_caught(DotNetReader.new(HsEvents.write_caught(SESSION, 900001, HsGame.CAUGHT_SIGHT)))
+	var fell := HsEvents.read_caught(DotNetReader.new(HsEvents.write_caught(SESSION, 0, HsGame.CAUGHT_FELL)))
+	_check(bool(got["ok"]) and int(got["by"]) == 900001 and got["how"] == HsGame.CAUGHT_SIGHT
+		and bool(fell["ok"]) and int(fell["by"]) == 0 and fell["how"] == HsGame.CAUGHT_FELL,
+		"CAUGHT carries who, by whom (or nobody) and how", "%s, %s" % [got, fell])
+
+	var asked := HsEvents.read_ask_taunt(DotNetReader.new(HsEvents.write_ask_taunt(&"whistle")))
+	_check(bool(asked["ok"]) and asked["taunt_id"] == &"whistle", "a taunt request")
+
+	var clock := HsEvents.read_clock(DotNetReader.new(HsEvents.write_clock(2, 12.5, 40.25, HsGame.Phase.SEEK, 3, 1, true)))
+	_check(bool(clock["ok"]) and int(clock["phase"]) == HsGame.Phase.SEEK
+		and absf(float(clock["seek_elapsed"]) - 40.25) < 0.1 and int(clock["hiders"]) == 3
+		and int(clock["seekers"]) == 1, "CLOCK", str(clock))
+	_finished()
+
+
+# --- Bringing both halves up ---------------------------------------------------------
+
+func _build() -> bool:
+	_section("bringing both halves up")
+	var failed_before := _failed
+
+	var server_side := Node.new()
+	server_side.name = "ServerSide"
+	add_child(server_side)
+
+	# The client's own physics space: two processes would be two worlds, and one world holding
+	# both copies of a map is two of every collider in the same cubic metres.
+	var client_view := SubViewport.new()
+	client_view.name = "ClientView"
+	client_view.own_world_3d = true
+	client_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(client_view)
+
+	var client_side := Node.new()
+	client_side.name = "ClientSide"
+	client_view.add_child(client_side)
+
+	_server_game = _make_game(true, server_side)
+	_client_game = _make_game(false, client_side)
+	await get_tree().process_frame
+
+	_check(_server_game.get_world_3d() != _client_game.get_world_3d(), "two physics worlds, as two processes would have")
+	_check(_client_game.map_doc.is_empty() and _client_game.catalogue == null,
+		"the client has no map and reads no map files; it will be sent one")
+
+	Engine.physics_ticks_per_second = CLIENT_ENGINE_TICK_RATE
+
+	_server_net = _make_manager(true, &"server", 1, server_side, SERVER_TICK_RATE)
+	_client_net = _make_manager(false, &"client", CLIENT_PEER, client_side, CLIENT_ENGINE_TICK_RATE)
+
+	_server_bridge = HsNetBridge.new()
+	_server_bridge.name = "Bridge"
+	server_side.add_child(_server_bridge)
+
+	_client_bridge = HsNetBridge.new()
+	_client_bridge.name = "Bridge"
+	client_side.add_child(_client_bridge)
+
+	var attached := _server_bridge.attach(_server_game, _server_net)
+	var client_attached := _client_bridge.attach(_client_game, _client_net)
+	_check(attached.ok and client_attached.ok, "both bridges attach")
+
+	_server_bridge.open_link(server_side)
+	_client_bridge.open_link(client_side)
+	_server_net.messages.seal()
+	_client_net.messages.seal()
+	_check(_server_net.messages.schema_hash() == _client_net.messages.schema_hash(), "both ends agree on the schema")
+
+	_server_bridge.link.loopback = _on_server_send
+	_client_bridge.link.loopback = _on_client_send
+	_client_bridge.rtt_source = func() -> float: return 40.0
+
+	var _s := _server_net.start()
+	var _c := _client_net.start()
+
+	_client_bridge.map_received.connect(func(id: StringName) -> void:
+		_heard["map"] = id)
+	_client_bridge.taunt_received.connect(func(who: int, taunt_id: StringName, forced: bool) -> void:
+		_heard["taunt"] = [who, taunt_id, forced])
+	_client_bridge.caught_received.connect(func(who: int, by: int, how: StringName) -> void:
+		_heard["caught"] = [who, by, how])
+	_client_bridge.round_changed.connect(func(n: int, began: bool, winner: int, why: String) -> void:
+		if not began:
+			_heard["round_over"] = [n, winner, why])
+
+	_stand_in = _server_bridge.add_bot("Stand-in")
+	_second = _server_bridge.add_bot("Second")
+	_check(_stand_in != null and _stand_in.is_bot and _second != null, "two stand-ins are seated before anybody joins")
+	# Seated as stand-ins, driven by the suite: a stand-in hides and seeks on its own, and this
+	# suite wants them where it puts them.
+	_stand_in.is_bot = false
+	_second.is_bot = false
+
+	# Started AFTER the bridge exists, which is what the module does: a map laid out before
+	# anything listened to `world_rebuilt` would be a map no client is ever sent.
+	_server_game.start()
+	_check(not _server_game.map_doc.is_empty(), "the server lays its map out on start")
+	_finished()
+	return _failed == failed_before
+
+
+func _test_a_client_joins() -> void:
+	_section("a client joins, and is told its side")
+	var seated := _server_bridge.add_player(CLIENT_PEER, SESSION, "Ada")
+	_check(seated.ok, "the server seats them")
+	_client_bridge.ask_ready()
+	_exchange()
+	_exchange()
+	await _steps(6)
+
+	_check(_client_bridge.local_player_id == SESSION, "the client is told who it is")
+	_check(_client_game.tick_rate == SERVER_TICK_RATE, "it adopts the server's tick rate", "%d" % _client_game.tick_rate)
+	_check(_client_game.players.size() == 3, "it has a body for itself and for both stand-ins", "%d" % _client_game.players.size())
+
+	await _hide_with(HsGame.SEEKERS)
+	_check(_client_game.team_of(_me()) == HsGame.SEEKERS and _client_game.team_of(_stand_in.player_id) == HsGame.HIDERS,
+		"the client knows who is seeking and who is hiding")
+	_check(_client_game.phase == HsGame.Phase.HIDE, "and that the hiders are hiding")
+	_finished()
+
+
+func _test_the_map_arrives() -> void:
+	_section("the map arrives, as the document the server built")
+	_check(not _client_game.map_doc.is_empty(), "the client built a map")
+	_check(HsMapDoc.digest(_client_game.map_doc) == HsMapDoc.digest(_server_game.map_doc),
+		"the same document, to the byte", HsMapDoc.digest(_client_game.map_doc))
+	_check(_client_game.map.props.size() == _server_game.map.props.size() and _client_game.map.props.size() > 0,
+		"every prop in it", "%d" % _client_game.map.props.size())
+	_check(_heard.has("map"), "and the client said so")
+	_finished()
+
+
+## The black screen is the HUD's; this is the wire's half of it.
+func _test_the_blindfold_is_on_the_wire() -> void:
+	_section("a seeker is told nothing about the hiders while they hide")
+	var copy: HsPlayer = _client_game.players[_stand_in.player_id]
+	var was := copy.global_position
+	_stand_in.place_at(Vector3(-3.0, 0.05, -2.0), 0.0)
+	await _steps(20)
+	_check(copy.global_position.distance_to(was) < 0.05 and copy.global_position.distance_to(_stand_in.global_position) > 1.0,
+		"the hider moved on the server and the seeker's copy did not",
+		"%.2f m from where it was" % copy.global_position.distance_to(was))
+
+	_server_game._set_phase(HsGame.Phase.SEEK)
+	await _steps(20)
+	_check(copy.global_position.distance_to(_stand_in.global_position) < 0.3,
+		"the moment the seekers are let go, the hider is where it is",
+		"%.2f m apart" % copy.global_position.distance_to(_stand_in.global_position))
+	_finished()
+
+
+func _test_the_local_player_is_predicted() -> void:
+	_section("a hider is predicted, and the server agrees")
+	await _hide_with(HsGame.HIDERS)
+	var mine := _mine()
+	var server_me := _server_me()
+	server_me.place_at(Vector3(-2.0, 0.05, 0.0), 0.0)
+	await _steps(20)
+	var before := mine.controller.state.position
+	var forward := DotFpsCommand.new()
+	forward.move = Vector2(0.0, 1.0)
+	await _step(forward)
+	_check(mine.controller.state.position.distance_to(before) > 0.01,
+		"a key moves the client's own player on the tick it is pressed")
+	await _steps(20, forward)
+	await _steps(24)
+	var apart := mine.controller.state.position.distance_to(server_me.controller.state.position)
+	_check(apart < 0.25, "and after running, the two ends agree", "%.3f m" % apart)
+	_finished()
+
+
+## Under the sight rule a hider's meter tells them they are being watched; it would tell a
+## seeker which way to look, so it goes to its owner alone.
+func _test_the_sight_meter_is_the_owners() -> void:
+	_section("the sight meter reaches the one being watched, and nobody else")
+	_server_game._set_phase(HsGame.Phase.SEEK)
+	_server_game.config.catch_mode = HsConfig.Catch.SIGHT
+	_server_game.config.sight_seconds = 30.0
+	var server_me := _server_me()
+	server_me.place_at(KITCHEN_A, 0.0)
+	_second.place_at(KITCHEN_A + Vector3(0.0, 0.0, 1.2), 0.0)
+	_stand_in.place_at(KITCHEN_B, 0.0)
+	_look(_stand_in, KITCHEN_A + Vector3(0.0, 1.2, 0.6))
+	await _steps(SERVER_TICK_RATE)
+	var theirs: HsPlayer = _client_game.players[_second.player_id]
+	_check(server_me.sight_meter > 0.01 and _mine().sight_meter > 0.01,
+		"a hider being watched is told how close they are", "%.3f on the server, %.3f here" % [server_me.sight_meter, _mine().sight_meter])
+	_check(_second.sight_meter > 0.01 and theirs.sight_meter == 0.0,
+		"and nobody else is told theirs", "%.3f on the server, %.3f here" % [_second.sight_meter, theirs.sight_meter])
+	_server_game.config.catch_mode = HsConfig.Catch.TOUCH
+	_finished()
+
+
+## The claim: a catch is the server's, and the client's own prediction holds a new seeker still
+## on the ticks the server does.
+func _test_a_catch_crosses() -> void:
+	_section("a catch is the server's, and the new seeker is held on both ends")
+	var server_me := _server_me()
+	var mine := _mine()
+	_stand_in.place_at(KITCHEN_B, 0.0)
+	await _steps(4)
+	var _c := _server_game.catch(_me(), _stand_in.player_id, HsGame.CAUGHT_TAG)
+	await _steps(6)
+	_check(_heard.has("caught") and int(_heard["caught"][0]) == SESSION
+		and int(_heard["caught"][1]) == HsNetBridge.session_of(_stand_in.player_id) and _heard["caught"][2] == HsGame.CAUGHT_TAG,
+		"the client is told who was caught, by whom and how", str(_heard.get("caught")))
+	_check(_client_game.team_of(_me()) == HsGame.SEEKERS, "and that it is a seeker now")
+	_check(mine.caught, "and that it was caught")
+
+	var before := mine.controller.state.position
+	var forward := DotFpsCommand.new()
+	forward.move = Vector2(0.0, 1.0)
+	await _steps(12, forward)
+	_check(mine.controller.state.position.distance_to(before) < 0.05,
+		"held: a key does not move the caught player's own prediction",
+		"%.3f m" % mine.controller.state.position.distance_to(before))
+
+	await _steps(SERVER_TICK_RATE, forward)
+	await _steps(24)
+	var apart := mine.controller.state.position.distance_to(server_me.controller.state.position)
+	_check(mine.controller.state.position.distance_to(before) > 1.0 and apart < 0.25,
+		"and let go together", "%.3f m moved, %.3f m apart" % [mine.controller.state.position.distance_to(before), apart])
+	_finished()
+
+
+func _test_taunting() -> void:
+	_section("a taunt is asked for, and the server's answer comes back")
+	await _hide_with(HsGame.HIDERS)
+	_server_game._set_phase(HsGame.Phase.SEEK)
+	await _steps(int(_server_game.config.taunt_cooldown * SERVER_TICK_RATE) + 4)
+	var server_me := _server_me()
+	var points := server_me.points
+	_client_bridge.ask_taunt()
+	await _steps(4)
+	_check(_heard.has("taunt") and int(_heard["taunt"][0]) == SESSION and not bool(_heard["taunt"][2]),
+		"a taunt is played, and everybody is told who and which", str(_heard.get("taunt")))
+	_check(server_me.points - points == _server_game.config.taunt_points, "and is paid for",
+		"+%d" % (server_me.points - points))
+	_finished()
+
+
+func _test_the_round_ends() -> void:
+	_section("the round ends, and the client is told who won and why")
+	var _a := _server_game.catch(_me(), _stand_in.player_id, HsGame.CAUGHT_TAG)
+	var _b := _server_game.catch(_second.player_id, _stand_in.player_id, HsGame.CAUGHT_TAG)
+	await _steps(6)
+	_check(_heard.has("round_over") and int(_heard["round_over"][1]) == HsGame.SEEKERS,
+		"the seekers won, and the client is told", str(_heard.get("round_over")))
+	_check(_heard.has("round_over") and str(_heard["round_over"][2]) != "", "with the server's own sentence",
+		str(_heard.get("round_over")))
+	_finished()
+
+
+func _test_leaving() -> void:
+	_section("leaving")
+	_server_bridge.remove_peer(CLIENT_PEER)
+	await _steps(4)
+	_check(not _server_game.players.has(_me()), "the server lets them go")
+	_check(_server_bridge.describe()["ready_peers"] == 0, "and stops talking to them")
+	_finished()
+
+
+## Turns a server-side stand-in to look at [param target], and keeps it looking.
+func _look(player: HsPlayer, target: Vector3) -> void:
+	var look := target - player.eye_position()
+	var command := DotFpsCommand.new()
+	command.yaw = rad_to_deg(atan2(-look.x, -look.z))
+	command.pitch = clampf(rad_to_deg(asin(clampf(look.normalized().y, -1.0, 1.0))), -89.0, 89.0)
+	player.controller.state.yaw = command.yaw
+	player.controller.state.pitch = command.pitch
+	player.controller.apply_command(command)
+
+# --- Helpers --------------------------------------------------------------------
+
+func _me() -> StringName:
+	return HsNetBridge.player_key(SESSION)
+
+
+func _mine() -> HsPlayer:
+	return _client_game.players.get(_me())
+
+
+func _server_me() -> HsPlayer:
+	return _server_game.players[_me()]
+
+
+## A command that looks from [param player]'s eye at [param target].
+func _aim_at(player: HsPlayer, target: Vector3) -> DotFpsCommand:
+	var look := target - player.eye_position()
+	var command := DotFpsCommand.new()
+	command.yaw = rad_to_deg(atan2(-look.x, -look.z))
+	command.pitch = clampf(rad_to_deg(asin(clampf(look.normalized().y, -1.0, 1.0))), -89.0, 89.0)
+	return command
+
+
+## Into a fresh round's hide, with the client on [param side], the stand-in on the other and
+## the second stand-in hiding, everybody put back where the round puts them.
+func _hide_with(side: int) -> void:
+	for _i in range(SERVER_TICK_RATE * 10):
+		if _server_game.phase == HsGame.Phase.HIDE:
+			break
+		await _step()
+
+	var other := HsGame.HIDERS if side == HsGame.SEEKERS else HsGame.SEEKERS
+	_server_game._set_side(_me(), side)
+	_server_game._set_side(_stand_in.player_id, other)
+	_server_game._set_side(_second.player_id, HsGame.HIDERS)
+	_server_game._set_phase(HsGame.Phase.HIDE)
+	_server_game._place_everybody()
+	_second.place_at(Vector3(-7.0, 0.05, 6.0), 0.0)
+	await _steps(8)
+
+
+func _make_game(server: bool, parent: Node) -> HsGame:
+	var config := HsConfig.new()
+	config.warmup_seconds = 0.0
+	config.intermission_seconds = 0.0
+	config.hide_seconds = 60.0
+	config.minimum_players = 0
+	config.keep_progress = false
+	config.auto_taunt_seconds = 0.0
+	config.map_ids = PackedStringArray(["hs_practice"])
+	config.caught_freeze_seconds = 1.0
+
+	var game := HsGame.new()
+	game.name = "World"
+	game.config = config
+	game.authoritative = server
+	game.tick_rate = SERVER_TICK_RATE if server else CLIENT_ENGINE_TICK_RATE
+	game.register_service = false
+	parent.add_child(game)
+	game.set_physics_process(false)
+	return game
+
+
+func _make_manager(server: bool, scope: StringName, peer_id: int, parent: Node, tick_rate: int) -> DotNetManager:
+	var manager := DotNetManager.new()
+	manager.name = "Server" if server else "Client"
+	manager.is_server = server
+	manager.local_peer_id = peer_id
+	manager.service_scope = scope
+	manager.auto_tick = false
+	manager.config_file = ""
+
+	var config := DotNetConfig.new()
+	config.tick_rate = tick_rate
+	config.snapshot_rate = SNAPSHOT_RATE
+	config.enable_prediction = true
+	config.enable_lag_compensation = false
+	config.max_entities_per_snapshot = 192
+	config.world_extent = HsGame.NET_WORLD_EXTENT
+	manager.config = config
+
+	parent.add_child(manager)
+	var _ready_now := manager.setup()
+	return manager
+
+
+func _on_server_send(method: StringName, peer_id: int, payload: PackedByteArray) -> void:
+	if peer_id != 0 and peer_id != CLIENT_PEER:
+		return
+
+	_to_client.append({"method": method, "payload": payload})
+
+
+func _on_client_send(method: StringName, _peer_id: int, payload: PackedByteArray) -> void:
+	_to_server.append({"method": method, "payload": payload})
+
+
+func _flush() -> void:
+	var to_client := _to_client.duplicate()
+	var to_server := _to_server.duplicate()
+	_to_client.clear()
+	_to_server.clear()
+
+	for entry in to_client:
+		_client_bridge.link.deliver(entry["method"], 1, entry["payload"])
+
+	for entry in to_server:
+		_server_bridge.link.deliver(entry["method"], CLIENT_PEER, entry["payload"])
+
+
+func _exchange() -> void:
+	_flush()
+	_flush()
+
+
+## One tick on both ends, with a real physics frame between them.
+func _step(command: DotFpsCommand = null) -> void:
+	_tick += 1
+	var _ticks := _client_net.clock.advance(1.0 / float(maxi(_client_game.tick_rate, 1)))
+	_server_bridge.server_tick(_tick)
+	_flush()
+	_client_bridge.client_tick(_tick + INPUT_LEAD, command if command != null else DotFpsCommand.new())
+	_flush()
+	await get_tree().physics_frame
+
+
+func _steps(count: int, command: DotFpsCommand = null) -> void:
+	for _i in range(count):
+		await _step(command)
+
+
+func _section(name: String) -> void:
+	_sections_entered += 1
+	print(name)
+
+
+func _finished() -> void:
+	_sections_finished += 1
+
+
+func _check(ok: bool, what: String, detail: String = "") -> void:
+	if ok:
+		_passed += 1
+		print("  ok    %s%s" % [what, "" if detail == "" else "  (%s)" % detail])
+		return
+
+	_failed += 1
+	var line := "%s%s" % [what, "" if detail == "" else "  (%s)" % detail]
+	_failures.append(line)
+	print("  FAIL  %s" % line)

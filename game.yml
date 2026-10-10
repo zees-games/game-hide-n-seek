@@ -1,0 +1,42 @@
+# This game's descriptor: what a server runs when it installs this repository's pack.
+#
+# It travels INSIDE the pack (dot-ci's package.sh --pack keeps it at the root), so a
+# server started with `TMC_GAMES=<owner>/<repo>` needs nothing but the content origin:
+# `./server install-games` fetches the pack, verifies it, and writes this file to
+# content/<repo>/game.yml, where an operator can then edit cvars and player counts.
+#
+# content_id, version and kind are STAMPED by the installer from the pack it verified --
+# the site addresses a pack as <site username>/<repo> and a re-sync publishes 1.2.0+r2,
+# neither of which this file can know. What is written here for them is a placeholder.
+#
+# Paths are relative to the pack's mount point, which is also this repository's root.
+
+content_id: gamemann/game-hide-n-seek
+version: 0.0.0
+kind: pack
+
+name: Hide & Seek
+max_players: 24
+
+scene: scenes/hs_server.tscn
+client_scene: game/hs.tscn
+module: game/hs_module.gd
+
+# No maps pack is named here. Which maps a server runs is the server owner's choice, made in
+# their deployment's map config (dot-server-deploy's cfg/content.yml, gamemann/hide-n-seek-maps
+# for the stock set); the module fetches what the server names. This game's own pack ships
+# only its built-in practice house.
+
+cvars:
+  hs_round_seconds: "240"
+  hs_hide_seconds: "40"
+  hs_players_per_seeker: "8"
+  hs_catch_mode: "0"
+  hs_bots: "1"
+  hs_min_players: "5"
+
+# This game's maps are small documents the server sends each client, so a host fetches the
+# map packs its server owner names BEFORE the game loads (into the server-only packs)
+# rather than on a map change: nobody is admitted to a server playing only the built-in map.
+metadata:
+  maps_delivery: server
