@@ -41,6 +41,12 @@ const CLIMBS := [
 	["hs_ship", Vector3(1.0, 2.05, 15.6), 0.0, 3.5, 3.1, "the gangway, from the quay onto the deck"],
 	["hs_ship", Vector3(-39.6, 3.25, 7.5), -90.0, 3.5, 6.3, "the aft stair, up to the sun deck"],
 	["hs_ship", Vector3(14.0, 6.45, 4.5), -90.0, 3.5, 9.3, "the stair to the bridge's roof"],
+	["hs_castle", Vector3(-34.2, 0.05, -29.1), 0.0, 2.0, 1.4, "the north-west tower's stair, from its door"],
+	["hs_castle", Vector3(29.0, 0.05, 7.6), 0.0, 4.5, 5.9, "the stair up the inside of the east wall to the walk"],
+	["hs_castle", Vector3(-10.4, 0.05, -18.6), 0.0, 2.5, 1.9, "the keep's stair, to its first landing"],
+	["hs_castle", Vector3(4.4, -3.45, -18.6), 180.0, 4.0, -0.1, "up from the dungeon into the great hall"],
+	["hs_castle", Vector3(-10.7, -3.45, 1.0), 180.0, 4.0, -0.1, "the tunnel's stair, up into the tack room"],
+	["hs_castle", Vector3(-40.2, -1.55, 0.0), 90.0, 2.0, -0.1, "the steps out of the moat"],
 ]
 
 ## A play tube in the park, running east from x -6 to 4: where to stand at its west mouth.
