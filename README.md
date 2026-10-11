@@ -24,7 +24,7 @@ The hiders win if any of them is still hidden when the clock runs out. The seeke
 
 Rounds start with few seekers: one for every eight players. By default the first hider caught is next round's seeker. Say **!seek** or **!hide** in chat to ask for a side. Somebody who joins while the seekers are out joins them. After a few rounds on a map, players vote for the next one (`!rtv`, `!nominate hs_manor`).
 
-There are twelve maps: a small practice house built into the game, and eleven from [hide-n-seek-maps](https://github.com/gamemann/hide-n-seek-maps):
+There are twelve maps: a small practice house built into the game, and eleven from [hide-n-seek-maps](https://github.com/zees-games/hide-n-seek-maps):
 
 | Map | What it is |
 | --- | --- |
@@ -140,7 +140,7 @@ Console commands:
 These come from [dot-moderation](https://github.com/modcommunity/dot-moderation): `noclip`, `freeze`, `speed`, `gravity`, `god`, `buddha`, `hp`, `slay`, `slap`, `rename`, the teleports, `blind` and `beacon`. `respawn` puts somebody back at their side's spawn. `give` and `strip` are turned off, because nobody here carries anything.
 
 ## Writing a map
-A map is a JSON file: the building as boxes, the furniture as props, the doors, the lights, and where each side starts. The maps are in [hide-n-seek-maps](https://github.com/gamemann/hide-n-seek-maps), whose `tools/build_maps.py` writes them (a wall with its doors and windows, a flight of stairs, a crawl space or a whole hedge maze is one line there). [`maps/README.md`](maps/README.md) describes the format. The server sends the map to each player when it changes, so players don't need the map files.
+A map is a JSON file: the building as boxes, the furniture as props, the doors, the lights, and where each side starts. The maps are in [hide-n-seek-maps](https://github.com/zees-games/hide-n-seek-maps), whose `tools/build_maps.py` writes them (a wall with its doors and windows, a flight of stairs, a crawl space or a whole hedge maze is one line there). [`maps/README.md`](maps/README.md) describes the format. The server sends the map to each player when it changes, so players don't need the map files.
 
 ## Testing
 
