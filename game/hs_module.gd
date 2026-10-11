@@ -183,6 +183,12 @@ func _game_load() -> DotResult:
 	# is ever told about. Invisible floors: a player stands on nothing and the server says they
 	# are fine.
 	var _delivered: int = await _add_delivered_maps(world)
+
+	# The vote was built above, before these arrived; read without them, its list held only
+	# the practice map and never opened a ballot. hs_reload refreshes it the same way.
+	if vote != null:
+		vote.refresh_maps()
+
 	world.start()
 
 	log_info("the map is up", world.describe())

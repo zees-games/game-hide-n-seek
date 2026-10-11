@@ -14,7 +14,7 @@ const HsPlayer := preload("../game/hs_player.gd")
 ## nothing but the stand-ins the module seats itself.
 
 const SECTIONS := 9
-const CHECKS := 46
+const CHECKS := 49
 
 const SERVER_DIR := "user://hs_dedicated"
 const PORT := 28931
@@ -353,6 +353,19 @@ func _test_the_map_vote() -> void:
 	game.call("_lay_out_map")
 	_check(StringName(str(game.map_doc.get("id", ""))) == choice and game.next_map_id == &"",
 		"and the next map laid is the one voted for, once", "%s / %s" % [game.map_doc.get("id", ""), game.next_map_id])
+
+	# Rock the vote, typed at the console as a player's !rtv reaches it. Under MANUAL the
+	# director opens nothing itself, a passed rtv included: it answered "Rocked. 1 of 1." and
+	# no ballot came. Past dot-vote's cooldown between two ballots, on the director alone so
+	# the map's own ballot timer does not open one first.
+	var laid := StringName(str(game.map_doc.get("id", "")))
+	_check(director.current_id() == laid and not director.is_voting(),
+		"the new map starts the vote over", "%s / %s" % [director.current_id(), laid])
+	vote.set("voters_fn", func() -> Array: return [&"console"])
+	director.advance(director.rules.vote_cooldown_sec + 0.1)
+	var rocked := _run_command("rtv")
+	vote.call("advance", 0.05)
+	_check(director.is_voting(), "and a passing rock-the-vote opens a ballot", str(rocked))
 	_finished()
 
 
@@ -389,6 +402,34 @@ func _test_a_reload_keeps_delivered_maps() -> void:
 		str(game.catalogue.maps.keys()))
 	_check(game.catalogue.maps.has(&"hs_practice"),
 		"beside the built-in one")
+
+	# The ballot sees them from boot, not only after a reload: _game_load builds the vote
+	# before the delivered maps arrive, and a list read then held only the practice map,
+	# which never opens a ballot. A module unloaded and loaded with the pack named is a boot
+	# (not module_reload, which reloads the script under the world's live instances). Every
+	# map for the length of this check, not only this suite's practice one, and the catalogue
+	# as a boot finds it: the world outlives the module and still holds the map from the
+	# hs_reload above, which a vote built at load would read without the fix.
+	var only := game.config.map_ids
+	game.config.map_ids = PackedStringArray()
+	var _builtin := game.catalogue.load_from(game.config.map_directory)
+	var reloaded := _run_command("module_unload hideseek")
+	reloaded.append_array(_run_command("module_load res://game/hs_module.gd"))
+	for _i in range(60):
+		await get_tree().process_frame
+
+		if _module() != null and _module().get("vote") != null:
+			break
+	var booted_vote: Node = _module().get("vote") if _module() != null else null
+	var booted_ids: Array = []
+
+	if booted_vote != null:
+		for choice: DotVoteChoice in (booted_vote.get("source") as DotVoteListSource).entries:
+			booted_ids.append(String(choice.id))
+
+	_check(booted_ids.has(String(id)), "and on the ballot of a module that boots with it named, unrefreshed",
+		"%s %s" % [reloaded, booted_ids])
+	game.config.map_ids = only
 
 	manager.set("_current", was)
 	var _second := _run_command("hs_reload")

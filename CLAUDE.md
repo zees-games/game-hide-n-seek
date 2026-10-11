@@ -49,6 +49,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - **Doors** ([doors](docs/doors.md)): state is `(open, since, flip)`; only a `DOOR` use is sent (and replayed to joiners); a client poses doors for its input tick before predicting; doors are static bodies on the world layer moved through `PhysicsServer3D`; a use is refused while anybody is in the panel's sweep; the use key is `BUTTON_USER_0` with the press made from the edge.
 - dot-combat's trace is set even though nothing shoots.
 - **Delivery**: no `class_name` in `game/`; every own `res://` path through `HsPaths.rebase()` where defined (see [mg-buses-from-hell's delivery.md](../mg-buses-from-hell/docs/delivery.md)). Maps are their own pack, named by the server owner's map config and fetched by `HsModule._add_delivered_maps`; the game's own pack carries only `hs_practice`. dot-server-deploy's `examples/hideseek_client` is the real-client check.
+- **The map vote** (`game/hs_vote.gd`, MANUAL, applied at a round's end): under MANUAL `HsVote` opens a passed rock-the-vote itself (dot-vote does not; `rtv_delay_sec` 0), and `_game_load` refreshes the map list after `_add_delivered_maps`. Without either, `!rtv` answers "Rocked. 1 of 1." and nothing opens, or a delivered server's ballot holds only the practice map and never opens. `examples/dedicated` arms both.
 - The catching rules depend on nothing of this game's; extract them to an addon once a second game wants them.
 
 ## Not yet done
