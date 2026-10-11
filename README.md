@@ -167,7 +167,7 @@ A map is a JSON file: the building as boxes, the furniture as props, the doors, 
 - Not yet tried in a browser.
 
 ## Credits
-The furniture is Kenney's Furniture Kit, the trees, plants and rocks his Nature Kit, the players his Blocky Characters, and the taunts come from his Voiceover Pack and Music Jingles ([kenney.nl](https://kenney.nl), CC0). The Nature Kit's colours are toned down when the game loads them. Floors, walls and every other surface are drawn in code. Each kit's licence is next to its files.
+The furniture is Kenney's Furniture Kit, the trees, plants and rocks his Nature Kit, the players his Blocky Characters, and the taunts come from his Voiceover Pack and Music Jingles ([kenney.nl](https://kenney.nl), CC0). The Nature Kit's colours are toned down when the game loads them. Floors, walls and roofs are his Prototype Textures under a pastel; the remaining surfaces (glass, boards, lockers, lines) are drawn in code. Each kit's licence is next to its files.
 
 ## License
 MIT. See [LICENSE](LICENSE). The Kenney art is CC0, which is public domain.

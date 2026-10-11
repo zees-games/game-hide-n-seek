@@ -17,8 +17,63 @@ extends RefCounted
 ##
 ## [b]A surface has a tint.[/b] A map document names a surface and may tint it, so one carpet
 ## is a blue classroom and a red library without a second texture.
+##
+## [b]The building is drawn in the family's look[/b] (game-arena's built-in maps): every
+## surface a room is built of (floors, walls, ceilings, roofs, the ground outside) is
+## Kenney's light prototype grid, or his tiles on a floor, under a pastel that says what it
+## is ([constant PASTELS]: peach wood, periwinkle carpet, coral brick, mint grass). The map's
+## tint still multiplies it, paled halfway to white, so a mapper's red library is a pink one.
+## The furniture is Kenney's and keeps its own colours, which is the point: against pale
+## rooms a chair that is a player is a coloured thing among coloured things, not a model
+## against a photograph. Surfaces that are things rather than rooms (glass, water, court
+## lines, boards, lockers, metal, fabric, lamps) keep their generated look.
+##
+## [b]The two textures are files, and the reason the rest are not does not bite them[/b]:
+## they are loaded by a path through [code]HsPaths.rebase[/code] (as the furniture models
+## are), never referenced by an imported material, and a checkout without them falls back
+## to the generated look rather than failing. Kenney's Prototype Textures 1.0, CC0;
+## `assets/kenney/prototype/License.txt` is his, unchanged.
+
+const HsPaths := preload("hs_paths.gd")
 
 const SIZE := 128
+
+## Where the grid and the tiles are; rebased, for a delivered pack.
+const GRID_PATH := "res://assets/kenney/prototype/grid.png"
+const TILES_PATH := "res://assets/kenney/prototype/tiles.png"
+
+## How much world one copy of either texture covers: 4 m, so a major line is 2 m and a faint
+## one 0.5 m, as on game-arena's maps.
+const GRID_METRES := 4.0
+
+## surface id -> `[pastel, floor]`: the colour of a building surface on the grid, and whether
+## it is a floor (Kenney's tiles) or a wall (the grid). A surface not here keeps its
+## generated pattern. Each pastel is light enough that a sunlit face does not clip and
+## distinct enough that "the coral wall", "the blue carpet" can be called out.
+const PASTELS := {
+	"wood_floor": [Color(0.98, 0.84, 0.70), true],
+	"parquet": [Color(0.98, 0.86, 0.72), true],
+	"gym": [Color(1.00, 0.92, 0.66), true],
+	"tile": [Color(0.92, 0.96, 0.98), true],
+	"tile_check": [Color(0.84, 0.94, 0.96), true],
+	"tile_small": [Color(0.88, 0.96, 1.00), true],
+	"carpet": [Color(0.76, 0.82, 1.00), true],
+	"concrete": [Color(0.90, 0.90, 0.95), true],
+	"sidewalk": [Color(0.92, 0.92, 0.94), true],
+	"asphalt": [Color(0.62, 0.64, 0.74), true],
+	"grass": [Color(0.70, 0.94, 0.68), true],
+	"dirt": [Color(0.92, 0.80, 0.66), true],
+	"sand": [Color(1.00, 0.93, 0.72), true],
+	"rubber": [Color(1.00, 0.70, 0.66), true],
+	"paint": [Color(0.98, 0.97, 0.94), false],
+	"plaster": [Color(0.97, 0.96, 1.00), false],
+	"ceiling": [Color(0.93, 0.93, 0.95), false],
+	"brick": [Color(1.00, 0.80, 0.74), false],
+	"stone": [Color(0.86, 0.86, 0.90), false],
+	"roof": [Color(0.74, 0.70, 0.88), false],
+	"wood": [Color(0.94, 0.80, 0.64), false],
+	"hedge": [Color(0.56, 0.84, 0.58), false],
+}
 
 ## id -> `{pattern, colours, metres, roughness, alpha, metallic}`. `metres` is how much world
 ## one tile of the texture covers.
@@ -84,6 +139,12 @@ static func material(id: String, tint: Color = Color.WHITE) -> StandardMaterial3
 	if _materials.has(key):
 		return _materials[key]
 
+	if PASTELS.has(id):
+		var grid := _pastel(id, tint)
+		if grid != null:
+			_materials[key] = grid
+			return grid
+
 	var spec: Dictionary = SURFACES[id]
 	var m := StandardMaterial3D.new()
 	var alpha := float(spec.get("alpha", 1.0))
@@ -108,6 +169,40 @@ static func material(id: String, tint: Color = Color.WHITE) -> StandardMaterial3
 
 	_materials[key] = m
 	return m
+
+
+## A building surface on Kenney's grid (or tiles), or null when the textures are not there.
+static func _pastel(id: String, tint: Color) -> StandardMaterial3D:
+	var entry: Array = PASTELS[id]
+	var texture := _kenney(TILES_PATH if bool(entry[1]) else GRID_PATH)
+	if texture == null:
+		return null
+
+	# The tint was chosen against the old, darker base colour, so it is paled halfway to
+	# white before it multiplies: at full strength a brick tint over a pastel was mud.
+	var pale := Color(minf(tint.r, 1.1), minf(tint.g, 1.1), minf(tint.b, 1.1)).lerp(Color.WHITE, 0.5)
+	var pastel: Color = entry[0]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(pastel.r * pale.r, pastel.g * pale.g, pastel.b * pale.b)
+	m.albedo_texture = texture
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	m.uv1_scale = Vector3.ONE / GRID_METRES
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.roughness = 0.85
+	m.metallic = 0.0
+	return m
+
+
+static func _kenney(path: String) -> Texture2D:
+	if _textures.has(path):
+		return _textures[path]
+	var at := HsPaths.rebase(path)
+	var loaded: Texture2D = null
+	if ResourceLoader.exists(at, "Texture2D"):
+		loaded = ResourceLoader.load(at, "Texture2D") as Texture2D
+	_textures[path] = loaded
+	return loaded
 
 
 ## The tiling texture for [param id].

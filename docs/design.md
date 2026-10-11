@@ -47,3 +47,11 @@ A stand-in hider runs to a spot beside a piece of furniture as far from the seek
 ## Weapons were taken out
 
 Prop hunt's weapon plumbing (zee-dot-weapons, `ARMED`, the input's slot) was removed rather than left idle. Seeker items found on a map, which the brief anticipates, would copy it back from mg-prop-hunt.
+
+## Colour and light
+
+The family's sunny look (game-arena's built-in maps), carried over from mg-prop-hunt, whose `ph_materials.gd` and `ph_map.gd` these files mirror.
+
+- **Every building surface** (floor, wall, ceiling, roof, the ground outside) is Kenney's light prototype grid, or his tiles on a floor, under a pastel per surface (`HsMaterials.PASTELS`: peach wood, periwinkle carpet, coral brick, mint grass, lavender roof), mapped in world space at 4 m a copy. A map's tint still multiplies it, paled halfway to white, because the tints were chosen against the old darker colours and at full strength turned a pastel to mud. Glass, water, court lines, boards, lockers, metal, fabric and lamps keep their generated look; furniture keeps Kenney's colours, so a hider crouched behind a sofa is beside a coloured thing in a pale room. The two textures load through `HsPaths.rebase` and fall back to the generated look when absent.
+- **Light is a dot-lighting document made from the map's `environment`** (`HsMap.light_document`): the map's sun angle and colour, its sky at the zenith and under the horizon, its horizon as fog from 120 m; brightness 380 times the square of `sun_energy`. The fill is a near-neutral pale grey at 1.4 times the map's `ambient_energy`: game-arena's pale cool fill at its flat 1.0 turned every room, which is lit by the fill and its lamps rather than the sun, into a lavender haze with nothing in shadow. Glow starts above white (the lamps), not at dot-lighting's 0.85, where a room of pale walls glowed milky.
+- **Compatibility** (this game's and the shell's renderer) divides the sun by 700 instead of 200 and takes the fill at 0.87 times the map's (`HsMap.light_profile`). Shadows stay on in the browser. Check a look change in both renderers.

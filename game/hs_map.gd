@@ -297,43 +297,94 @@ func _build_lights() -> void:
 		_drawn.add_child(omni)
 
 
+## The sky and the sun: a dot-lighting document made from the map's `environment`
+## ([method light_document]), so every map has the family's light (game-arena's built-in maps:
+## a warm sun with soft shadows, a pale cool fill, filmic tone map, glow) while keeping its
+## own sun angle, sun colour and sky: the woods are still golden hour and the office still
+## late afternoon.
 func _build_environment() -> void:
 	var env_doc: Dictionary = doc["environment"]
-	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = HsMapDoc.colour(env_doc["sky_top"])
-	sky_material.sky_horizon_color = HsMapDoc.colour(env_doc["sky_horizon"])
-	sky_material.ground_horizon_color = HsMapDoc.colour(env_doc["sky_horizon"]).darkened(0.2)
-	sky_material.ground_bottom_color = HsMapDoc.colour(env_doc["ground"])
+	var lighting := Node3D.new()
+	lighting.name = "Lighting"
+	add_child(lighting)
+	_sun = DotLightRig.apply(lighting, DotLightDocument.from_dictionary(light_document(env_doc)),
+		light_profile(float(env_doc["ambient_energy"])))
 
-	var sky := Sky.new()
-	sky.sky_material = sky_material
+	if _sun != null:
+		# The map's own angle, in Godot's degrees as the map document has always written it,
+		# rather than through dot-lighting's source convention.
+		_sun.rotation_degrees = Vector3(float(env_doc["sun_pitch"]), float(env_doc["sun_yaw"]), 0.0)
+		_sun.shadow_blur = 1.5
+		_sun.directional_shadow_max_distance = 60.0
 
-	var environment := Environment.new()
-	environment.background_mode = Environment.BG_SKY
-	environment.sky = sky
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = HsMapDoc.colour(env_doc["ambient"])
-	environment.ambient_light_energy = float(env_doc["ambient_energy"])
-	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	for node in lighting.get_children():
+		if node is WorldEnvironment:
+			_environment = node as WorldEnvironment
+			var sky := (node as WorldEnvironment).environment.sky
+			if sky != null and sky.sky_material is ProceduralSkyMaterial:
+				# The map's blue at the zenith (the rig draws it in the ambient colour, a grey
+				# chosen for the shade) and again under the horizon, where an overview used to
+				# see a dark void round the map.
+				var material := sky.sky_material as ProceduralSkyMaterial
+				material.sky_top_color = HsMapDoc.colour(env_doc["sky_top"])
+				material.ground_bottom_color = material.sky_top_color
 
-	if float(env_doc["fog"]) > 0.0:
-		environment.fog_enabled = true
-		environment.fog_density = float(env_doc["fog"])
-		environment.fog_light_color = HsMapDoc.colour(env_doc["sky_horizon"])
 
-	_environment = WorldEnvironment.new()
-	_environment.name = "Environment"
-	_environment.environment = environment
-	add_child(_environment)
+## The dot-lighting document a map's `environment` describes.
+##
+## Brightness is 380 (game-arena's daylight) times the square of the map's `sun_energy`, so a
+## map that asked for a dimmer sun still gets one. The ambient is the light in the shade, a
+## near-neutral pale grey whatever the map, at the map's strength ([method light_profile]):
+## game-arena's pale cool fill turned every room, which is lit mostly by the fill, a cold
+## lavender. The fog is the map's horizon from 120 m out
+## (source units, metres / 0.01905), so it hazes the distance and never a room; the map's
+## old `fog` density and `ambient` colour are no longer read.
+static func light_document(env_doc: Dictionary) -> Dictionary:
+	var sun := HsMapDoc.colour(env_doc["sun_colour"])
+	var horizon := HsMapDoc.colour(env_doc["sky_horizon"])
+	var energy := float(env_doc["sun_energy"])
+	return {
+		"sun": {
+			"colour": [sun.r, sun.g, sun.b],
+			"brightness": 380.0 * energy * energy,
+			"spread_degrees": 1.0,
+			"ambient_colour": [0.86, 0.86, 0.90],
+		},
+		"fog": {
+			"enabled": true,
+			"colour": [horizon.r, horizon.g, horizon.b],
+			"start": 6300.0,
+			"end": 40000.0,
+			"max_density": 0.4,
+		},
+	}
 
-	_sun = DirectionalLight3D.new()
-	_sun.name = "Sun"
-	_sun.rotation_degrees = Vector3(float(env_doc["sun_pitch"]), float(env_doc["sun_yaw"]), 0.0)
-	_sun.light_energy = float(env_doc["sun_energy"])
-	_sun.light_color = HsMapDoc.colour(env_doc["sun_colour"])
-	_sun.shadow_enabled = float(env_doc["sun_energy"]) > 0.05
-	_sun.directional_shadow_max_distance = 60.0
-	add_child(_sun)
+
+## What this machine draws of a map's light.
+##
+## [b]Shadows stay on in the browser[/b], unlike dot-lighting's `web()`: a prop's shadow is
+## part of what a hunter reads, and the boxes are batched into a few dozen meshes.
+## [b]The Compatibility renderer, which this game and the client shell use, has no headroom
+## above white[/b]: at Forward+'s numbers a sunlit pastel clips to white. So under
+## `gl_compatibility` the sun is divided by 700 instead of 200 and the fill is 0.62,
+## game-arena's numbers, checked here against a rendered frame in both renderers.
+##
+## [b]The fill is the map's `ambient_energy` times 1.4[/b] (times 0.87 under Compatibility,
+## arena's 1.0 : 0.62), not arena's flat 1.0: a room is lit by the fill and its lamps, not
+## the sun, and at arena's strength every room was one even haze with nothing in shadow,
+## which is where a prop hides.
+static func light_profile(ambient_energy: float = 0.5) -> DotLightProfile:
+	var p := DotLightProfile.web() if OS.has_feature("web") else DotLightProfile.high()
+	p.sun_shadows = true
+	p.sky_below_horizon = true
+	p.ambient_energy = ambient_energy * 1.4
+	# Glow only from what is brighter than white (the lamps), not from every pale wall: at
+	# dot-lighting's 0.85 a room of near-white pastels glowed into one milky veil.
+	p.glow_threshold = 1.0
+	if RenderingServer.get_current_rendering_method() == "gl_compatibility":
+		p.brightness_reference = 700.0
+		p.ambient_energy = ambient_energy * 0.87
+	return p
 
 
 # --- Asking ----------------------------------------------------------------
