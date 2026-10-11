@@ -40,6 +40,10 @@ A hider is their site avatar (dot-platform, `HsAvatars`) with the torso **painte
 
 Taunts are prop hunt's (`DotPropTaunts`): hiders only, from the seek on, forced after `auto_taunt_seconds` (60) within `auto_taunt_radius`. The beacon marks every hidden hider when `beacon_hiders_left` (1) are left or `beacon_seconds_left` (30) remain. Points: winning side 10, a catch 5, surviving 5, taunts. `HsProgress` keeps the stats (doors used among them) and the achievements.
 
+## The HUD's glance pieces are dot-ui's
+
+The clock is a `DotScoreStrip` with the hiders still hidden and the seekers as its two side plates, in the sides' colours, and "Hiders win in · <map>" under it (the blindfold's own clock uses `DotScoreStrip.clock_text`, so the two never disagree by a second). The door prompt under the crosshair is a `DotKeyPrompt`, "Open the toilet door" with the use key as bound drawn as a key; the sight meter sits under it, because a hider can have both up at once. The disc with the side's letter stays: nobody here has health, and the letter is the side. Colours from `HsHud.piece_theme()`. `tools/shot.sh --view=door` renders the prompt. Naming these classes makes the pack need a client shell with dot-ui API level 4; the derived `requires.json` asks for it and `headless_run` checks it.
+
 ## Bots
 
 A stand-in hider runs to a spot beside a piece of furniture as far from the seekers' start as a seeded draw allows and crouches there, and runs from any seeker within nine metres it can see. A stand-in seeker wanders from prop to prop and sprints at any hider it sees ahead. Bots open a shut door they walk into and leave open ones alone.

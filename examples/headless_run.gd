@@ -24,7 +24,7 @@ const HsProps := preload("../game/hs_props.gd")
 
 const SECTIONS := 20
 
-const CHECKS := 94
+const CHECKS := 97
 
 const TICK_RATE := 64
 const TICK := 1.0 / float(TICK_RATE)
@@ -609,6 +609,45 @@ func _test_the_client() -> void:
 	var hud: Node = client.get("hud")
 	_check(world.team_of(&"local") == HsGame.SEEKERS and bool(hud.call("is_blindfolded")),
 		"a seeker counting is blindfolded on their own screen")
+
+	# The clock is dot-ui's DotScoreStrip, the two sides still in it as its plates.
+	hud.call("_process", 0.0)
+	var strip: DotScoreStrip = hud.get("strip")
+	_check(
+		strip.clock == DotScoreStrip.clock_text(world.seconds_left()) and strip.sides
+		and strip.left_score == world.alive_on(HsGame.HIDERS) and strip.right_score == world.alive_on(HsGame.SEEKERS),
+		"the clock is DotScoreStrip's, with the hiders hidden and the seekers as its plates",
+		str(strip.describe())
+	)
+
+	# A hider a step in front of a door is prompted by DotKeyPrompt with the use key as bound.
+	# The seek first, which lets this seeker's blindfold hold go; then a hider.
+	world._set_phase(HsGame.Phase.SEEK)
+	world._set_side(&"local", HsGame.HIDERS)
+	var me: HsPlayer = client.get("player")
+	var frame := (world.map.doors.doors[0]["body"] as Node3D).global_transform
+	var size := HsMapDoc.v3((world.map.doors.doors[0]["spec"] as Dictionary)["size"])
+	var normal := frame.basis.z.normalized()
+	me.place_at(frame.origin + normal * 1.3 - Vector3(0.0, size.y * 0.5, 0.0), rad_to_deg(atan2(normal.x, normal.z)))
+	for i in 4:
+		await get_tree().process_frame
+	hud.call("_process", 0.0)
+	var prompt: DotKeyPrompt = hud.get("prompt")
+	var bound := str(client.call("_key", &"hs_use"))
+	_check(
+		prompt.visible and (prompt.words.begins_with("Open") or prompt.words.begins_with("Shut"))
+		and prompt.key == bound and bound != "",
+		"at a door, DotKeyPrompt names it with the use key as bound", prompt.text()
+	)
+
+	# A pack naming these classes does not parse on a shell whose dot-ui predates them, so
+	# the requires.json dot-ci derives must ask for dot-ui 4, and nothing may lower it.
+	var asks := DotAddonApi.derive()
+	_check(
+		int(asks.get("dot_ui", 0)) >= 4 and not FileAccess.file_exists("res://" + DotAddonApi.FLOOR_FILE),
+		"the pack asks a shell for dot-ui level 4, the glance pieces",
+		str(asks.get("dot_ui"))
+	)
 
 	remove_child(client)
 	client.free()

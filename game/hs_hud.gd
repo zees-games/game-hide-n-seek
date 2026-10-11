@@ -17,6 +17,12 @@ const HsController := preload("hs_controller.gd")
 ## server owns (see [HsController]), and the server tells them nothing about where anybody
 ## went (see [HsInterest]).
 ##
+## [b]The clock and the door prompt are dot-ui's glance pieces.[/b] The clock is a
+## [DotScoreStrip] with the hiders still hidden and the seekers as its two side plates, in the
+## sides' colours; the door prompt is a [DotKeyPrompt] under the crosshair with the use key
+## drawn as a key. The disc stays: it says which side you are on with a letter, and nobody in
+## this game has health.
+##
 ## [b]The keys are read from the bindings, not written here.[/b] The hints in the corner say
 ## the key each action is on NOW, from the same table the menu's Controls page edits, so a
 ## rebound key is never a hint that lies.
@@ -27,6 +33,25 @@ const BLIND_COLOUR := Color(0.01, 0.01, 0.015)
 ## The blindfold is not quite black: a seeker should be able to tell it from a client that
 ## stopped drawing.
 const BLINDFOLD_COLOUR := Color(0.03, 0.025, 0.04)
+
+## Seconds left at which the clock turns red.
+const LOW_CLOCK_SEC := 10.0
+
+## The map name's pale blue, which is also the glance pieces' highlight.
+const MAP_COLOUR := Color(0.80, 0.88, 0.98)
+
+
+## The glance pieces' colours in this game's palette: a dark slate plate that holds over pastel
+## rooms, a bright park and the blindfold alike, the map name's pale blue as highlight. Static
+## so a render tool can use it.
+static func piece_theme() -> Theme:
+	var t := Theme.new()
+	var type := DotHudPiece.THEME_TYPE
+	t.set_color(&"plate", type, Color(0.07, 0.08, 0.13, 0.64))
+	t.set_color(&"plate_edge", type, Color(MAP_COLOUR, 0.3))
+	t.set_color(&"highlight", type, MAP_COLOUR)
+	t.set_color(&"low", type, Color(1.0, 0.35, 0.3))
+	return t
 
 var game: HsGame = null
 var player: HsPlayer = null
@@ -44,9 +69,11 @@ var blind_overlay: ColorRect = null
 var blindfold: ColorRect = null
 
 var _root: Control = null
-var _clock: Label = null
-var _clock_caption: Label = null
-var _map: Label = null
+## The clock, the hiders hidden and the seekers either side of it, and the caption and map
+## name under it.
+var strip: DotScoreStrip = null
+## "Open the pantry door" with the use key drawn as a key, while one is in reach.
+var prompt: DotKeyPrompt = null
 var _shout: Label = null
 var _hints: Label = null
 var _disc: Panel = null
@@ -56,13 +83,11 @@ var _lock: Label = null
 var _seen_back: ColorRect = null
 var _seen_fill: ColorRect = null
 var _seen_label: Label = null
-var _field: Label = null
 var _meter_back: ColorRect = null
 var _meter_fill: ColorRect = null
 var _meter_label: Label = null
 var _blindfold_label: Label = null
 var _crosshair: ColorRect = null
-var _door_prompt: Label = null
 var _shout_for: float = 0.0
 
 
@@ -95,24 +120,18 @@ func _build() -> void:
 	_blindfold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_blindfold_label.add_theme_color_override("font_color", Color(0.98, 0.78, 0.45))
 
-	_clock_caption = _label(18)
-	_clock_caption.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_clock_caption.offset_top = 12.0
-	_clock_caption.offset_bottom = 36.0
-	_clock_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# The glance pieces read their colours from the theme on the type DotHudPiece; set on
+	# the root, every piece under it inherits them. See [method piece_theme].
+	_root.theme = piece_theme()
 
-	_clock = _label(34)
-	_clock.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_clock.offset_top = 34.0
-	_clock.offset_bottom = 78.0
-	_clock.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-
-	_map = _label(15)
-	_map.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_map.offset_top = 78.0
-	_map.offset_bottom = 100.0
-	_map.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_map.add_theme_color_override("font_color", Color(0.80, 0.88, 0.98))
+	# Top centre, full width because the strip centres itself on its own middle. Its plates
+	# span 388 pixels round the middle, clear of the key hints top left at 1280 x 720.
+	strip = DotScoreStrip.new()
+	strip.name = "Clock"
+	strip.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	strip.offset_top = 14.0
+	strip.offset_bottom = 94.0
+	_root.add_child(strip)
 
 	# Top left: the keys this side has, as the player has them bound.
 	_hints = _label(15)
@@ -182,8 +201,8 @@ func _build() -> void:
 	_seen_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	_seen_label.offset_left = -200.0
 	_seen_label.offset_right = 200.0
-	_seen_label.offset_top = 44.0
-	_seen_label.offset_bottom = 66.0
+	_seen_label.offset_top = 68.0
+	_seen_label.offset_bottom = 90.0
 	_seen_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_seen_label.add_theme_color_override("font_color", Color(1.0, 0.72, 0.5))
 	_meter_label = _label(13)
@@ -192,14 +211,6 @@ func _build() -> void:
 	_meter_label.offset_right = 420.0
 	_meter_label.offset_top = -256.0
 	_meter_label.offset_bottom = -236.0
-
-	_field = _label(18)
-	_field.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	_field.offset_left = -460.0
-	_field.offset_right = -24.0
-	_field.offset_top = -64.0
-	_field.offset_bottom = -26.0
-	_field.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
 	watching_label = _label(20)
 	watching_label.name = "Watching"
@@ -212,15 +223,16 @@ func _build() -> void:
 	watching_label.add_theme_color_override("font_color", Color(0.80, 0.90, 1.0))
 
 	# What the use key would do, under the crosshair while a door is in reach.
-	_door_prompt = _label(15)
-	_door_prompt.name = "DoorPrompt"
-	_door_prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	_door_prompt.offset_left = -200.0
-	_door_prompt.offset_right = 200.0
-	_door_prompt.offset_top = 16.0
-	_door_prompt.offset_bottom = 38.0
-	_door_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_door_prompt.add_theme_color_override("font_color", Color(0.92, 0.94, 1.0, 0.9))
+	prompt = DotKeyPrompt.new()
+	prompt.name = "DoorPrompt"
+	prompt.font_size = 15
+	prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	prompt.offset_left = -240.0
+	prompt.offset_right = 240.0
+	prompt.offset_top = 14.0
+	prompt.offset_bottom = 46.0
+	prompt.visible = false
+	_root.add_child(prompt)
 
 	_crosshair = ColorRect.new()
 	_crosshair.name = "Crosshair"
@@ -266,8 +278,9 @@ func _centre_bar(colour: Color) -> ColorRect:
 	rect.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	rect.offset_left = -120.0
 	rect.offset_right = 120.0
-	rect.offset_top = 30.0
-	rect.offset_bottom = 40.0
+	# Under the door prompt's plate (14 to 46), which a hider can have up at the same time.
+	rect.offset_top = 54.0
+	rect.offset_bottom = 64.0
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rect.visible = false
 	_root.add_child(rect)
@@ -308,20 +321,29 @@ func _process(delta: float) -> void:
 	var side := game.team_of(player.player_id) if player != null else 0
 	var left := game.seconds_left()
 
+	var caption := ""
 	match game.phase:
 		HsGame.Phase.HIDE:
-			_clock_caption.text = "Seekers released in"
+			caption = "Seekers released in"
 		HsGame.Phase.SEEK:
-			_clock_caption.text = "Hiders win in" if game.config.timeout_winner == HsGame.HIDERS else "Time left"
+			caption = "Hiders win in" if game.config.timeout_winner == HsGame.HIDERS else "Time left"
 		_:
-			_clock_caption.text = "waiting for players" if not game.sides_are_playable() else "between rounds"
+			caption = "waiting for players" if not game.sides_are_playable() else "between rounds"
 
-	_clock.text = "%d:%02d" % [int(left) / 60, int(left) % 60] if game.phase != HsGame.Phase.IDLE else ""
-	_map.text = str(game.map_doc.get("name", ""))
-	var hiders_left := game.alive_on(HsGame.HIDERS)
-	var seekers_left := game.alive_on(HsGame.SEEKERS)
-	_field.text = "%d %s hidden  ·  %d %s" % [hiders_left, "hider" if hiders_left == 1 else "hiders",
-		seekers_left, "seeker" if seekers_left == 1 else "seekers"] if game.phase != HsGame.Phase.IDLE else ""
+	# The caption under the clock rather than over it, as the strip draws every game's: it
+	# reads "Hiders win in · Pinecrest Park".
+	var running := game.phase != HsGame.Phase.IDLE
+	strip.show_clock(
+		DotScoreStrip.clock_text(left) if running else "", running and left <= LOW_CLOCK_SEC,
+		caption, str(game.map_doc.get("name", ""))
+	)
+	if running:
+		strip.show_scores(
+			game.alive_on(HsGame.HIDERS), game.alive_on(HsGame.SEEKERS), "HIDDEN", "SEEKERS",
+			game.side_colour(HsGame.HIDERS), game.side_colour(HsGame.SEEKERS)
+		)
+	else:
+		strip.hide_scores()
 
 	_draw_disc(side)
 	_draw_hints(side)
@@ -419,24 +441,32 @@ func _draw_seen(side: int) -> void:
 	_seen_label.text = "YOU'RE BEING WATCHED"
 
 
-## "E  Open the pantry door", while one is in reach and the key would do something.
+## "Open the pantry door  [E]", while one is in reach and the key would do something.
 func _draw_door_prompt() -> void:
-	_door_prompt.text = ""
+	var words := _door_words()
 
+	if words == "":
+		prompt.clear()
+	else:
+		prompt.show_prompt(words, _key(HsBindings.USE))
+
+
+## "Open the pantry door", or empty while no door in reach would do anything.
+func _door_words() -> String:
 	if player == null or not player.is_alive() or player.watching or is_blindfolded() \
 			or game.map == null or game.map.doors == null or not game.config.doors_enabled \
 			or player.controller.has_modifier(HsController.HOLD):
-		return
+		return ""
 
 	var doors := game.map.doors
 	var index := doors.door_for(player.eye_position(), player.aim_direction())
 
 	if index < 0:
-		return
+		return ""
 
 	var name := str((doors.doors[index]["spec"] as Dictionary)["name"])
 	var what := "Shut" if doors.is_open(index) else "Open"
-	_door_prompt.text = "%s  %s%s" % [_key(HsBindings.USE), what, " the " + name if name != "" else ""]
+	return "%s%s" % [what, " the " + name if name != "" else ""]
 
 
 func _key(action: StringName) -> String:
@@ -460,7 +490,9 @@ func present_blind(delta: float) -> void:
 
 		if folded and game != null:
 			var left := game.seconds_left()
-			_blindfold_label.text = "Counting while they hide\n%d:%02d" % [int(left) / 60, int(left) % 60]
+			# The strip's own words, so the two clocks on a seeker's screen never disagree by
+			# the second one rounds down and the other up.
+			_blindfold_label.text = "Counting while they hide\n%s" % DotScoreStrip.clock_text(left)
 
 
 func is_blind() -> bool:

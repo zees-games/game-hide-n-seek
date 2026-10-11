@@ -95,6 +95,16 @@ func _run() -> void:
 			if _at != Vector3.INF:
 				local.place_at(_at, 0.0)
 			await _seconds_of(_seconds)
+		"door":
+			# A hider a step in front of the first door, facing it through their own camera, so
+			# the prompt is the one the client draws for that aim.
+			game._set_phase(HsGame.Phase.SEEK)
+			var frame := (game.map.doors.doors[0]["body"] as Node3D).global_transform
+			var size := HsMapDoc.v3((game.map.doors.doors[0]["spec"] as Dictionary)["size"])
+			var normal := frame.basis.z.normalized()
+			var feet := frame.origin + normal * 1.3 - Vector3(0.0, size.y * 0.5, 0.0)
+			local.place_at(feet, rad_to_deg(atan2(normal.x, normal.z)))
+			await _seconds_of(maxf(_seconds, 1.0))
 		"caught":
 			game._set_phase(HsGame.Phase.SEEK)
 			if _at != Vector3.INF:

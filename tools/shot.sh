@@ -6,6 +6,7 @@
 #   tools/shot.sh --view=seeker                                   # a seeker's eyes, seeking
 #   tools/shot.sh --view=hider --third                            # a hider from behind, in blue
 #   tools/shot.sh --view=caught                                   # the moment a hider is caught
+#   tools/shot.sh --view=door                                     # a hider at a door: the use-key prompt
 #   tools/shot.sh --view=blind                                    # a seeker while the hiders hide
 #   tools/shot.sh --view=seeker --board                           # with the Tab scoreboard open
 #   tools/shot.sh --view=room --doors=open --at=... --look=...    # every door open (or shut)
