@@ -164,6 +164,17 @@ func _game_load() -> DotResult:
 	_add_tunables(world)
 	_build_vote(world)
 
+	# dot-player-controller's mp_forceview (first or third person: the player's choice, or one
+	# held) and mp_solidplayers (players and stand-ins block each other, 1 by default).
+	# REPLICATED: the client places its own camera under the first and predicts its own
+	# player under the second.
+	var _views := world.view_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	)
+	var _bodies := world.body_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	)
+
 	_bots = add_cvar(
 		"hs_bots", "1",
 		"Automatic stand-ins: 1 keeps as many as bot_quota and bot_quota_mode say, 0 none at all."

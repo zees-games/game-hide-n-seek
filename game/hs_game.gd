@@ -127,6 +127,20 @@ var taunts: DotPropTaunts = null
 ## player id -> HsPlayer.
 var players: Dictionary = {}
 
+## dot-player-controller's `mp_forceview` (may a player switch to third person) and
+## `mp_solidplayers` (do players and stand-ins block each other). Bound by the module
+## (REPLICATED) and followed by a client through its link.
+var view_rules: DotPlayerViewRules = DotPlayerViewRules.new()
+var body_rules: DotPlayerBodyRules = DotPlayerBodyRules.new()
+
+
+func _init() -> void:
+	# This game's pick: people pass through people (see `_build_physics`). Measured, not
+	# assumed: with bodies solid, headless_bots' stand-in hiders lost 6 rounds of 6, crowded
+	# out of their spots. The camera fade keeps a body that walks through you out of the lens;
+	# an owner who wants bodies sets `mp_solidplayers 1`.
+	body_rules.solid = false
+
 ## player id -> side.
 var sides: Dictionary = {}
 
@@ -191,6 +205,8 @@ func _ready() -> void:
 	_round_seed = config.seed_value
 
 	_build_physics()
+	if not body_rules.changed.is_connected(_on_body_rules_changed):
+		body_rules.changed.connect(_on_body_rules_changed)
 	_apply_gravity()
 	_build_random()
 	_build_props()
@@ -222,12 +238,33 @@ func _exit_tree() -> void:
 
 # --- Building ---------------------------------------------------------------
 
+## The player's motor mask under `mp_solidplayers`, and the standing hull the others stop at
+## (a player's body has no shape of its own). With the rule on, a stand-in stops at your
+## shoulder instead of walking into your camera (the first play test, 1:37 and 2:20).
+func _apply_body_mask(player: HsPlayer) -> void:
+	if physics == null or player == null or player.controller == null:
+		return
+	body_rules.apply_to(player.controller, physics.collision_mask(&"player"), physics.layer_mask(&"player"))
+	var tunables := player.controller.tunables
+	body_rules.apply_hull(player, tunables.stand_height, tunables.radius)
+
+
+## `mp_solidplayers` changed: every player's mask and hull now.
+func _on_body_rules_changed() -> void:
+	for id in players:
+		_apply_body_mask(players[id] as HsPlayer)
+
+
 ## Three layers: the building, the people, and the furniture.
 ##
-## [b]People do not collide with people.[/b] Two players shoving is a race decided by who
-## walked into whom, drawn in the past on every client; a hider who could be pinned in a
-## corner by a seeker's body, or block a doorway with their own, would be playing a different
-## game. A touch is a distance the server measures, so nothing is lost by walking through.
+## [b]People do not collide with people in the layout.[/b] Two players shoving is a race
+## decided by who walked into whom, drawn in the past on every client; a hider who could be
+## pinned in a corner by a seeker's body, or block a doorway with their own, would be
+## playing a different game. So `mp_solidplayers` is 0 here by default (`_init`); the first
+## play test's stand-in walking into the camera is handled by the camera fade, which hides a
+## body at the lens. An owner who sets 1 gets each player's motor mask and hull; a touch is a
+## distance the server measures (`tag_range` 1.2 m, past the 0.7 m two bodies keep), so
+## tagging works either way.
 func _build_physics() -> void:
 	physics = DotPhysicsLayout.custom(&"hideseek", [&"world", &"player", &"prop"])
 
@@ -491,7 +528,7 @@ func add_player(
 		if not applied.ok:
 			DotLog.warn(CHANNEL, "a player could not be put on its collision layer", {"why": applied.error.message})
 
-		player.controller.set_collision_mask(physics.collision_mask(&"player"))
+		_apply_body_mask(player)
 
 	var opened := entities.open(
 		DotEntity.KIND_PLAYER, player, &"", player_id, float(_tick) / float(maxi(tick_rate, 1))

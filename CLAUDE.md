@@ -37,6 +37,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - `./game.sh` plays offline; `./game.sh online` runs a local server and browser client; `./game.sh test` parses and runs all six suites. After a map change, `python3 ../hide-n-seek-maps/tools/build_maps.py --check`.
 - `headless_maps` swings every door and walks every doorway; `headless_climb` walks every stairway and a tube. Both need `maps/` linked, and say so when it is not; `headless_climb`'s garden (a tree's branches, a table's legs) needs nothing. [testing](docs/testing.md)
 - After adding a model or changing a kit's scale, `godot --headless --path . --script tools/measure_props.gd` (about two minutes: it decomposes every model) rewrites both `props/` files; `-- --check` compares them.
+- After touching a camera, the view key or player collision: `tools/camera_check.sh` (cameras round the house, armed; `--render` for frames). [design](docs/design.md#cameras-and-bodies)
 - **Render after touching what anyone sees** (`tools/shot.sh`); the shirt colour, HUD overlaps, fog and floor striping were only found in a picture.
 
 ## Rules
