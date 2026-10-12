@@ -48,13 +48,44 @@ const SURVEY_POINTS := 260
 const SURVEY_PROPS := 160
 const WATCHERS := 80
 
-## A seeker this close and looking this way sends a hider running; one about to walk into it
-## (half this), creeping away.
-const RUN_FROM := 8.0
-const CREEP_FROM := 5.0
+## A seeker this near, walking straight at the hider without having seen it, is coming to its
+## place. Out of the hider's sight line it slips away low; in it, the hider keeps still, because
+## moving is what the seeker would see. One passing any other way is let pass.
+const COMING_FROM := 12.0
+const COMING_CONE := 30.0
+
+## Where a running hider goes: out of the seeker's sight, at least this far from it, at most
+## this far from where it was.
+const FLEE_CLEAR := 12.0
+const FLEE_WITHIN := 30.0
+
+## A seeker this close is about to walk into the hider whatever it has seen: run.
+const BUMP_FROM := 2.4
+
+## How far past a doorway a body is clear of the panel's swing (a door is at most about a
+## metre wide), before it turns to shut it.
+const DOOR_CLEAR := 1.4
+
+## How far off, as a share of `bot_sight`, somebody keeping still and crouched is made out, and
+## then only whole (head and chest): a head over a sofa's back is passed over. 10 m at medium.
+## It was 0.25 with either showing, and a seeker that walked the hidden places found nearly
+## everybody (`headless_bots`: 4% of hiders left at medium).
+const STILL_LOW_SIGHT := 0.18
+
+## Metres from the eye within which somebody is felt whichever way the bot faces: an arm's
+## length, about, past the touch's reach.
+const FELT_WITHIN := 2.0
+
+## How fast a seeker searches, as a share of a run: a walk, looking (2.1 m/s). Chasing is a sprint.
+## At a run the seekers searched the hidden places of a house in a minute, and a round with one
+## seeker was over long before its clock.
+const SEARCH_PACE := 0.35
 
 ## Seconds a hider waits after a move before it may move again for the same seeker.
 const SETTLE := 2.5
+
+## The same for a hider the beacon is giving away, which keeps moving.
+const MARKED_SETTLE := 1.0
 
 var game: Node = null
 
@@ -73,6 +104,9 @@ var _state: Dictionary = {}
 
 ## Sounds this tick and the last second: `[{at, loud, by, side, t}]`.
 var _sounds: Array[Dictionary] = []
+
+## Doors stand-ins have shut behind them this round, for the suite.
+var doors_shut: int = 0
 
 ## How long the last survey took, milliseconds.
 var survey_ms: float = 0.0
@@ -98,6 +132,7 @@ func dt() -> float:
 func reset() -> void:
 	_state.clear()
 	_sounds.clear()
+	doors_shut = 0
 
 
 func forget(player_id: StringName) -> void:
@@ -238,7 +273,12 @@ func drive() -> void:
 
 		_step_round_people(player, command, players)
 		player.controller.apply_command(command)
-		player.wants_use = _wants_door(player, command)
+		# Pressed and let go on alternate ticks, so the game sees an edge each time.
+		if bool(_state_of(player).get("use_now", false)):
+			_state_of(player)["use_now"] = false
+			player.wants_use = not player.wants_use
+		else:
+			player.wants_use = _wants_door(player, command)
 
 	# Sounds older than a second are gone.
 	var t := now()
@@ -306,15 +346,16 @@ func _heard(player: HsPlayer, side: int) -> Dictionary:
 
 ## Whether [param player] sees [param other]'s head or chest with its own eyes and settings.
 ## Movement draws the eye: somebody keeping still, or creeping crouched, is noticed at half
-## `bot_sight`, and keeping still crouched at a quarter, which is how a person in a corner gets
-## passed by.
+## `bot_sight`, and keeping still crouched only at [constant STILL_LOW_SIGHT] of it and only
+## whole, which is how a person in a corner gets passed by.
 func _sees(player: HsPlayer, other: HsPlayer) -> bool:
 	var profile := settings().profile
 	var sight := profile.sight
 	var v := other.controller.state.velocity
 	var crouched := other.controller.state.crouch_fraction > 0.5
+	var still_low := Vector2(v.x, v.z).length() < 0.5 and crouched
 	if Vector2(v.x, v.z).length() < 0.5:
-		sight *= 0.25 if crouched else 0.5
+		sight *= STILL_LOW_SIGHT if crouched else 0.5
 	elif crouched:
 		# Creeping draws the eye less than walking.
 		sight *= 0.5
@@ -322,11 +363,16 @@ func _sees(player: HsPlayer, other: HsPlayer) -> bool:
 	var forward := DotBotAim.direction(player.controller.state.yaw, player.controller.state.pitch)
 	var head := other.eye_position()
 	var chest := other.controller.state.position + Vector3(0.0, 0.6, 0.0)
-	# Within two metres a person is felt whichever way they face.
-	if eye.distance_to(chest) < 2.0 and _los(eye, chest):
+	# At arm's length a person is felt whichever way they face.
+	if eye.distance_to(chest) < FELT_WITHIN and _los(eye, chest):
 		return true
-	return DotBotHiding.sees(eye, forward, profile.fov, sight, head, _los) \
-		or DotBotHiding.sees(eye, forward, profile.fov, sight, chest, _los)
+	var head_seen := DotBotHiding.sees(eye, forward, profile.fov, sight, head, _los)
+	var chest_seen := DotBotHiding.sees(eye, forward, profile.fov, sight, chest, _los)
+	# Somebody keeping still and low in cover is made out only whole: a head over a sofa's back,
+	# or a body half behind a hedge, still, is passed over.
+	if still_low:
+		return head_seen and chest_seen
+	return head_seen or chest_seen
 
 
 # --- Hiding ---------------------------------------------------------------------
@@ -366,7 +412,13 @@ func _hide(player: HsPlayer, command: DotFpsCommand) -> void:
 
 	var goal: Vector3 = (state["spot"] as Dictionary).get("at", at)
 	var sprint: bool = state["sprint"]
+
+	# Shutting the door it just came through: stopped, turned to it, the use key.
+	if _shut_door(player, command, state):
+		return
+
 	var arrived := _walk_to(player, command, state, goal, sprint)
+	_note_doorway(player, state, goal)
 
 	if arrived:
 		state["mode"] = &"hidden"
@@ -450,13 +502,14 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 			nearest = seeker
 
 	var heard := _heard(player, 2)
-	# Run only from a seeker that is looking this way (a person sees a face, and knows): one
-	# walking past with its back turned finds nobody who keeps still.
-	var seen_close := nearest != null and nearest_d < RUN_FROM and _sees(nearest, player)
-	# Heard close, or seen close with its back turned: keep still. Moving is seen at twice the
-	# distance and heard; a hider that crept away from footsteps was a hider caught creeping.
-	# Only one about to walk into it makes it slip away.
-	var heard_close := nearest != null and nearest_d < CREEP_FROM * 0.5
+	# Seen by it: it will make the hider out in a moment whatever the hider does, so go now, at a
+	# sprint, while the gap is widest. One walking past with its back turned is let pass.
+	var seen := nearest != null and _sees(nearest, player)
+	# About to walk into the hider whatever it has seen.
+	var bumping := nearest != null and nearest_d < BUMP_FROM
+	# The beacon has given it away: every seeker knows where it is, so keeping still is waiting
+	# to be caught. Run from any seeker in sight or earshot.
+	var marked_chase := player.marked and (nearest != null or not heard.is_empty())
 
 	if nearest != null:
 		state["threat"] = nearest.controller.state.position
@@ -467,54 +520,138 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 	elif t - float(state["threat_at"]) > profile.memory + 4.0:
 		state["threat"] = Vector3.INF
 
-	if t - float(state["moved_at"]) < SETTLE:
+	if t - float(state["moved_at"]) < (MARKED_SETTLE if player.marked else SETTLE):
 		return
 
-	# Coming this way and not looking at it yet: slip away low and quiet, to somewhere out of
-	# its sight on the far side, before it arrives. What a good hider does with footsteps.
+	# Coming to the hider's own place (a seeker searches the hidden places, and this is one):
+	# keeping still only works for a seeker passing by. Seen walking at it, or heard getting
+	# closer, it is coming here.
 	var coming := false
-	if nearest == null and not heard.is_empty():
+	if nearest != null and not seen:
+		var v := nearest.controller.state.velocity
+		var to_me := Vector3(at.x - nearest.controller.state.position.x, 0.0, at.z - nearest.controller.state.position.z)
+		var flat_v := Vector3(v.x, 0.0, v.z)
+		if nearest_d < COMING_FROM and flat_v.length() > 1.0 and to_me.length() > 0.01 \
+				and rad_to_deg(flat_v.angle_to(to_me)) < COMING_CONE:
+			coming = true
+	elif nearest == null and not heard.is_empty():
 		var was: Vector3 = state.get("heard_from", Vector3.INF)
 		var now_at: Vector3 = heard["at"]
 		var d_now := at.distance_to(now_at)
-		if was != Vector3.INF and d_now < 10.0 and d_now < at.distance_to(was) - 0.8:
+		if was != Vector3.INF and d_now < COMING_FROM and d_now < at.distance_to(was) - 0.8:
 			coming = true
 		state["heard_from"] = now_at
-	elif nearest != null and not seen_close:
-		var was2: Vector3 = state.get("seen_from", Vector3.INF)
-		var here: Vector3 = nearest.controller.state.position
-		if was2 != Vector3.INF and nearest_d < 10.0 and nearest_d < at.distance_to(was2) - 0.5:
-			coming = true
-		state["seen_from"] = here
 
-	# A catch heard close by: a seeker is about to start from there; leave quietly.
+	# A catch heard close by: two seekers are about to start from there, one held a moment.
+	var catch_near := false
 	for sound: Dictionary in _sounds:
 		if sound.get("caught", false) and at.distance_to(sound["at"]) < minf(profile.hearing, 15.0) \
 				and t - float(sound["t"]) < 0.5 and StringName(sound["by"]) != player.player_id:
-			coming = true
+			catch_near = true
 			state["threat"] = sound["at"]
 			state["threat_at"] = t
 
-	if seen_close or heard_close or coming:
-		var threat: Vector3 = state["threat"]
-		var threat_eye := threat + Vector3(0.0, HsPlayer.EYE_HEIGHT, 0.0)
-		var taken := PackedVector3Array()
-		for id: StringName in _state:
-			if id != player.player_id and not ((_state[id] as Dictionary).get("spot", {}) as Dictionary).is_empty():
-				taken.append((_state[id]["spot"] as Dictionary)["at"])
-		var away := DotBotHiding.flee_spot(spots, at, threat, threat_eye, _los, taken)
-		if away.is_empty():
-			# Nowhere out of its sight: away from it, whatever the place.
-			var dir := Vector3(at.x - threat.x, 0.0, at.z - threat.z).normalized()
-			away = {"at": nav.closest(at + dir * 8.0), "exposure": 1.0}
-		state["spot"] = away
-		state["came_from"] = threat
-		state["mode"] = &"fleeing"
-		state["path"] = PackedVector3Array()
-		state["moved_at"] = t
-		# Seen: run. Otherwise: keep low and quiet.
-		state["sprint"] = seen_close
-		state["crouch"] = not seen_close
+	if not (seen or bumping or coming or catch_near or marked_chase):
+		return
+
+	var threat: Vector3 = state["threat"]
+	if threat == Vector3.INF:
+		return
+	var threat_eye := threat + Vector3(0.0, HsPlayer.EYE_HEIGHT, 0.0)
+	# In its line of sight if it turned: going quietly is no use, it would see a creeping body at
+	# twice the distance of a still one. Behind a wall from it: slip away low and quiet.
+	var in_view := _los(threat_eye, player.eye_position())
+
+	# Coming, or two seekers about to start from a catch close by, and it could see the hider if
+	# it looked: moving now is what it would see. Keep still and low, and hope to be passed over.
+	# Out of its sight, slip away low and quiet.
+	if (coming or catch_near) and not (seen or bumping or marked_chase) and in_view:
+		return
+
+	var running := seen or bumping or marked_chase
+	var taken := PackedVector3Array()
+	for id: StringName in _state:
+		if id != player.player_id and not ((_state[id] as Dictionary).get("spot", {}) as Dictionary).is_empty():
+			taken.append((_state[id]["spot"] as Dictionary)["at"])
+	# Running: round a corner and well away, so it has to search again. Slipping away: the
+	# nearest place out of its sight.
+	var away := DotBotHiding.flee_spot(spots, at, threat, threat_eye, _los, taken, FLEE_WITHIN + 5.0, FLEE_CLEAR + 4.0) if marked_chase \
+		else DotBotHiding.flee_spot(spots, at, threat, threat_eye, _los, taken, FLEE_WITHIN, FLEE_CLEAR) if running \
+		else DotBotHiding.flee_spot(spots, at, threat, threat_eye, _los, taken)
+	if away.is_empty():
+		# Nowhere out of its sight: away from it, whatever the place.
+		var dir := Vector3(at.x - threat.x, 0.0, at.z - threat.z).normalized()
+		away = {"at": nav.closest(at + dir * 10.0), "exposure": 1.0}
+	state["spot"] = away
+	state["came_from"] = threat
+	state["mode"] = &"fleeing"
+	state["path"] = PackedVector3Array()
+	state["moved_at"] = t
+	state["sprint"] = running
+	state["crouch"] = not running
+	# What sent it, for `headless_bots`' trace.
+	state["why"] = "%s %.1f" % ["seen" if seen else ("bump" if bumping else ("beacon" if marked_chase else ("coming" if coming else "catch"))), at.distance_to(threat)]
+
+
+## Remembers the doorway the hider is in, and once it is through and clear of the panel's
+## sweep, decides whether to shut the door behind it: always running from a seeker behind it,
+## and going to a place close beyond the door. A shut door is a wall to a seeker's eye until it
+## is opened, and opening it costs the seeker the panel's swing.
+func _note_doorway(player: HsPlayer, state: Dictionary, goal: Vector3) -> void:
+	var map: Node3D = game.get("map")
+	var doors: Object = map.get("doors") if map != null else null
+	if doors == null or int(doors.call("count")) == 0:
+		return
+	var at := player.controller.state.position
+	var through: int = state.get("door_through", -1)
+	if through < 0:
+		for index in range(int(doors.call("count"))):
+			var panel: Vector3 = (doors.call("panel_transform", index, 0.0) as Transform3D).origin
+			if Vector2(panel.x - at.x, panel.z - at.z).length() < 0.9 and absf(panel.y - at.y) < 2.0:
+				state["door_through"] = index
+				state["door_side"] = at
+				return
+		return
+	var panel_at: Vector3 = (doors.call("panel_transform", through, 0.0) as Transform3D).origin
+	var away := Vector2(panel_at.x - at.x, panel_at.z - at.z).length()
+	if away < DOOR_CLEAR:
+		return
+	state["door_through"] = -1
+	if away > DOOR_CLEAR + 1.5 or not bool(doors.call("is_open", through)):
+		return
+	# Through it, not back out the way it came in.
+	var entered: Vector3 = state.get("door_side", at)
+	if Vector2(entered.x - at.x, entered.z - at.z).length() < DOOR_CLEAR:
+		return
+	var threat: Vector3 = state["threat"]
+	var chased: bool = state["mode"] == &"fleeing" and threat != Vector3.INF and threat.distance_to(at) > 3.0 \
+		and threat.distance_to(panel_at) < threat.distance_to(at) + 1.0
+	var settling: bool = state["mode"] == &"going" and goal.distance_to(at) < 9.0
+	if chased or settling:
+		state["shut"] = {"index": through, "until": now() + 1.2}
+
+
+## Turns to the door in `state.shut` and presses use until it is shut or the moment has passed.
+## Returns true while it is at it.
+func _shut_door(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> bool:
+	var shut: Dictionary = state.get("shut", {})
+	if shut.is_empty():
+		return false
+	var map: Node3D = game.get("map")
+	var doors: Object = map.get("doors") if map != null else null
+	var index: int = shut["index"]
+	if doors == null or now() > float(shut["until"]) or not bool(doors.call("is_open", index)):
+		if doors != null and not bool(doors.call("is_open", index)):
+			doors_shut += 1
+		state["shut"] = {}
+		return false
+	var panel_at: Vector3 = (doors.call("panel_transform", index, 0.0) as Transform3D).origin
+	command.move = Vector2.ZERO
+	command.set_button(DotFpsCommand.BUTTON_CROUCH, bool(state["crouch"]))
+	_look(player, command, panel_at)
+	var facing: int = doors.call("door_for", player.eye_position(), player.aim_direction())
+	state["use_now"] = facing == index and not bool(doors.call("moving", index, int(game.get("_tick"))))
+	return true
 
 
 # --- Seeking ----------------------------------------------------------------------
@@ -595,6 +732,11 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 		var _crossed := search.observe(player.eye_position(), player.aim_direction(), profile.fov, profile.sight, _los, t)
 
 	var place: Dictionary = state.get("goal_place", {})
+	# Stood on it: looked at, whether or not the eye had it in view. A place inside a bush is never
+	# in view from anywhere (the line to it ends in leaves), and was picked again, nearest, every
+	# time: a park round's seeker stood on one for three minutes and caught nobody.
+	if not place.is_empty() and at.distance_to(place["at"]) < 1.2 and place.has("seen_at"):
+		place["seen_at"] = t
 	if place.is_empty() or at.distance_to(place["at"]) < 1.2 or t - float(place.get("since", t)) > 25.0 \
 			or float(place.get("seen_at", -INF)) > float(place.get("picked_at", -INF)):
 		var claimed := PackedVector3Array()
@@ -618,6 +760,8 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 
 	state["sprint"] = false
 	var _there := _walk_to(player, command, state, place["at"], false)
+	# Searching is done at a walk: somebody running through a house looks at nothing.
+	command.move = command.move.limit_length(SEARCH_PACE)
 
 	# Looking: at the place once near it, else along the way with a glance from side to side.
 	var target: Vector3 = place["at"]

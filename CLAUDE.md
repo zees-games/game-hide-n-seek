@@ -30,7 +30,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 | `maps/` | link to `../hide-n-seek-maps/maps` |
 | `game/hs_bots.gd` | the stand-ins: the map's survey, hiders that hide, seekers that search, on dot-bot |
 | `examples/` | `headless_run`, `headless_maps`, `headless_climb`, `headless_bots`, `headless_net`, `dedicated` |
-| `tools/` | `shot.sh` (render a view; `--doors=open`, `--view=door` for the use-key prompt, `--view=bots` the stand-ins hidden, `--place=` the player stood somewhere), `measure_props.gd`, `audio_probe` (xvfb only) |
+| `tools/` | `shot.sh` (render a view; `--doors=open`, `--view=door` for the use-key prompt, `--view=bots` the stand-ins hidden, `--place=` the player stood somewhere), `measure_props.gd`, `climb_trees.py` (Blender: the two climbing trees; re-run, then `measure_props`), `audio_probe` (xvfb only) |
 
 ## Running and testing
 

@@ -100,6 +100,7 @@ hs_sight_range 25              // how far a seeker can see a hider from (catch m
 hs_sight_fov 70                // how wide a seeker's view is, in degrees (catch mode 1 or 2)
 hs_caught_seek 1               // 1 = a caught hider becomes a seeker, 0 = they are out
 hs_caught_freeze 3             // seconds a newly caught hider is frozen before they seek
+hs_caught_from 0               // where a caught hider starts seeking: 0 where caught, 1 the seekers' start
 hs_players_per_seeker 8        // one seeker at the start for every this many players
 hs_min_seekers 1               // never fewer than this many at the start
 hs_max_seekers 3               // never more than this many at the start
@@ -111,7 +112,9 @@ hs_auto_taunt_radius 1.5       // metres a hider has to move for it to count as 
 hs_taunt_points 2              // points for a taunt a hider chose
 hs_forced_taunt_points 0       // points for one the game forced
 hs_beacon_hiders_left 1        // beacon every hider once this few are left (0 never)
-hs_beacon_seconds_left 30      // beacon every hider with this many seconds left (0 never)
+hs_beacon_seconds_left 0       // beacon every hider with this many seconds left (0 never)
+hs_beacon_every 10             // seconds between the beacon showing them (0 = the whole time)
+hs_beacon_reveal 2             // seconds it shows them each time
 hs_rounds_per_map 4            // rounds on a map before the next one
 hs_spectate_camera 0           // who somebody who is out may watch: 0 anybody, 1 their own side, 2 nobody
 hs_autobhop 0                  // 1 = hold jump to keep hopping
@@ -169,7 +172,7 @@ A map is a JSON file: the building as boxes, the furniture as props, the doors, 
 - Not yet tried in a browser.
 
 ## Credits
-The furniture is Kenney's Furniture Kit, the trees, plants and rocks his Nature Kit, the players are the family's people from Quaternius' [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) (CC0 1.0, credited in dot-player-char), chosen by the blocky kit's skins, and the taunts come from his Voiceover Pack and Music Jingles ([kenney.nl](https://kenney.nl), CC0). The Nature Kit's colours are toned down when the game loads them. Floors, walls and roofs are his Prototype Textures under a pastel; the remaining surfaces (glass, boards, lockers, lines) are drawn in code. Each kit's licence is next to its files.
+The furniture is Kenney's Furniture Kit, the trees, plants and rocks his Nature Kit (the two climbing trees are this game's own, made in that kit's style by `tools/climb_trees.py`, CC0 like it), the players are the family's people from Quaternius' [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) (CC0 1.0, credited in dot-player-char), chosen by the blocky kit's skins, and the taunts come from his Voiceover Pack and Music Jingles ([kenney.nl](https://kenney.nl), CC0). The Nature Kit's colours are toned down when the game loads them. Floors, walls and roofs are his Prototype Textures under a pastel; the remaining surfaces (glass, boards, lockers, lines) are drawn in code. Each kit's licence is next to its files.
 
 ## License
 MIT. See [LICENSE](LICENSE). The Kenney art is CC0, which is public domain.

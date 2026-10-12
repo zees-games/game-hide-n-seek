@@ -2260,6 +2260,42 @@
       "disguise": true
     },
     {
+      "id": "nature_climbtree_fork",
+      "title": "Forked climbing tree",
+      "kit": "nature",
+      "model": "assets/props/nature/climbtree_fork.glb",
+      "scale": 1.0,
+      "size": [
+        6.724,
+        7.15,
+        5.362
+      ],
+      "offset": [
+        0.006,
+        0.0,
+        0.952
+      ],
+      "disguise": true
+    },
+    {
+      "id": "nature_climbtree_oak",
+      "title": "Climbing oak",
+      "kit": "nature",
+      "model": "assets/props/nature/climbtree_oak.glb",
+      "scale": 1.0,
+      "size": [
+        5.647,
+        7.9,
+        5.525
+      ],
+      "offset": [
+        -0.495,
+        0.0,
+        -0.031
+      ],
+      "disguise": true
+    },
+    {
       "id": "nature_crop_melon",
       "title": "Melon",
       "kit": "nature",

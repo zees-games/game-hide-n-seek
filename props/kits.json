@@ -45,7 +45,8 @@
         "fence_planks"
       ],
       "scales": {
-        "tree_*": 4.5
+        "tree_*": 4.5,
+        "climbtree_*": 1.0
       },
       "recolour": {
         "grass": [
@@ -118,6 +119,8 @@
     "plant_bushDetailed": "Leafy bush",
     "crop_pumpkin": "Pumpkin",
     "crop_melon": "Melon",
-    "campfire_logs": "Campfire"
+    "campfire_logs": "Campfire",
+    "climbtree_oak": "Climbing oak",
+    "climbtree_fork": "Forked climbing tree"
   }
 }

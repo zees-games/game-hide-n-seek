@@ -183,12 +183,24 @@ const GARDEN := [
 	# prop id, where it stands
 	[&"nature_tree_default", Vector3(0.0, 0.0, 0.0)],
 	[&"furniture_table", Vector3(0.0, 0.0, 20.0)],
+	[&"nature_climbtree_oak", Vector3(-25.0, 0.0, 0.0)],
+	[&"nature_climbtree_fork", Vector3(-25.0, 0.0, -25.0)],
+]
+
+## The climbing trees (`tools/climb_trees.py`), where a run at one jumps onto a limb: the prop's
+## position, the game's yaw it runs along, how near its middle it jumps, whether it tucks its
+## legs (crouch-jumps), how high the feet must end, and what that is. Found by `_search`
+## (`HS_CLIMB_SEARCH=nature_climbtree_oak`, `HS_CLIMB_NOTUCK=1` for plain jumps).
+const TREE_CLIMBS := [
+	[Vector3(-25.0, 0.0, 0.0), 0.0, 2.2, false, 1.15, "a plain jump lands on the climbing oak's first limb, 1.2 m up"],
+	[Vector3(-25.0, 0.0, 0.0), 120.0, 1.6, true, 1.8, "a crouch-jump lands on its second limb, 1.75 m up"],
+	[Vector3(-25.0, 0.0, -25.0), 20.0, 2.8, true, 1.55, "a crouch-jump lands in the forked tree's crotch, 1.6 m up"],
 ]
 
 
 func _test_props() -> void:
 	_section("trees and furniture collide as their shapes, not as one box")
-	_expected_checks += 6
+	_expected_checks += 6 + TREE_CLIMBS.size()
 	var game := await _world("hs_practice")
 	var props: Array = []
 	for item: Array in GARDEN:
@@ -232,6 +244,21 @@ func _test_props() -> void:
 	_check(body.controller.state.position.y > stood - 0.1 and stood > 1.4,
 		"and stays up there standing still for two seconds", "feet at %.2f" % body.controller.state.position.y)
 
+	# Trees made to be climbed: limbs with flat tops at a jump's and a crouch-jump's height, and
+	# nothing over them, so a person stands up there and stays.
+	for climb: Array in TREE_CLIMBS:
+		var centre: Vector3 = climb[0]
+		var yaw: float = climb[1]
+		var back := -Vector3(-sin(deg_to_rad(yaw)), 0.0, -cos(deg_to_rad(yaw))) * 5.0
+		var feet := await _jump_onto(game, body, centre + Vector3(back.x, 0.05, back.z), yaw, centre, climb[2], climb[3])
+		var landed := feet.y
+		for _i in range(TICK_RATE * 2):
+			body.controller.apply_command(DotFpsCommand.new())
+			await _step(game)
+		_check(landed > float(climb[4]) and body.controller.state.position.y > landed - 0.1
+			and body.controller.state.mode == DotFpsState.Mode.GROUND and body.controller.state.crouch_fraction < 0.05,
+			"%s, and stands up there two seconds" % climb[5], "feet at %.2f, then %.2f, crouch %.2f" % [landed, body.controller.state.position.y, body.controller.state.crouch_fraction])
+
 	# A table is a top and four legs: a seeker's eye sees through under it, and a box would not.
 	var space: PhysicsDirectSpaceState3D = game.get_world_3d().direct_space_state
 	var under := PhysicsRayQueryParameters3D.create(Vector3(0.0, 0.35, 23.0), Vector3(0.0, 0.35, 17.0))
@@ -261,7 +288,7 @@ func _search(prop: StringName) -> void:
 		for d in [1.6, 2.2, 2.8, 3.4]:
 			var yaw := float(a)
 			var back := -Vector3(-sin(deg_to_rad(yaw)), 0.0, -cos(deg_to_rad(yaw))) * 5.0
-			var end := await _jump_onto(game, body, Vector3(back.x, 0.05, back.z), yaw, Vector3.ZERO, d)
+			var end := await _jump_onto(game, body, Vector3(back.x, 0.05, back.z), yaw, Vector3.ZERO, d, not OS.has_environment("HS_CLIMB_NOTUCK"))
 			if end.y > 0.5:
 				print("yaw %d jump %.1f -> feet %s mode %d" % [a, d, end.snapped(Vector3.ONE * 0.01), body.controller.state.mode])
 	print("searched")
@@ -270,7 +297,7 @@ func _search(prop: StringName) -> void:
 ## Runs at [param yaw] from [param start], jumps once within [param jump_at] metres of
 ## [param centre] (flat), holds crouch in the air, keeps going a moment, and returns where the
 ## feet ended.
-func _jump_onto(game: HsGame, body: HsPlayer, start: Vector3, yaw: float, centre: Vector3, jump_at: float) -> Vector3:
+func _jump_onto(game: HsGame, body: HsPlayer, start: Vector3, yaw: float, centre: Vector3, jump_at: float, tuck: bool = true) -> Vector3:
 	body.place_at(start, yaw)
 	await _step(game)
 	var jumped := -1
@@ -282,7 +309,7 @@ func _jump_onto(game: HsGame, body: HsPlayer, start: Vector3, yaw: float, centre
 		if jumped < 0 and Vector2(centre.x - at.x, centre.z - at.z).length() <= jump_at:
 			command.set_button(DotFpsCommand.BUTTON_JUMP, true)
 			jumped = i
-		command.set_button(DotFpsCommand.BUTTON_CROUCH, jumped >= 0 and i - jumped > 4 and i - jumped < TICK_RATE / 2)
+		command.set_button(DotFpsCommand.BUTTON_CROUCH, tuck and jumped >= 0 and i - jumped > 4 and i - jumped < TICK_RATE / 2)
 		body.controller.apply_command(command)
 		await _step(game)
 	return body.controller.state.position

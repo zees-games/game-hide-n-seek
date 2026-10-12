@@ -185,6 +185,9 @@ var _winner_name: String = ""
 ## not inside the signal that said they died, which fires in the middle of the damage.
 var _to_respawn: Array[StringName] = []
 
+## When the beacon's rule began to apply this round, in seconds of seeking; -1 while it does not.
+var _beacon_since: float = -1.0
+
 ## The stand-ins: hiders that hide and seekers that search ([code]hs_bots.gd[/code], on dot-bot).
 var bots: HsBots = HsBots.new(self)
 
@@ -1188,6 +1191,10 @@ func catch(id: StringName, by: StringName, how: StringName) -> bool:
 
 	if config.caught_become_seekers:
 		_set_side(id, SEEKERS)
+		# A fall is put back at the start by the respawn that called this.
+		if config.caught_seek_from == HsConfig.CAUGHT_SEEK_START and how != CAUGHT_FELL and map != null:
+			var spot := map.spawn(_spawn_side(SEEKERS), players_on(SEEKERS).size() - 1)
+			hider.place_at(spot[0], spot[1])
 		_hold(hider, config.caught_freeze_seconds)
 	else:
 		_bench(hider)
@@ -1385,6 +1392,14 @@ func _advance_beacons() -> void:
 		(config.beacon_hiders_left > 0 and hiders_left <= config.beacon_hiders_left)
 		or (config.beacon_seconds_left > 0.0 and round_limit() - seek_elapsed <= config.beacon_seconds_left)
 	)
+
+	# Shown now and then rather than held (`beacon_every`), counted from when it began.
+	if not on:
+		_beacon_since = -1.0
+	elif config.beacon_every > 0.0:
+		if _beacon_since < 0.0:
+			_beacon_since = seek_elapsed
+		on = fmod(seek_elapsed - _beacon_since, config.beacon_every) < config.beacon_reveal
 
 	for player in players_on(HIDERS):
 		player.marked = on and player.is_alive() and not player.watching

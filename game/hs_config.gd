@@ -95,6 +95,15 @@ enum Pick {
 ## another one does not hand the second over in the same breath.
 @export_range(0.0, 15.0, 0.5) var caught_freeze_seconds: float = 3.0
 
+## Where a caught hider starts seeking: 0 where they were caught, 1 at the seekers' start.
+## [b]0 hands the catch on[/b]: a hider caught knows where their friends hid, and stands up
+## seeking beside the next one. 1 sends them back to where the seekers counted, so each catch is
+## a seeker more without a free second one.
+@export_range(0, 1, 1) var caught_seek_from: int = CAUGHT_SEEK_HERE
+
+const CAUGHT_SEEK_HERE := 0
+const CAUGHT_SEEK_START := 1
+
 ## How far a seeker can see a hider for the sight rule, in metres.
 @export_range(2.0, 200.0, 1.0) var sight_range: float = 25.0
 
@@ -144,11 +153,25 @@ enum Pick {
 ## Every hider still hidden is beaconed once this few are left. 0 never.
 @export_range(0, 32, 1) var beacon_hiders_left: int = 1
 
-## Every hider still hidden is beaconed once this few seconds are left. 0 never.
-@export_range(0.0, 600.0, 1.0) var beacon_seconds_left: float = 30.0
+## Every hider still hidden is beaconed once this few seconds are left. 0 never, the default:
+## with it at 30 the bots' hiders won 6 rounds in 24 at medium instead of 10, because every
+## seeker there is by then walks to every hider still in, and a round the hiders had held for
+## three and a half minutes was lost in the last half minute. The last hider's beacon
+## ([member beacon_hiders_left]) is what ends a round nobody can find anybody in.
+@export_range(0.0, 600.0, 1.0) var beacon_seconds_left: float = 0.0
 
 ## Seconds between a beacon's pings.
 @export_range(0.25, 10.0, 0.25) var beacon_period: float = 2.0
+
+## Seconds between the beacon showing the last hiders, and for how long each time. 0 shows them
+## the whole time.
+##
+## [b]A reveal now and then, not a marker held on them.[/b] Held, the last hider was walked to by
+## every seeker at once from anywhere on the map, and a round with one left was a round lost: at
+## medium the bots' hiders won 2 rounds in 24. Shown for two seconds in ten, the seekers learn
+## where and go, and the hider has eight seconds to be somewhere else: a chase, not a sentence.
+@export_range(0.0, 120.0, 0.5) var beacon_every: float = 10.0
+@export_range(0.25, 30.0, 0.25) var beacon_reveal: float = 2.0
 
 # --- Points ----------------------------------------------------------------
 
@@ -278,11 +301,12 @@ func describe() -> Dictionary:
 		"seekers": "1 per %.1f, %d..%d, %s" % [players_per_seeker, min_seekers, max_seekers,
 			["random", "queue", "swap", "first caught"][seeker_pick]],
 		"catch": ["touch (%.2f m)" % tag_range, "sight (%.1f s)" % sight_seconds, "either"][catch_mode],
-		"caught": "join the seekers" if caught_become_seekers else "are out",
+		"caught": ("join the seekers " + ("where caught" if caught_seek_from == CAUGHT_SEEK_HERE else "at their start")) if caught_become_seekers else "are out",
 		"timeout": ["draw", "hiders", "seekers"][timeout_winner],
 		"taunts": "forced after %.0f s within %.1f m" % [auto_taunt_seconds, auto_taunt_radius]
 			if auto_taunt_seconds > 0.0 else "never forced",
-		"beacon": "%d left or %.0f s" % [beacon_hiders_left, beacon_seconds_left],
+		"beacon": "%d left or %.0f s, %s" % [beacon_hiders_left, beacon_seconds_left,
+			"held" if beacon_every <= 0.0 else "%.1f s in %.0f" % [beacon_reveal, beacon_every]],
 		"maps": "all" if map_ids.is_empty() else ",".join(map_ids),
 		"bots": minimum_players,
 	}

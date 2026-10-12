@@ -327,6 +327,9 @@ func _add_tunables(world: HsGame) -> void:
 	_tunable("hs_caught_seek", 1.0 if config.caught_become_seekers else 0.0,
 		"Whether a caught hider becomes a seeker (1) or is out for the round (0)",
 		func(value: float) -> void: config.caught_become_seekers = value > 0.5)
+	_tunable("hs_caught_from", float(config.caught_seek_from),
+		"Where a caught hider starts seeking: 0 where caught, 1 at the seekers' start",
+		func(value: float) -> void: config.caught_seek_from = clampi(roundi(value), 0, 1))
 	_tunable("hs_caught_freeze", config.caught_freeze_seconds,
 		"Seconds a newly caught hider is held still before they seek",
 		func(value: float) -> void: config.caught_freeze_seconds = clampf(value, 0.0, 15.0))
@@ -378,6 +381,12 @@ func _add_tunables(world: HsGame) -> void:
 	_tunable("hs_beacon_seconds_left", config.beacon_seconds_left,
 		"Beacon every hider still hidden once this few seconds are left (0 never)",
 		func(value: float) -> void: config.beacon_seconds_left = clampf(value, 0.0, 600.0))
+	_tunable("hs_beacon_every", config.beacon_every,
+		"Seconds between the beacon showing the last hiders (0 shows them the whole time)",
+		func(value: float) -> void: config.beacon_every = clampf(value, 0.0, 120.0))
+	_tunable("hs_beacon_reveal", config.beacon_reveal,
+		"Seconds the beacon shows them each time",
+		func(value: float) -> void: config.beacon_reveal = clampf(value, 0.25, 30.0))
 	_tunable("hs_rounds_per_map", float(config.rounds_per_map),
 		"Rounds on a map before the next one",
 		func(value: float) -> void: config.rounds_per_map = clampi(int(value), 1, 50))

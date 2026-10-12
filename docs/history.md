@@ -12,3 +12,5 @@ Kept because each could come back.
 - **A secret door's outline** showed with a plain door's 3 cm gap; 6 mm now.
 - **`dedicated` failed one run in three once doors were in**: a wall-clock bound, with stand-ins taking most of the seek to open a garden door. Bounded in server ticks now.
 - **dot-combat warned at every boot that shots pass through walls**, because nothing shoots and the trace was left out; it is set anyway. Found by dot-server-deploy's `hideseek_client`.
+- **A seeker stood on one spot for a whole round and caught nobody** (`headless_bots`, a park round): the place it was searching was inside a bush, so its eye never had it in view, and `DotBotSearch` never crossed it off and handed it back, nearest, every time. A place the seeker has stood on counts as looked at now.
+- **A seeker frozen in mid-air beside an open door** (school door 35, `headless_bots` round 23 at medium): it hopped to get unstuck at the door's open panel and stayed at y 0.6 for the rest of the round, mode air, its fall speed growing to -70 m/s and its position never changing. Not fixed; queued as `hns-door-wedge-1`. A suite round with no catch is the first sign.

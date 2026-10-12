@@ -14,15 +14,18 @@ const HsPlayer := preload("../game/hs_player.gd")
 ##
 ## - how long a hider lasts once the seekers are let go, on average (caught ones at the second
 ##   they were caught, survivors at the round's end);
-## - the share of rounds the hiders win, somebody still hidden at the end (neither all nor none: a
-##   seeker that finds nobody is as broken as a hider that is found at once);
+## - the share of rounds the hiders win, somebody still hidden at the end, and the share of hiders
+##   never found: at medium a close game (30-60% of rounds, 15-40% of hiders), because a seeker
+##   that finds nobody is as broken as a hider that is found at once;
+## - that the hiders shut doors behind them;
 ## - how far apart the hiders are when the seekers are let go, and how few stand within 3 m of
 ##   another;
 ## - that the seekers catch somebody at all in most rounds.
 ##
-## `-- --rounds N` plays more (the default keeps `./game.sh test` short), `-- --first N` starts
+## Twenty-four rounds by default, four a map, about four minutes: a band on six rounds was a band
+## on noise. `-- --rounds N` plays another number, `-- --first N` starts
 ## at the Nth round's map and seed, `-- --difficulty hard` plays another preset, and
-## `HS_BOTS_TRACE=1` prints where everybody is every two seconds and every catch. Without `maps/` linked it plays the practice house.
+## `HS_BOTS_TRACE=1` prints where everybody is every two seconds and every catch (with what last sent the hider moving). `HS_CAUGHT_FROM`, `HS_BEACON_LEFT` and `HS_BEACON_SECONDS` set those rules for a measurement. Without `maps/` linked it plays the practice house.
 
 ## Maps the rounds rotate through, when `maps/` is there.
 const MAPS := ["hs_manor", "hs_apartments", "hs_village", "hs_park", "hs_school", "hs_camp"]
@@ -32,7 +35,11 @@ const TICK := 1.0 / float(TICK_RATE)
 const BOTS := 7
 
 ## The bands at medium. A hider lasts at least this long on average (seconds of seeking).
-const MIN_MEAN_SURVIVAL := 60.0
+const MIN_MEAN_SURVIVAL := 90.0
+
+## At medium: the share of rounds the hiders win, and of hiders never found.
+const HIDER_WINS := Vector2(0.30, 0.60)
+const NEVER_FOUND := Vector2(0.15, 0.40)
 
 const SECTIONS := 2
 
@@ -57,7 +64,7 @@ func _run() -> void:
 	print("hideseek bots")
 	print("")
 	var args := OS.get_cmdline_user_args()
-	var rounds := 6
+	var rounds := 24
 	var at := args.find("--rounds")
 	if at >= 0 and at + 1 < args.size():
 		rounds = maxi(1, int(args[at + 1]))
@@ -78,9 +85,9 @@ func _run() -> void:
 		var map_id: String = MAPS[r % MAPS.size()] if linked else "hs_practice"
 		var result := await _round(map_id, r, difficulty)
 		results.append(result)
-		print("  round %2d %-14s %d seekers  caught %d of %d  mean last %5.1f s  spread %.1f m, %d within 3 m  survey %4.0f ms" % [
+		print("  round %2d %-14s %d seekers  caught %d of %d  mean last %5.1f s  spread %.1f m, %d within 3 m  survey %4.0f ms  %d doors shut" % [
 			r + 1, map_id, result["seekers"], result["caught"], result["hiders"], result["mean_last"],
-			result["spread"], result["close"], result["survey_ms"]])
+			result["spread"], result["close"], result["survey_ms"], result["doors_shut"]])
 	_completed += 1
 
 	_section("the bands")
@@ -92,7 +99,9 @@ func _run() -> void:
 	var rounds_with_catch := 0
 	var hider_wins := 0
 	var first_catches := PackedFloat32Array()
+	var doors_shut := 0
 	for result in results:
+		doors_shut += int(result["doors_shut"])
 		lasts += float(result["sum_last"])
 		hiders += int(result["hiders"])
 		survived += int(result["hiders"]) - int(result["caught"])
@@ -105,12 +114,16 @@ func _run() -> void:
 			first_catches.append(float(result["first"]))
 	var mean := lasts / maxf(float(hiders), 1.0)
 	var share := float(survived) / maxf(float(hiders), 1.0)
-	print("  mean time a hider lasts: %.1f s; %.0f%% of hiders never found; hiders won %d rounds of %d; %d with a catch; mean spread %.1f m; %d hiders within 3 m of another" % [
-		mean, share * 100.0, hider_wins, results.size(), rounds_with_catch, spread / maxf(float(results.size()), 1.0), close])
+	print("  mean time a hider lasts: %.1f s; %.0f%% of hiders never found; hiders won %d rounds of %d; %d with a catch; mean spread %.1f m; %d hiders within 3 m of another; %d doors shut" % [
+		mean, share * 100.0, hider_wins, results.size(), rounds_with_catch, spread / maxf(float(results.size()), 1.0), close, doors_shut])
 	if difficulty == "medium":
 		_check(mean >= MIN_MEAN_SURVIVAL, "bot hiders last %.0f s or more on average against bot seekers" % MIN_MEAN_SURVIVAL, "%.1f s" % mean)
-		_check(hider_wins * 10 >= results.size() and hider_wins * 10 <= results.size() * 9,
-			"the hiders win some rounds and the seekers others", "hiders won %d of %d; %.0f%% of hiders never found" % [hider_wins, results.size(), share * 100.0])
+		var wins := float(hider_wins) / maxf(float(results.size()), 1.0)
+		_check(wins >= HIDER_WINS.x and wins <= HIDER_WINS.y,
+			"a close game: the hiders win %.0f-%.0f%% of rounds" % [HIDER_WINS.x * 100.0, HIDER_WINS.y * 100.0], "hiders won %d of %d" % [hider_wins, results.size()])
+		_check(share >= NEVER_FOUND.x and share <= NEVER_FOUND.y,
+			"%.0f-%.0f%% of hiders are never found" % [NEVER_FOUND.x * 100.0, NEVER_FOUND.y * 100.0], "%.0f%%" % (share * 100.0))
+		_check(doors_shut > 0, "hiders shut doors behind them", "%d doors" % doors_shut)
 		_check(rounds_with_catch * 2 >= results.size(), "the seekers catch somebody in at least half the rounds", "%d of %d" % [rounds_with_catch, results.size()])
 		_check(close * 4 <= hiders, "hiders spread out: at most one in four within 3 m of another when the seekers come", "%d of %d" % [close, hiders])
 		var none_at_once := true
@@ -141,6 +154,12 @@ func _round(map_id: String, index: int, difficulty: String) -> Dictionary:
 	config.keep_progress = false
 	config.map_ids = PackedStringArray([map_id])
 	config.seed_value = 20261012 + index * 7919
+	if OS.has_environment("HS_CAUGHT_FROM"):
+		config.caught_seek_from = int(OS.get_environment("HS_CAUGHT_FROM"))
+	if OS.has_environment("HS_BEACON_LEFT"):
+		config.beacon_hiders_left = int(OS.get_environment("HS_BEACON_LEFT"))
+	if OS.has_environment("HS_BEACON_SECONDS"):
+		config.beacon_seconds_left = float(OS.get_environment("HS_BEACON_SECONDS"))
 
 	var game := HsGame.new()
 	game.name = "Bots_%d" % index
@@ -164,8 +183,8 @@ func _round(map_id: String, index: int, difficulty: String) -> Dictionary:
 		if OS.has_environment("HS_BOTS_TRACE"):
 			var who: HsPlayer = game.players.get(id)
 			var st: Dictionary = game.bots._state.get(id, {})
-			print("    caught %s at %.1f s by %s (%s) at %s mode %s" % [id, game.seek_elapsed, by, how,
-				who.controller.state.position.snapped(Vector3.ONE * 0.1) if who != null else Vector3.ZERO, st.get("mode", "")]))
+			print("    caught %s at %.1f s by %s (%s) at %s mode %s %s fled %.1f s ago" % [id, game.seek_elapsed, by, how,
+				who.controller.state.position.snapped(Vector3.ONE * 0.1) if who != null else Vector3.ZERO, st.get("mode", ""), st.get("why", ""), game.bots.now() - float(st.get("moved_at", -INF))]))
 	game.start()
 
 	var hiders: Array[StringName] = []
@@ -219,6 +238,7 @@ func _round(map_id: String, index: int, difficulty: String) -> Dictionary:
 		"mean_last": sum_last / maxf(float(hiders.size()), 1.0), "first": first,
 		"spread": spread, "close": close, "survey_ms": float((game.get("bots") as Object).get("survey_ms")) if game.get("bots") != null else 0.0,
 	}
+	result["doors_shut"] = int(game.bots.doors_shut)
 	remove_child(game)
 	game.free()
 	await get_tree().process_frame
