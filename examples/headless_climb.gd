@@ -108,6 +108,7 @@ func _run() -> void:
 			await _test_climbs(map_id, by_map[map_id])
 
 		await _test_the_tube()
+		await _test_door_corners()
 
 	print("")
 	print("%d sections entered, %d finished" % [_sections_entered, _sections_finished])
@@ -292,6 +293,76 @@ func _search(prop: StringName) -> void:
 			if end.y > 0.5:
 				print("yaw %d jump %.1f -> feet %s mode %d" % [a, d, end.snapped(Vector3.ONE * 0.01), body.controller.state.mode])
 	print("searched")
+
+
+## Somebody hops into the corner between a wall and every swinging door of [constant DOOR_MAP]
+## left open, and comes down (`[hns-door-wedge-1]`).
+##
+## A seeker bot that walked into the 80 degree corner behind the school's open fire door and
+## hopped to get unstuck hung 0.6 m up for the rest of the round, falling ever faster and never
+## moving: the rest query beside the wall named the wall for a push that the panel stopped, so
+## the slide never met the panel and found no way down. dot-player-controller's
+## `surf_physics_selftest` holds the motor's way out; this holds every real door of a map against it.
+## Each body stands a little off the corner, walks into it for a second (so it ends up touching
+## both faces, as the bot did), then jumps still pushing, and must be standing on the floor
+## again within a second and a half.
+const DOOR_MAP := "hs_school"
+
+
+func _test_door_corners() -> void:
+	_section("%s: a hop into the corner behind every open door comes down" % DOOR_MAP)
+	_expected_checks += 2
+	var game := await _world(DOOR_MAP)
+	var body := game.add_player(&"u1", "Hopper")
+	await _physics_frame()
+	var doors := game.map.doors
+	var hung: Array[String] = []
+	var tried := 0
+
+	for index in range(doors.count()):
+		var spec: Dictionary = doors.doors[index]["spec"]
+		if str(spec["motion"]) != "swing":
+			continue
+		doors.apply(index, true, false, -1)
+		doors.pose_at(0)
+		var size := HsMapDoc.v3(spec["size"])
+		var side := 1.0 if str(spec["hinge"]) == "right" else -1.0
+		var shut := doors.panel_transform(index, 0.0, 0)
+		var open := doors.panel_transform(index, 1.0)
+		var floor_y := float((spec["at"] as Array)[1]) - size.y * 0.5
+		var hinge := shut * Vector3(side * size.x * 0.5, -size.y * 0.5, 0.0)
+		var wall := (shut.basis.x * side).normalized()
+		var panel := (open.basis.x * -side).normalized()
+		var into := (wall + panel).normalized()
+		var start := Vector3(hinge.x, floor_y + 0.05, hinge.z) + into * 1.0
+		var facing := -into
+		var yaw := rad_to_deg(atan2(-facing.x, -facing.z))
+		body.place_at(start, yaw)
+		await _step(game)
+		var hop := -1
+		var landed := false
+		for i in range(int(TICK_RATE * 2.5)):
+			var command := DotFpsCommand.new()
+			command.yaw = yaw
+			command.move = Vector2(0.0, 1.0)
+			if i == TICK_RATE:
+				command.set_button(DotFpsCommand.BUTTON_JUMP, true)
+				hop = i
+			body.controller.apply_command(command)
+			await _step(game)
+			if hop >= 0 and i - hop > 4 and body.controller.state.mode == DotFpsState.Mode.GROUND:
+				landed = true
+				break
+		tried += 1
+		if not landed:
+			hung.append("%s %d at %s" % [str(spec.get("name", "door")), index, body.controller.state.position.snapped(Vector3.ONE * 0.01)])
+		doors.apply(index, bool(spec["open"]), false, -1)
+		doors.pose_at(0)
+
+	_check(tried >= 10, "every swinging door is tried", "%d" % tried)
+	_check(hung.is_empty(), "and the hop into every one comes down to the floor", "; ".join(hung.slice(0, 6)))
+	await _dispose(game)
+	_finished()
 
 
 ## Runs at [param yaw] from [param start], jumps once within [param jump_at] metres of
