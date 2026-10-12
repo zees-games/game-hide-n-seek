@@ -69,8 +69,10 @@ const DOOR_CLEAR := 1.4
 ## How far off, as a share of `bot_sight`, somebody keeping still and crouched is made out, and
 ## then only whole (head and chest): a head over a sofa's back is passed over. 10 m at medium.
 ## It was 0.25 with either showing, and a seeker that walked the hidden places found nearly
-## everybody (`headless_bots`: 4% of hiders left at medium).
-const STILL_LOW_SIGHT := 0.18
+## everybody (`headless_bots`: 4% of hiders left at medium). 0.18 until 2026-10-12, when
+## dot-player-controller stopped seekers hanging in the corners behind open doors and the hiders
+## fell from 12 rounds in 24 to 6; 0.12 (7 m at medium) brought them back to 11.
+const STILL_LOW_SIGHT := 0.12
 
 ## Metres from the eye within which somebody is felt whichever way the bot faces: an arm's
 ## length, about, past the touch's reach.
