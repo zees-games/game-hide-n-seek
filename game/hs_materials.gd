@@ -50,20 +50,23 @@ const GRID_METRES := 4.0
 ## it is a floor (Kenney's tiles) or a wall (the grid). A surface not here keeps its
 ## generated pattern. Each pastel is light enough that a sunlit face does not clip and
 ## distinct enough that "the coral wall", "the blue carpet" can be called out.
+## The ground outside (grass, concrete, sidewalk, tiles, dirt, sand, asphalt) is a step
+## deeper than the walls: it is half of every outdoor frame, and at the old near-white values
+## the sunlit field rendered at 0.9 luminance and over under Compatibility.
 const PASTELS := {
 	"wood_floor": [Color(0.98, 0.84, 0.70), true],
 	"parquet": [Color(0.98, 0.86, 0.72), true],
 	"gym": [Color(1.00, 0.92, 0.66), true],
-	"tile": [Color(0.92, 0.96, 0.98), true],
-	"tile_check": [Color(0.84, 0.94, 0.96), true],
-	"tile_small": [Color(0.88, 0.96, 1.00), true],
+	"tile": [Color(0.80, 0.86, 0.90), true],
+	"tile_check": [Color(0.74, 0.86, 0.90), true],
+	"tile_small": [Color(0.78, 0.86, 0.92), true],
 	"carpet": [Color(0.76, 0.82, 1.00), true],
-	"concrete": [Color(0.90, 0.90, 0.95), true],
-	"sidewalk": [Color(0.92, 0.92, 0.94), true],
-	"asphalt": [Color(0.62, 0.64, 0.74), true],
-	"grass": [Color(0.70, 0.94, 0.68), true],
-	"dirt": [Color(0.92, 0.80, 0.66), true],
-	"sand": [Color(1.00, 0.93, 0.72), true],
+	"concrete": [Color(0.74, 0.74, 0.80), true],
+	"sidewalk": [Color(0.78, 0.78, 0.82), true],
+	"asphalt": [Color(0.50, 0.52, 0.62), true],
+	"grass": [Color(0.54, 0.80, 0.50), true],
+	"dirt": [Color(0.84, 0.70, 0.54), true],
+	"sand": [Color(0.92, 0.82, 0.60), true],
 	"rubber": [Color(1.00, 0.70, 0.66), true],
 	"paint": [Color(0.98, 0.97, 0.94), false],
 	"plaster": [Color(0.97, 0.96, 1.00), false],

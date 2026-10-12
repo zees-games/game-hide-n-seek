@@ -322,6 +322,14 @@ func _build_environment() -> void:
 		# The map's own angle, in Godot's degrees as the map document has always written it,
 		# rather than through dot-lighting's source convention.
 		_sun.rotation_degrees = Vector3(float(env_doc["sun_pitch"]), float(env_doc["sun_yaw"]), 0.0)
+		# The rig aimed its fill opposite the sun it was given; turned with the sun here, or it
+		# lights the faces the sun already does.
+		var fill := lighting.get_node_or_null("Fill") as DirectionalLight3D
+		if fill != null:
+			var aimed := DotLightRig.fill(DotLightDocument.from_dictionary(light_document(env_doc)), _sun.rotation,
+				light_profile(float(env_doc["ambient_energy"])))
+			fill.rotation = aimed.rotation
+			aimed.free()
 		_sun.shadow_blur = 1.5
 		_sun.directional_shadow_max_distance = 60.0
 
@@ -363,35 +371,38 @@ static func light_document(env_doc: Dictionary) -> Dictionary:
 			"colour": [horizon.r, horizon.g, horizon.b],
 			"start": 6300.0,
 			"end": 40000.0,
-			"max_density": 0.4,
+			"max_density": 0.25,
 		},
 	}
 
 
-## What this machine draws of a map's light.
+## What this machine draws of a map's light: dot-lighting's `painted()`, with the map's fill.
 ##
-## [b]Shadows stay on in the browser[/b], unlike dot-lighting's `web()`: a prop's shadow is
-## part of what a hunter reads, and the boxes are batched into a few dozen meshes.
-## [b]The Compatibility renderer, which this game and the client shell use, has no headroom
-## above white[/b]: at Forward+'s numbers a sunlit pastel clips to white. So under
-## `gl_compatibility` the sun is divided by 700 instead of 200 and the fill is 0.62,
-## game-arena's numbers, checked here against a rendered frame in both renderers.
+## [b]Shadows stay on in the browser[/b], unlike dot-lighting's `web()`: a hider's shadow is
+## part of what a seeker reads, and the boxes are batched into a few dozen meshes.
+## `painted()` is the family's profile for flat-painted worlds (dot-lighting API 3): its light
+## is matched to the renderer (the Compatibility renderer this game and the client shell use
+## clips a sunlit pastel to white at Forward+'s numbers), with a lower exposure, a grade, and
+## a shadowless fill from the side the sun is not on. That fill has no shadow, so it reaches
+## into rooms as the ambient does, but from one side: a room's walls are different shades
+## instead of one even haze, which is where a hider hides.
 ##
-## [b]The fill is the map's `ambient_energy` times 1.4[/b] (times 0.87 under Compatibility,
-## arena's 1.0 : 0.62), not arena's flat 1.0: a room is lit by the fill and its lamps, not
-## the sun, and at arena's strength every room was one even haze with nothing in shadow,
-## which is where a prop hides.
+## [b]The ambient is the map's `ambient_energy` times 4 of `painted()`'s, the fill times
+## 2.8[/b] (2 and 1.4 at the stock 0.5): a room is lit by the fill and its lamps, not the
+## sun, and these keep a room as light as it was before `painted()` while the ground outside
+## loses its glare (mg-prop-hunt's numbers, from the same map format, rendered here too).
 static func light_profile(ambient_energy: float = 0.5) -> DotLightProfile:
-	var p := DotLightProfile.web() if OS.has_feature("web") else DotLightProfile.high()
+	var p := DotLightProfile.painted()
 	p.sun_shadows = true
 	p.sky_below_horizon = true
-	p.ambient_energy = ambient_energy * 1.4
+	p.ambient_energy *= ambient_energy * 4.0
+	p.fill_energy *= ambient_energy * 2.8
+	# Less contrast than painted()'s 1.12: the grade pivots at mid grey, and Kenney's dark
+	# trunks, pines and furniture in shade went to black at 1.12.
+	p.contrast = 1.04
 	# Glow only from what is brighter than white (the lamps), not from every pale wall: at
 	# dot-lighting's 0.85 a room of near-white pastels glowed into one milky veil.
 	p.glow_threshold = 1.0
-	if RenderingServer.get_current_rendering_method() == "gl_compatibility":
-		p.brightness_reference = 700.0
-		p.ambient_energy = ambient_energy * 0.87
 	return p
 
 
