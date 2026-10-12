@@ -9,6 +9,7 @@ const HsMapDoc := preload("../game/hs_map_doc.gd")
 const HsPlayer := preload("../game/hs_player.gd")
 const HsProgress := preload("../game/hs_progress.gd")
 const HsProps := preload("../game/hs_props.gd")
+const HsSettings := preload("../game/hs_settings.gd")
 
 ## The simulation, headless: the prop catalogue and the map documents, the draw, the hide,
 ## catching by a touch and by being watched, what happens to the caught, taunts, falls, the
@@ -22,9 +23,9 @@ const HsProps := preload("../game/hs_props.gd")
 ## ([method HsCatalogue.practice]), whose comment lists where everything is: the wall between
 ## the rooms at x 0 with its door at z -1..0.8, the kitchen east of it, the living room west.
 
-const SECTIONS := 20
+const SECTIONS := 21
 
-const CHECKS := 97
+const CHECKS := 102
 
 const TICK_RATE := 64
 const TICK := 1.0 / float(TICK_RATE)
@@ -75,6 +76,7 @@ func _run() -> void:
 	await _test_bots()
 	await _test_doors()
 	await _test_the_client()
+	await _test_help_and_menu()
 
 	for world in _worlds.duplicate():
 		await _dispose(world)
@@ -651,6 +653,36 @@ func _test_the_client() -> void:
 
 	remove_child(client)
 	client.free()
+	await get_tree().process_frame
+	_finished()
+
+
+## The family's rule since the first play test: H opens help in every game, nothing else in
+## the table is on H, and the Escape menu has Help & commands and Leave.
+func _test_help_and_menu() -> void:
+	_section("H opens help, and the Escape menu has Help and Leave")
+	var settings := HsSettings.new()
+	add_child(settings)
+	var built: DotResult = settings.setup(DotSettingsStoreMemory.new())
+	var keys: DotMenuBindings = settings.bindings
+	_check(built.ok and keys != null and keys.key_for(DotMenuBindings.HELP_ACTION) == "H", "help is on H")
+	_check(keys.defaults_on("H").size() == 1, "and nothing else in the table defaults to H",
+		str(keys.defaults_on("H").map(func(r: Dictionary) -> String: return str(r["label"]))))
+	var h := InputEventKey.new()
+	h.physical_keycode = KEY_H
+	h.keycode = KEY_H
+	h.pressed = true
+	_check(settings.menu.handle_event(h) and settings.menu.help.is_open(), "H opens the help screen")
+	_check(settings.menu.help.about != "" and settings.menu.help.heading() == "How to play Hide & Seek",
+		"which says what the game is before the keys")
+	settings.menu.help.close()
+	settings.open()
+	var help_button := settings.menu.screen.find_child("Action_help", true, false) as Button
+	var leave_button := settings.menu.screen.find_child("Action_leave", true, false) as Button
+	_check(help_button != null and leave_button != null and leave_button.visible,
+		"the Escape menu has Help & commands and Leave")
+	settings.close()
+	settings.queue_free()
 	await get_tree().process_frame
 	_finished()
 

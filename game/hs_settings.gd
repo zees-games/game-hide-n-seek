@@ -50,9 +50,9 @@ func _init() -> void:
 	schema = schema_for()
 	config = DotMenuConfig.new()
 	config.brand_name = "Hide & Seek"
-	# The keys are a table here (see [HsBindings]), so the help screen has something to list.
-	config.show_help = true
-	config.show_leave = false
+	# Help and Leave are dot-menu's stock: H opens help, Leave leaves the server or quits a
+	# solo game. Every game in the family has both (the first play test found this one without
+	# Leave).
 	bindings = HsBindings.make()
 	var _layered := config.load_layered()
 
@@ -66,3 +66,11 @@ static func schema_for() -> DotSettingsSchema:
 		DotSettingsDef.Scope.SERVER_CLAMPED
 	))
 	return DotMenuStock.declare(s, DotMenuStock.DEFAULT_GROUPS, null, NOT_APPLIED)
+
+
+## The help screen's goal and rules; the keys come from [HsBindings].
+func _fill_help(help: DotMenuHelp) -> void:
+	help.about = "Most players hide; one or two seekers count with their eyes shut, then go looking. A hider who is caught becomes a seeker where they stand. The hiders win if anybody is still hidden when the clock runs out."
+	help.add_text("Hiding", "Find somewhere nobody looks: under, behind, inside. Doors open and shut, some walls are not walls, and crouching gets you into small places. Taunt for points if you are brave; near the end the last hiders give themselves away with a beacon.")
+	help.add_text("Seeking", "Catch a hider by touching them, or, on a server set that way, by keeping them in view. Everybody you catch seeks with you.")
+	help.add_section("Mouse", [["Left", "Watch the next player while out"], ["Right", "Watch the one before"]], &"keys")
