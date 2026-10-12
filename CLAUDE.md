@@ -42,6 +42,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 
 ## Rules
 
+- **Sound follows the map document**: each box's `mat` is its collision shape's `surface` meta (footsteps by surface, dot-audio's `DotAudioFootsteps`; under 1.4 m/s a step is silent, so creeping is quiet), every `ceiling`/`roof` box is an indoor ambience zone, and the outdoor bed and ground come from `HsAudio.MAP_SOUND` or the document's `ambience`/`surface`. Levels are measured with `addons/dot_audio/tools/loudness.sh` (−17 LUFS band, `loudness_trim_db`).
 - **A catch is the server's measurement**: touch (`tag_range`, feet close, no wall between) or sight (cone, range, nothing solid between, a meter). A client sends movement and the use key, nothing a catch could come from. [design](docs/design.md#a-catch-is-a-measurement-and-only-the-server-makes-one)
 - People do not collide with people.
 - **A bot knows of a person only by its own eyes and ears** (`HsBots._sees`, `_heard`; dot-bot's cone, sight and hearing) and the beacon; never hand it a position. Its pathing mesh is baked without the doors and the survey runs on a fixed tick, so `headless_bots` replays the same; keep both. Because of the first, a bot walks round an open panel's free edge (`HsBots._door_detour`) and `headless_bots` holds how long one lingers beside a panel. [design](docs/design.md#bots)

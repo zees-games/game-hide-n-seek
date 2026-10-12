@@ -43,18 +43,29 @@ const UI_DENY := &"ui_deny"
 
 var manager: DotAudioManager = null
 
+## Everybody's footsteps by what they stand on, and the bed under the whole game: dot-audio's
+## stock (Kenney's footsteps, generated beds, all CC0; the addon's stock/CREDITS.md).
+var steps: DotAudioFootsteps = null
+var ambience: DotAudioAmbience = null
+
 ## path -> AudioStream, the taunts loaded so far.
 var _taunts: Dictionary = {}
 
 
 static func ids() -> Array[StringName]:
-	return [
+	var out: Array[StringName] = [
 		HIDE, SEEK, COUNTDOWN, CAUGHT, YOU_ARE_CAUGHT, ROUND_WON, ROUND_LOST, UI_CLICK, UI_DENY,
 	]
+	# A typed array plus a typed array is an untyped one: appended, not added.
+	out.append_array(DotAudioStock.ids())
+	return out
 
 
 static func sound_catalogue() -> DotAudioCatalogue:
 	var c := DotAudioCatalogue.new()
+
+	# Footsteps and ambience beds, the family's stock.
+	DotAudioStock.add_to(c)
 
 	c.add(_flat(HIDE, &"UI", 1, 85))
 	c.add(_flat(SEEK, &"UI", 1, 90))
@@ -124,12 +135,29 @@ func setup() -> DotResult:
 	manager.mixer = DotAudioMixer.new()
 	manager.register_as_service = false
 	manager.voices = 24
+	# Measured toward the family's -17 LUFS (dot-audio docs/loudness.md): a 40 s stand-in round
+	# read -27.1 LUFS with the beds and the steps in (mostly digital silence before them), -23.4 at +8, -20.9 at +11. The
+	# bed is held back (ambience.level) so hiding is quiet and a step near you is not.
+	manager.loudness_trim_db = 13.0
 	add_child(manager)
 
 	var ready_now := manager.setup()
 
 	if not ready_now.ok:
 		return ready_now.wrap("hideseek audio")
+
+	steps = DotAudioFootsteps.new()
+	steps.name = "Footsteps"
+	steps.manager = manager
+	steps.default_surface = &"concrete"
+	add_child(steps)
+	ambience = DotAudioAmbience.new()
+	ambience.name = "Ambience"
+	ambience.manager = manager
+	ambience.fallback_bed = &"amb_outdoor"
+	ambience.level = 0.6
+	add_child(ambience)
+	ambience.set_map_bed(&"amb_outdoor")
 
 	var godot_sink := manager.sink as DotAudioSinkGodot
 
@@ -140,6 +168,58 @@ func setup() -> DotResult:
 		})
 
 	return DotResult.success(null)
+
+
+## Each map's bed outdoors and the ground nobody named, for a document that says neither
+## (`"ambience"` and `"surface"` in a map document win). Indoors is found, not listed: see
+## [method on_map_doc].
+const MAP_SOUND := {
+	&"hs_apartments": [&"amb_city", &"concrete"],
+	&"hs_camp": [&"amb_night", &"grass"],
+	&"hs_castle": [&"amb_wind", &"concrete"],
+	&"hs_mall": [&"amb_city", &"concrete"],
+	&"hs_manor": [&"amb_outdoor", &"wood"],
+	&"hs_museum": [&"amb_city", &"concrete"],
+	&"hs_park": [&"amb_outdoor", &"grass"],
+	&"hs_school": [&"amb_outdoor", &"concrete"],
+	&"hs_ship": [&"amb_wind", &"wood"],
+	&"hs_village": [&"amb_outdoor", &"grass"],
+	&"hs_warehouse": [&"amb_industrial", &"concrete"],
+}
+
+
+## A map arrived. Its bed and ground, and an indoor zone under every ceiling or roof box: the
+## room tone plays where there is something over your head, which is what indoors means, and
+## no map has to list its rooms twice.
+func on_map_doc(id: StringName, doc: Dictionary) -> void:
+	var row: Array = MAP_SOUND.get(id, [&"amb_outdoor", &"concrete"])
+	on_map(StringName(str(doc.get("ambience", row[0]))), StringName(str(doc.get("surface", row[1]))))
+	if ambience == null:
+		return
+	ambience.clear_zones()
+	for box: Variant in doc.get("boxes", []):
+		if not (box is Dictionary) or not (str(box.get("mat", "")) in ["ceiling", "roof"]):
+			continue
+		var at: Array = box.get("at", [0, 0, 0])
+		var size: Array = box.get("size", [0, 0, 0])
+		var top := float(at[1]) + float(size[1]) * 0.5
+		var low := top - 6.0
+		ambience.add_zone(AABB(Vector3(float(at[0]) - float(size[0]) * 0.5, low, float(at[2]) - float(size[2]) * 0.5),
+			Vector3(float(size[0]), top - low, float(size[2]))), &"amb_indoor")
+
+
+## Everybody this client knows steps, once a frame: players and bots alike.
+func keep_walkers(bodies: Array) -> void:
+	if steps != null:
+		steps.keep(bodies)
+
+
+## A map arrived: its bed and its ground. Empty keeps what is playing.
+func on_map(bed: StringName, surface: StringName = &"") -> void:
+	if ambience != null and bed != &"":
+		ambience.set_map_bed(bed)
+	if steps != null and surface != &"":
+		steps.default_surface = surface
 
 
 func listen_from(at: Vector3) -> void:
