@@ -28,12 +28,13 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 | `game/hs_client.gd`, `hs_hud.gd`, `hs_audio.gd`, `hs_figure.gd`, `hs_avatars.gd`, `hs_bindings.gd`, `hs_settings.gd`, `hs.tscn` | the client: first person, F5 for third; keys as dot-menu bindings; the Escape menu |
 | `props/`, `assets/props/`, `taunts/` | `kits.json`, the measured `catalogue.json` and `pieces.json`; vendored Kenney furniture and nature models (CC0); taunt sounds and `taunts.json` (CC0, edit freely) |
 | `maps/` | link to `../hide-n-seek-maps/maps` |
-| `examples/` | `headless_run`, `headless_maps`, `headless_climb`, `headless_net`, `dedicated` |
-| `tools/` | `shot.sh` (render a view; `--doors=open`, `--view=door` for the use-key prompt), `measure_props.gd`, `audio_probe` (xvfb only) |
+| `game/hs_bots.gd` | the stand-ins: the map's survey, hiders that hide, seekers that search, on dot-bot |
+| `examples/` | `headless_run`, `headless_maps`, `headless_climb`, `headless_bots`, `headless_net`, `dedicated` |
+| `tools/` | `shot.sh` (render a view; `--doors=open`, `--view=door` for the use-key prompt, `--view=bots` the stand-ins hidden, `--place=` the player stood somewhere), `measure_props.gd`, `audio_probe` (xvfb only) |
 
 ## Running and testing
 
-- `./game.sh` plays offline; `./game.sh online` runs a local server and browser client; `./game.sh test` parses and runs all five suites. After a map change, `python3 ../hide-n-seek-maps/tools/build_maps.py --check`.
+- `./game.sh` plays offline; `./game.sh online` runs a local server and browser client; `./game.sh test` parses and runs all six suites. After a map change, `python3 ../hide-n-seek-maps/tools/build_maps.py --check`.
 - `headless_maps` swings every door and walks every doorway; `headless_climb` walks every stairway and a tube. Both need `maps/` linked, and say so when it is not; `headless_climb`'s garden (a tree's branches, a table's legs) needs nothing. [testing](docs/testing.md)
 - After adding a model or changing a kit's scale, `godot --headless --path . --script tools/measure_props.gd` (about two minutes: it decomposes every model) rewrites both `props/` files; `-- --check` compares them.
 - **Render after touching what anyone sees** (`tools/shot.sh`); the shirt colour, HUD overlaps, fog and floor striping were only found in a picture.
@@ -42,6 +43,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 
 - **A catch is the server's measurement**: touch (`tag_range`, feet close, no wall between) or sight (cone, range, nothing solid between, a meter). A client sends movement and the use key, nothing a catch could come from. [design](docs/design.md#a-catch-is-a-measurement-and-only-the-server-makes-one)
 - People do not collide with people.
+- **A bot knows of a person only by its own eyes and ears** (`HsBots._sees`, `_heard`; dot-bot's cone, sight and hearing) and the beacon; never hand it a position. Its pathing mesh is baked without the doors and the survey runs on a fixed tick, so `headless_bots` replays the same; keep both. [design](docs/design.md#bots)
 - **A prop collides as its pieces, or as its box when it has none** (`HsProps.shapes_of`, dot-props' `DotPropPieces`): never hand-place a collision shape; re-measure. The sight test and the walls a body meets are the same shapes. [design](docs/design.md#props-collide-as-their-shape)
 - **Holding still is the `HOLD` modifier in the movement state**, never a timer the game checks, so the held client predicts it exactly (the blindfold and a new seeker's freeze both).
 - A joiner during the seek seeks; a fall during the seek is a catch (`CAUGHT_FELL`).

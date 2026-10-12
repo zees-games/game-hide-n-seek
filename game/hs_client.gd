@@ -128,9 +128,29 @@ func _start_offline() -> void:
 	DotLog.result(CHANNEL, "chat, offline", chat.attach(null))
 
 
+## A solo stand-in's name: the server's list, through dot-bot's pick, so solo and a server
+## name them alike.
 static func _bot_name(index: int) -> String:
-	var names := PackedStringArray(["Pip", "Moss", "Juniper", "Quill", "Basil", "Wren", "Clover", "Sorrel"])
-	return names[index % names.size()]
+	var taken: Array = []
+	for i in range(index):
+		taken.append(DotBotNames.pick(taken, i, HsGame.BOT_NAMES))
+	return DotBotNames.pick(taken, index, HsGame.BOT_NAMES)
+
+
+## Solo, `bot_difficulty` and every `bot_*` setting at the console, the names a server has, and
+## `-- --bot_difficulty hard` at launch. Connected, the server's console holds them and a local
+## copy would shadow it.
+func _bind_bot_console() -> void:
+	if not _offline or console == null or game == null:
+		return
+	var sources: Array = console.sources()
+	if sources.is_empty() or not (sources[0] is DotConsoleLocal):
+		return
+	var _bound := DotBotSettings.of(game).bind_console(sources[0])
+	var args := OS.get_cmdline_user_args()
+	var index := args.find("--bot_difficulty")
+	if index >= 0 and index + 1 < args.size():
+		DotLog.result(CHANNEL, "bot difficulty from the command line", DotBotSettings.of(game).set_difficulty(args[index + 1]))
 
 
 # --- Connected -------------------------------------------------------------
@@ -634,6 +654,7 @@ func _build_settings() -> void:
 		# the server's console when one runs in this process. One of the menu's overlays, so
 		# opening it stops the player and frees the pointer exactly as the menu does.
 		console = DotConsoleKit.build(self, settings.settings, settings.menu)
+		_bind_bot_console()
 		_wire_board()
 
 

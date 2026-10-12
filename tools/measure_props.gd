@@ -32,6 +32,7 @@ func _initialize() -> void:
 	var titles: Dictionary = (spec as Dictionary).get("titles", {})
 	var props: Array = []
 	var shaped: Dictionary = {}
+	var tops: Dictionary = {}
 
 	for kit: Dictionary in (spec as Dictionary).get("kits", []):
 		var dir := "res://%s" % str(kit["dir"])
@@ -86,6 +87,7 @@ func _initialize() -> void:
 
 			if not pieces.is_empty():
 				shaped[id] = DotPropPieces.encode(pieces)
+				tops[id] = _tops(pieces, size)
 
 	props.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a["id"]) < str(b["id"]))
 
@@ -102,7 +104,7 @@ func _initialize() -> void:
 		"props": props,
 	}
 	var text := JSON.stringify(out, "  ", false) + "\n"
-	var pieces_text := _pieces_text(shaped)
+	var pieces_text := _pieces_text(shaped, tops)
 
 	if check:
 		var have := FileAccess.get_file_as_string(OUT)
@@ -138,15 +140,34 @@ func _initialize() -> void:
 
 
 ## The part-shaped collision (dot-props' DotPropPieces), one prop a line so a re-measure's diff
-## reads by prop: `{id: [[x, y, z, ...] per convex piece]}` in the prop's frame. A prop not in it
-## collides as its catalogue box.
-static func _pieces_text(shaped: Dictionary) -> String:
+## reads by prop: `pieces` is `{id: [[x, y, z, ...] per convex piece]}` in the prop's frame, and
+## `tops` is `{id: [TOPS x TOPS heights]}`, where something set down on the prop rests across
+## its footprint (x across, then z; null where nothing is), for a maps builder that stacks props
+## and has no hull maths. A prop not listed collides as its catalogue box.
+static func _pieces_text(shaped: Dictionary, tops: Dictionary) -> String:
 	var ids := shaped.keys()
 	ids.sort()
 	var lines := PackedStringArray()
+	var top_lines := PackedStringArray()
 	for id: String in ids:
 		lines.append("    %s: %s" % [JSON.stringify(id), JSON.stringify(shaped[id])])
-	return "{\n  \"format\": 1,\n  \"comment\": \"Written by tools/measure_props.gd with dot-props' DotPropPieces. Do not edit by hand. A prop not listed collides as its catalogue box.\",\n  \"pieces\": {\n%s\n  }\n}\n" % ",\n".join(lines)
+		top_lines.append("    %s: %s" % [JSON.stringify(id), JSON.stringify(tops[id])])
+	return "{\n  \"format\": 1,\n  \"comment\": \"Written by tools/measure_props.gd with dot-props' DotPropPieces. Do not edit by hand. A prop not listed collides as its catalogue box.\",\n  \"tops_grid\": %d,\n  \"pieces\": {\n%s\n  },\n  \"tops\": {\n%s\n  }\n}\n" % [TOPS, ",\n".join(lines), ",\n".join(top_lines)]
+
+
+## Cells a side of a prop's `tops` grid.
+const TOPS := 8
+
+
+static func _tops(pieces: Array, size: Vector3) -> Array:
+	var out: Array = []
+	for k in range(TOPS):
+		for i in range(TOPS):
+			var x := -size.x * 0.5 + (i + 0.5) * size.x / TOPS
+			var z := -size.z * 0.5 + (k + 0.5) * size.z / TOPS
+			var top := DotPropPieces.top_at(pieces, x, z)
+			out.append(null if top == -INF else snappedf(top, 0.001))
+	return out
 
 
 func _bounds(node: Node, parent: Transform3D) -> AABB:

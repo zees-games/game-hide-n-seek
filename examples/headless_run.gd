@@ -1,5 +1,6 @@
 extends Node
 
+const HsBindings := preload("../game/hs_bindings.gd")
 const HsCatalogue := preload("../game/hs_catalogue.gd")
 const HsConfig := preload("../game/hs_config.gd")
 const HsController := preload("../game/hs_controller.gd")
@@ -25,7 +26,7 @@ const HsSettings := preload("../game/hs_settings.gd")
 
 const SECTIONS := 21
 
-const CHECKS := 104
+const CHECKS := 105
 
 const TICK_RATE := 64
 const TICK := 1.0 / float(TICK_RATE)
@@ -596,8 +597,11 @@ func _test_bots() -> void:
 		if p.controller.state.position.distance_to(starts.get(p.player_id, Vector3.ZERO)) > 1.5:
 			moved += 1
 	_check(moved >= starts.size() - 1, "the stand-in hiders went somewhere to hide (%d of %d)" % [moved, starts.size()])
+	var round_before := game.round_number
 	await _step(game, TICK_RATE * 8)
-	_check(game.phase == HsGame.Phase.SEEK or game.phase == HsGame.Phase.IDLE, "and the round goes on without anybody at the keyboard")
+	# Stand-in seekers can find everybody in a house this small, and the next round begins.
+	_check(game.phase == HsGame.Phase.SEEK or game.phase == HsGame.Phase.IDLE or game.round_number > round_before,
+		"and the round goes on without anybody at the keyboard", "phase %d, round %d" % [game.phase, game.round_number])
 	_finished()
 
 
@@ -688,6 +692,11 @@ func _test_help_and_menu() -> void:
 	_check(built.ok and keys != null and keys.key_for(DotMenuBindings.HELP_ACTION) == "H", "help is on H")
 	_check(keys.defaults_on("H").size() == 1, "and nothing else in the table defaults to H",
 		str(keys.defaults_on("H").map(func(r: Dictionary) -> String: return str(r["label"]))))
+	# Chat is two rows, so help lists Y and U and the Controls page moves them.
+	var _k := settings.settings.set_value(&"bind_chat", "K")
+	_check(keys.key_for(HsBindings.CHAT) == "K" and DotInputBinding.describe_action(HsBindings.CHAT) == "K"
+		and keys.key_for(HsBindings.CHAT_TEAM) == "U", "chat (Y) and team chat (U) are rows: rebinding one moves its key",
+		"%s %s" % [keys.key_for(HsBindings.CHAT), keys.key_for(HsBindings.CHAT_TEAM)])
 	var h := InputEventKey.new()
 	h.physical_keycode = KEY_H
 	h.keycode = KEY_H
@@ -815,8 +824,9 @@ func _test_doors() -> void:
 	game.wish_side(bot.player_id, HsGame.HIDERS)
 	game._set_side(bot.player_id, HsGame.HIDERS)
 	bot.place_at(Vector3(8.4, 0.05, 0.2), -90.0)
-	game._bot[bot.player_id] = {"goal": Vector3(16.0, 0.0, 0.2), "since": game.current_tick(),
-		"stuck": [bot.controller.state.position, game.current_tick()]}
+	var walk: Dictionary = game.bots._state_of(bot)
+	walk["spot"] = {"at": Vector3(16.0, 0.0, 0.2), "exposure": 0.0}
+	walk["mode"] = &"going"
 	for i in range(TICK_RATE * 4):
 		await _step(game, 1)
 		if bot.controller.state.position.x > 12.0:

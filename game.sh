@@ -32,7 +32,7 @@
 GAME_NAME="Hide & Seek"
 PACK="hideseek"
 EXTRA_PACKS="hideseek_maps:hide-n-seek-maps"
-SUITES="headless_run headless_maps headless_climb headless_net dedicated"
+SUITES="headless_run headless_maps headless_climb headless_bots headless_net dedicated"
 # --------------------------------------------------------------------------------
 
 set -uo pipefail

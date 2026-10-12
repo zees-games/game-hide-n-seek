@@ -121,7 +121,7 @@ hs_bots 1                      // 0 = no bots
 hs_vote_after 20               // seconds into a map's last round before the vote opens
 ```
 
-The bot cvars are the family's shared ones (dot-server's `DotBotQuota`). `hs_min_players` still works and sets `bot_quota`; it is deprecated.
+The bot cvars are the family's shared ones: how many is dot-server's `DotBotQuota`, how well they see, hear, turn and know a map is [dot-bot](https://github.com/modcommunity/dot-bot)'s `bot_difficulty` (easy, medium, hard, nightmare) and its `bot_*` settings (`bot_settings` lists them). The same names work at the console in solo, and `./game.sh -- --bot_difficulty hard` sets it at launch. `hs_min_players` still works and sets `bot_quota`; it is deprecated.
 
 `--hs-map-ids=<ids>` limits a server to some maps, and every other setting in `game/hs_config.gd` can be given the same way (`--hs-sprint-scale=1.5`, `--hs-taunt-range=80`). The taunts are listed in `taunts/taunts.json`: edit it to add your own sounds. The vote's settings go in `user://cfg/hideseek_vote.json` (`{"enabled": false}` turns it off); dot-vote's README lists them.
 
@@ -154,7 +154,8 @@ A map is a JSON file: the building as boxes, the furniture as props, the doors, 
 | --- | --- |
 | `headless_run` | The game itself: the draw, the hide, tagging, being watched, the caught, taunts, falls, the beacon, doors, bots |
 | `headless_maps` | Every map: it fits on the wire, every spawn is clear, every prop stands on something, there is enough to hide behind, every door swings clear and every doorway can be walked through |
-| `headless_climb` | Somebody climbs every stairway that matters and crawls through a play tube |
+| `headless_climb` | Somebody stands on a tree's branch, sees under a table, climbs every stairway that matters and crawls through a play tube |
+| `headless_bots` | Bots play whole rounds against each other; how long a hider lasts, how spread out they are, who wins |
 | `headless_net` | A server and a client in one process, over the network code: the blindfold, a door, a catch, the sight meter, taunts |
 | `dedicated` | A real server: boots, loads the game, runs its commands, a round of bots, the map vote |
 
@@ -162,7 +163,7 @@ A map is a JSON file: the building as boxes, the furniture as props, the doors, 
 
 ## Not done yet
 - Seekers have nothing in their hands. Special weapons for seekers, found somewhere on a map, are planned.
-- The bots are simple: a bot hider runs to a spot beside some furniture, crouches and runs from seekers that get close; a bot seeker wanders and chases what it can see.
+- Bot hiders pick hidden places apart from each other and keep still, and bot seekers search the likely places first, but neither plans a route to cut somebody off, and bots never shut a door behind them.
 - There is no stamina: sprinting is a flat speed boost for everybody.
 - The round sounds (not the taunts) are made in code and are placeholders.
 - Not yet tried in a browser.

@@ -209,8 +209,9 @@ enum Pick {
 ## How many players the server keeps in the round by adding stand-ins.
 @export_range(0, 24, 1) var minimum_players: int = 5
 
-## How far a stand-in seeker notices a hider it can see, in metres.
-@export_range(1.0, 100.0, 0.5) var bot_sight: float = 14.0
+# How far a stand-in sees and hears, how fast it turns and notices, and how well it knows a
+# map are dot-bot's `bot_*` settings, shared by every game (`bot_difficulty`, `bot_sight`,
+# `bot_fov`, `bot_hearing`, `bot_reaction`, `bot_map_knowledge`, ...).
 
 # --- Watching --------------------------------------------------------------
 

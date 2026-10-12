@@ -14,7 +14,7 @@ const HsPlayer := preload("../game/hs_player.gd")
 ## nothing but the stand-ins the module seats itself.
 
 const SECTIONS := 10
-const CHECKS := 53
+const CHECKS := 55
 
 const SERVER_DIR := "user://hs_dedicated"
 const PORT := 28931
@@ -259,6 +259,14 @@ func _test_a_round_runs() -> void:
 	var quota_bridge: Object = quota_module.get("bridge") if quota_module != null else null
 	_check(server.console.find_cvar("bot_quota") != null and server.console.find_cvar("bot_quota_mode") != null,
 		"the shared bot_quota cvars are registered")
+	# How the stand-ins see, hear and know a map is dot-bot's: the family's names, medium by default.
+	var bot_settings := DotBotSettings.of(game)
+	_check(server.console.get_string("bot_difficulty", "") == "medium" and bot_settings.difficulty() == "medium",
+		"bot_difficulty is the module's and medium is the default")
+	var _hard := _run_command("bot_difficulty hard")
+	_check(bot_settings.difficulty() == "hard" and is_equal_approx(server.console.get_float("bot_sight"), DotBotProfile.preset_value("hard", "sight")),
+		"bot_difficulty hard writes every bot_* setting", server.console.get_string("bot_sight"))
+	var _medium := _run_command("bot_difficulty medium")
 	var _alias := _run_command("hs_min_players 3")
 	_check(server.console.find_cvar("bot_quota") != null and server.console.find_cvar("bot_quota").get_int() == 3,
 		"and the old hs_min_players sets bot_quota",

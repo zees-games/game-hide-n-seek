@@ -6,6 +6,7 @@ extends Node
 const HsClient := preload("../game/hs_client.gd")
 const HsGame := preload("../game/hs_game.gd")
 const HsMapDoc := preload("../game/hs_map_doc.gd")
+const HsPlayer := preload("../game/hs_player.gd")
 
 var _view := "seeker"
 var _seconds := 3.0
@@ -33,6 +34,10 @@ func _ready() -> void:
 			_at = _v3(arg.trim_prefix("--at="))
 		elif arg.begins_with("--look="):
 			_look = _v3(arg.trim_prefix("--look="))
+		elif arg.begins_with("--place="):
+			_place = _v3(arg.trim_prefix("--place="))
+		elif arg.begins_with("--pick="):
+			_pick = arg.trim_prefix("--pick=").to_int()
 		elif arg == "--third":
 			_third = true
 		elif arg.begins_with("--doors="):
@@ -48,6 +53,12 @@ func _ready() -> void:
 static func _v3(text: String) -> Vector3:
 	var parts := text.split(",")
 	return Vector3(parts[0].to_float(), parts[1].to_float(), parts[2].to_float()) if parts.size() == 3 else Vector3.INF
+
+
+var _pick: int = 0
+
+## Where the person at this keyboard stands for the shot (`--place=x,y,z`), in any view.
+var _place: Vector3 = Vector3.INF
 
 
 func _run() -> void:
@@ -86,7 +97,12 @@ func _run() -> void:
 			var reach := maxf(box.size.length() * 0.42, 14.0)
 			_free_camera().look_at_from_position(centre + Vector3(reach * 0.45, reach * 0.6, reach * 0.55), centre)
 		"room":
+			if _place != Vector3.INF:
+				game._set_phase(HsGame.Phase.SEEK)
+				local.place_at(_place, 0.0)
 			await _seconds_of(_seconds)
+			if _place != Vector3.INF:
+				print("the player's feet at %s" % local.controller.state.position.snapped(Vector3.ONE * 0.01))
 			_free_camera().look_at_from_position(_at, _look)
 		"blind":
 			await _seconds_of(1.0)
@@ -105,6 +121,37 @@ func _run() -> void:
 			var feet := frame.origin + normal * 1.3 - Vector3(0.0, size.y * 0.5, 0.0)
 			local.place_at(feet, rad_to_deg(atan2(normal.x, normal.z)))
 			await _seconds_of(maxf(_seconds, 1.0))
+		"bots":
+			# The stand-in hiders where they hid: the hide played out, the seekers let go, and a
+			# camera a few metres from the [member _pick]th best-hidden one (or the best).
+			game._set_phase(HsGame.Phase.HIDE)
+			game.phase_elapsed = 0.0
+			while game.phase == HsGame.Phase.HIDE:
+				await get_tree().process_frame
+			await _seconds_of(0.5)
+			var hidden: Array = []
+			for id: StringName in game.players:
+				var p: HsPlayer = game.players[id]
+				if p.is_bot and game.team_of(id) == HsGame.HIDERS:
+					var spot: Dictionary = game.bots._state_of(p).get("spot", {})
+					hidden.append([float(spot.get("exposure", 1.0)), p])
+					print("hider %s at %s, exposure %.2f" % [p.display_name, p.controller.state.position.snapped(Vector3.ONE * 0.1), float(spot.get("exposure", 1.0))])
+			hidden.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+			var who: HsPlayer = hidden[mini(_pick, hidden.size() - 1)][1]
+			var at: Vector3 = who.controller.state.position
+			var eye := at + Vector3(0.0, 1.0, 0.0)
+			var from := _at if _at != Vector3.INF else at + Vector3(2.6, 2.2, 2.6)
+			if _at == Vector3.INF:
+				# Back off along a clear line, so the camera is not inside a wall.
+				for k in range(8):
+					var dir := Vector3(cos(k * TAU / 8.0), 0.55, sin(k * TAU / 8.0)).normalized()
+					var hit := get_viewport().world_3d.direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(eye, eye + dir * 4.0))
+					var reach := 4.0 if hit.is_empty() else eye.distance_to(hit["position"]) - 0.3
+					if reach > 2.4:
+						from = eye + dir * reach
+						break
+			_free_camera().look_at_from_position(from, eye)
+			print("looking at %s from %s" % [who.display_name, from.snapped(Vector3.ONE * 0.1)])
 		"caught":
 			game._set_phase(HsGame.Phase.SEEK)
 			if _at != Vector3.INF:

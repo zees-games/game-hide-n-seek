@@ -285,6 +285,10 @@ func _on_profile(event: DotEvent) -> void:
 func _add_tunables(world: HsGame) -> void:
 	var config := world.config
 
+	# [b]How the stand-ins see, hear, turn and know a map is dot-bot's[/b]: `bot_difficulty`
+	# (easy, medium, hard, nightmare; medium by default) and every `bot_*` setting it bundles,
+	# the names every game in the family uses. On the game as metadata, never the registry.
+	var _bot_cvars := DotBotSettings.of(world).bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY, add_command)
 	_tunable("hs_hide_seconds", config.hide_seconds,
 		"Seconds the hiders have to hide while the seekers are blindfolded",
 		func(value: float) -> void: config.hide_seconds = clampf(value, 0.0, 180.0))
@@ -525,7 +529,7 @@ func _keep_the_round_full() -> void:
 		wanted = _quota.wanted(humans, slots)
 
 	for _i in range(maxi(wanted - _bot_ids.size(), 0)):
-		var bot: HsPlayer = bridge.call("add_bot", _bot_name())
+		var bot: HsPlayer = bridge.call("add_bot", _bot_name(world))
 
 		if bot == null:
 			break
@@ -539,12 +543,13 @@ func _keep_the_round_full() -> void:
 		bridge.call("remove_player", HsNetBridge.session_of(leaving))
 
 
-## Names for the stand-ins, so a scoreboard of four of them is readable.
-static func _bot_name() -> String:
-	var names := PackedStringArray([
-		"Pip", "Moss", "Juniper", "Quill", "Basil", "Wren", "Clover", "Sorrel",
-	])
-	return String(names[randi() % names.size()])
+## A stand-in's name: the game's list through dot-bot's [DotBotNames], never one already in
+## [param world], so solo and a server name them alike and a scoreboard never has two Wrens.
+static func _bot_name(world: HsGame) -> String:
+	var taken: Array = []
+	for id: StringName in world.players:
+		taken.append((world.players[id] as HsPlayer).display_name)
+	return DotBotNames.pick(taken, world.players.size(), HsGame.BOT_NAMES)
 
 
 ## Joins the bridge's chat seam to the services layer's router.

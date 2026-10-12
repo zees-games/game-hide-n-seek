@@ -11,6 +11,7 @@ const HsProps := preload("hs_props.gd")
 const HsRules := preload("hs_rules.gd")
 const HsSpectate := preload("hs_spectate.gd")
 const HsController := preload("hs_controller.gd")
+const HsBots := preload("hs_bots.gd")
 
 ## The simulation. Headless, authoritative, and the only thing that decides anything.
 ##
@@ -170,8 +171,11 @@ var _winner_name: String = ""
 ## not inside the signal that said they died, which fires in the middle of the damage.
 var _to_respawn: Array[StringName] = []
 
-## Bots: player id -> what they are doing. See [method _drive_bots].
-var _bot: Dictionary = {}
+## The stand-ins: hiders that hide and seekers that search ([code]hs_bots.gd[/code], on dot-bot).
+var bots: HsBots = HsBots.new(self)
+
+## What the stand-ins are called, solo and on a server alike; past the end dot-bot numbers them.
+const BOT_NAMES := ["Pip", "Moss", "Juniper", "Quill", "Basil", "Wren", "Clover", "Sorrel", "Fern", "Rowan", "Hazel", "Linden"]
 
 
 func _ready() -> void:
@@ -564,7 +568,7 @@ func remove_player(player_id: StringName) -> void:
 
 	players.erase(player_id)
 	sides.erase(player_id)
-	_bot.erase(player_id)
+	bots.forget(player_id)
 	_to_respawn.erase(player_id)
 
 	if taunts != null:
@@ -666,7 +670,7 @@ func _on_round_started(number: int) -> void:
 	_winner = 0
 	_winner_name = ""
 	seek_elapsed = 0.0
-	_bot.clear()
+	bots.reset()
 	_to_respawn.clear()
 
 	if taunts != null:
@@ -1119,6 +1123,7 @@ func catch(id: StringName, by: StringName, how: StringName) -> bool:
 		_bench(hider)
 
 	caught.emit(id, by, how)
+	bots.on_caught(id)
 	DotLog.debug(CHANNEL, "caught", {"id": String(id), "by": String(by), "how": String(how)})
 	_check_round(true)
 	return true
@@ -1268,6 +1273,7 @@ func taunt(id: StringName, taunt_id: StringName = &"") -> bool:
 		progress.on_taunted(id, false)
 
 	taunted.emit(id, played["id"], false)
+	bots.on_taunted(id)
 	return true
 
 
@@ -1298,6 +1304,7 @@ func _advance_taunts() -> void:
 				progress.on_taunted(player.player_id, true)
 
 			taunted.emit(player.player_id, played["id"], true)
+			bots.on_taunted(player.player_id)
 
 
 ## The last hiders given away: everybody still hidden is marked once few enough are left or
@@ -1470,205 +1477,9 @@ func _clear_between(from: Vector3, to: Vector3, furniture: bool = false) -> bool
 
 # --- Bots ------------------------------------------------------------------
 
-## What a stand-in does. A hider walks to a spot beside a piece of furniture far from the
-## seekers' start, crouches there, and runs from any seeker that comes close and can see it; a
-## seeker wanders from piece to piece of furniture and chases any hider it can see.
+## What every stand-in presses this tick: [code]hs_bots.gd[/code].
 func _drive_bots() -> void:
-	for id: StringName in players:
-		var player: HsPlayer = players[id]
-
-		if not player.is_bot or not player.is_alive() or player.watching:
-			continue
-
-		var command := DotFpsCommand.new()
-		command.yaw = player.controller.state.yaw
-		command.pitch = player.controller.state.pitch
-
-		if phase == Phase.IDLE:
-			pass
-		elif team_of(id) == HIDERS:
-			_bot_hide(player, command)
-		elif phase == Phase.SEEK:
-			_bot_seek(player, command)
-
-		player.controller.apply_command(command)
-		player.wants_use = _bot_wants_door(player, command)
-
-
-## A stand-in opens a shut door it is walking into, and leaves open ones alone: a bot that
-## shut every door it passed would be a bot that shuts one on itself. Released between
-## presses, so the game sees an edge.
-func _bot_wants_door(player: HsPlayer, command: DotFpsCommand) -> bool:
-	if map.doors == null or map.doors.count() == 0 or command.move.length() < 0.1 or player.wants_use:
-		return false
-
-	var ahead := Vector3(0.0, 0.0, -1.0).rotated(Vector3.UP, deg_to_rad(command.yaw))
-	var index := map.doors.door_for(player.eye_position(), ahead, 1.6)
-	return index >= 0 and not map.doors.is_open(index) and not map.doors.moving(index, _tick)
-
-
-func _bot_state(player: HsPlayer) -> Dictionary:
-	if not _bot.has(player.player_id):
-		_bot[player.player_id] = {"goal": Vector3.INF, "since": _tick, "stuck": [player.controller.state.position, _tick]}
-
-	return _bot[player.player_id]
-
-
-func _bot_hide(player: HsPlayer, command: DotFpsCommand) -> void:
-	var state := _bot_state(player)
-
-	# Somebody close and coming: run directly away from them.
-	if phase == Phase.SEEK:
-		var threat := _bot_nearest(player, SEEKERS, 9.0)
-
-		if threat != null:
-			var away := player.controller.state.position - threat.controller.state.position
-			command.yaw = rad_to_deg(atan2(-away.x, -away.z))
-			command.move = Vector2(0.0, 1.0)
-			command.set_button(DotFpsCommand.BUTTON_SPRINT, true)
-			state["goal"] = Vector3.INF
-			_bot_unstick(player, command)
-			return
-
-		var draw := random.stream_for(&"bot_taunt", _tick + int(player.entity_id % 4096))
-
-		if draw.next_range_f(0.0, 1.0) < 0.0015:
-			var _taunted := taunt(player.player_id)
-
-	var goal: Vector3 = state["goal"]
-
-	if goal == Vector3.INF:
-		goal = _bot_hiding_spot(player)
-		state["goal"] = goal
-
-	var at := player.controller.state.position
-	var flat := Vector3(goal.x - at.x, 0.0, goal.z - at.z)
-
-	if flat.length() > 0.8:
-		command.yaw = rad_to_deg(atan2(-flat.x, -flat.z))
-		command.move = Vector2(0.0, 1.0)
-		_bot_unstick(player, command)
-		return
-
-	# There: crouch and wait. A stand-in that is found has done its job.
-	command.set_button(DotFpsCommand.BUTTON_CROUCH, true)
-
-
-## Beside a piece of furniture, as far from where the seekers start as a seeded draw allows.
-func _bot_hiding_spot(player: HsPlayer) -> Vector3:
-	if map.props.is_empty():
-		return player.controller.state.position
-
-	var seekers_at: Vector3 = map.spawn("seekers", 0)[0]
-	var draw := random.stream_for(&"bot_hide", round_number * 4096 + int(player.entity_id % 4096))
-	var best := player.controller.state.position
-	var best_score := -INF
-
-	for _try in range(12):
-		var prop: Dictionary = map.props[draw.next_range_i(0, map.props.size() - 1)]
-		var origin := (prop["transform"] as Transform3D).origin
-		var size: Vector3 = prop["size"]
-		var side := Vector3(1.0, 0.0, 0.0).rotated(Vector3.UP, draw.next_range_f(0.0, TAU))
-		var spot := origin + side * (maxf(size.x, size.z) * 0.5 + 0.6)
-		spot.y = origin.y
-		var score := spot.distance_to(seekers_at) + draw.next_range_f(0.0, 8.0)
-
-		if score > best_score:
-			best_score = score
-			best = spot
-
-	return best
-
-
-func _bot_seek(player: HsPlayer, command: DotFpsCommand) -> void:
-	var state := _bot_state(player)
-	var prey := _bot_seen_hider(player)
-
-	if prey != null:
-		var toward := prey.controller.state.position - player.controller.state.position
-		command.yaw = rad_to_deg(atan2(-toward.x, -toward.z))
-		command.pitch = 0.0
-		command.move = Vector2(0.0, 1.0)
-		command.set_button(DotFpsCommand.BUTTON_SPRINT, true)
-		_bot_unstick(player, command)
-		return
-
-	var goal: Vector3 = state["goal"]
-
-	if goal == Vector3.INF or player.controller.state.position.distance_to(goal) < 1.5 or _tick - int(state["since"]) > tick_rate * 12:
-		goal = _bot_wander_goal(player)
-		state["goal"] = goal
-		state["since"] = _tick
-
-	var flat := Vector3(goal.x, 0.0, goal.z) - Vector3(player.controller.state.position.x, 0.0, player.controller.state.position.z)
-	command.yaw = rad_to_deg(atan2(-flat.x, -flat.z))
-	command.pitch = 0.0
-	command.move = Vector2(0.0, 1.0)
-	_bot_unstick(player, command)
-
-
-## The nearest of [param side] within [param reach] that this bot can see, or null.
-func _bot_nearest(player: HsPlayer, side: int, reach: float) -> HsPlayer:
-	var eye := player.eye_position()
-	var best: HsPlayer = null
-	var closest := reach
-
-	for other in players_on(side):
-		if other == player or not other.is_alive() or other.watching:
-			continue
-
-		var at := other.controller.state.position + Vector3(0.0, 1.0, 0.0)
-		var distance := eye.distance_to(at)
-
-		if distance < closest and _clear_between(eye, at, true):
-			closest = distance
-			best = other
-
-	return best
-
-
-func _bot_seen_hider(player: HsPlayer) -> HsPlayer:
-	var forward := player.aim_direction()
-	var seen := _bot_nearest(player, HIDERS, config.bot_sight)
-
-	if seen == null:
-		return null
-
-	var toward := (seen.controller.state.position - player.controller.state.position).normalized()
-
-	# Behind it is not seen, unless it is close enough to hear.
-	if forward.dot(toward) < 0.2 and player.controller.state.position.distance_to(seen.controller.state.position) > 3.0:
-		return null
-
-	return seen
-
-
-func _bot_wander_goal(player: HsPlayer) -> Vector3:
-	var draw := random.stream_for(&"bot_wander", _tick + int(player.entity_id % 4096))
-
-	if map.props.is_empty():
-		return player.controller.state.position
-
-	var prop: Dictionary = map.props[draw.next_range_i(0, map.props.size() - 1)]
-	return (prop["transform"] as Transform3D).origin
-
-
-func _bot_unstick(player: HsPlayer, command: DotFpsCommand) -> void:
-	var state := _bot_state(player)
-	var mark: Array = state["stuck"]
-	var at := player.controller.state.position
-
-	if _tick - int(mark[1]) < tick_rate:
-		return
-
-	var stuck := Vector2(at.x - (mark[0] as Vector3).x, at.z - (mark[0] as Vector3).z).length() < 0.4
-
-	if stuck and player.controller.state.mode == DotFpsState.Mode.GROUND:
-		command.set_button(DotFpsCommand.BUTTON_JUMP, true)
-		# And a new goal, because the old one is through something.
-		state["goal"] = Vector3.INF
-
-	state["stuck"] = [at, _tick]
+	bots.drive()
 
 
 # --- Reacting ---------------------------------------------------------------
