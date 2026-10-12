@@ -14,7 +14,7 @@ const HsPlayer := preload("../game/hs_player.gd")
 ## nothing but the stand-ins the module seats itself.
 
 const SECTIONS := 10
-const CHECKS := 55
+const CHECKS := 58
 
 const SERVER_DIR := "user://hs_dedicated"
 const PORT := 28931
@@ -337,6 +337,30 @@ func _test_the_map_vote() -> void:
 		ids.append(String(choice.id))
 
 	_check(ids.has("hs_apartments") and ids.has("hs_manor"), "it offers the delivered maps", str(ids))
+
+	# The map menu's server half (M): the owner's flag changes the map now, anybody else
+	# gets a nomination and a rock-the-vote. Contexts as dot-server makes them for a chat line.
+	var menu_half: Object = vote.get("commands").get("map_menu")
+	_check(menu_half != null and server.console.find_command("mapmenu") != null
+		and server.console.find_cvar("sv_map_menu_flag").get_string() == "generic"
+		and (menu_half.get("change_fn") as Callable).is_valid(),
+		"the map menu is there, staff-only by default, changing the map now")
+	var staff := DotCmdContext.new()
+	staff.source = DotCmdContext.Source.CHAT
+	staff.permissions = PackedStringArray(["generic"])
+	var player := DotCmdContext.new()
+	player.source = DotCmdContext.Source.CHAT
+	var menu_offer: Dictionary = menu_half.call("offer", player)
+	_check((menu_offer["maps"] as Array).size() > 1 and not bool(menu_offer["allowed"]) and bool(menu_offer["vote"]),
+		"a player is offered every map, as a vote")
+	var target: StringName = &""
+	for row: Dictionary in menu_offer["maps"]:
+		if not bool(row["current"]):
+			target = StringName(str(row["id"]))
+			break
+	var menu_changed: Dictionary = await menu_half.call("choose", staff, target)
+	_check(bool(menu_changed["ok"]) and StringName(str(game.map_doc.get("id", ""))) == target, "staff choosing one changes the map on the spot",
+		"%s: %s" % [target, menu_changed.get("text", "")])
 
 	vote.set("voters_fn", func() -> Array: return [&"7"])
 	var director: DotVoteDirector = vote.get("director")

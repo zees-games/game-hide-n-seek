@@ -654,6 +654,14 @@ func _build_vote(world: HsGame) -> void:
 	var commanded := vote.install_commands(self)
 	DotLog.result(CHANNEL, "the map vote's commands", commanded)
 
+	# The map menu (M), dot-vote's: a player holding the owner's `sv_map_menu_flag` changes the
+	# map now, not after its rounds, and sees the same rows a solo player does. Read by name,
+	# because a server on a dot-vote older than the menu has no `map_menu` and runs without it.
+	var menu_half: Variant = vote.commands.get(&"map_menu") if vote.commands != null else null
+	if menu_half is Object:
+		(menu_half as Object).set(&"change_fn", world.change_map_now)
+		(menu_half as Object).set(&"rows_fn", func(_rows: Array) -> Array: return world.map_rows())
+
 	_tunable("hs_vote_after", vote.open_after_sec,
 		"Seconds into the last round on a map before the vote for the next one opens",
 		func(value: float) -> void:
