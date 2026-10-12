@@ -93,6 +93,7 @@ func _ready() -> void:
 	game.tick_rate = int(ProjectSettings.get_setting("physics/common/physics_ticks_per_second", 64))
 	game.draw_world = true
 	add_child(game)
+	_build_ragdolls()
 
 	_sampler = DotFpsSampler.new(HsPlayer.tunables_for(config))
 	HsPlayer.register_actions(_sampler)
@@ -193,6 +194,8 @@ func _build_netcode() -> DotResult:
 	# predicts its own player.
 	var _view := game.view_rules.follow_cvars(link)
 	var _solid := game.body_rules.follow_cvars(link)
+	# The server's sv_ragdoll* set: this end draws the bodies.
+	var _dead := game.ragdoll_rules.follow_cvars(link)
 	net.messages.seal()
 
 	bridge.hello_received.connect(_on_hello)
@@ -313,6 +316,10 @@ func is_seeker() -> bool:
 
 
 func _on_map(map_id: StringName) -> void:
+	if ragdolls != null:
+		# A body on the old map would hang in the new one's air.
+		ragdolls.clear()
+
 	if audio != null:
 		audio.on_map_doc(map_id, game.map_doc)
 
@@ -343,6 +350,7 @@ func _on_round(number: int, began: bool, winner: int, why: String = "") -> void:
 
 func _on_death(session_id: int, _by: int, why: StringName) -> void:
 	var who := _player_of(session_id)
+	_fall(who)
 
 	if chat == null or who == null:
 		return
@@ -351,6 +359,39 @@ func _on_death(session_id: int, _by: int, why: StringName) -> void:
 		chat.say_locally("%s fell" % who.display_name, Color(0.80, 0.82, 0.86))
 	else:
 		chat.say_locally("%s is out" % who.display_name, Color(0.80, 0.82, 0.86))
+
+
+# --- Dead bodies -----------------------------------------------------------
+
+## Where the dead lie: dot-player-char's ragdolls under the game's (the server's) rules.
+var ragdolls: DotPlayerRagdolls = null
+
+
+func _build_ragdolls() -> void:
+	ragdolls = DotPlayerRagdolls.new()
+	ragdolls.name = "Ragdolls"
+	ragdolls.rules = game.ragdoll_rules
+	ragdolls.sound_fn = _ragdoll_sound
+	add_child(ragdolls)
+
+
+func _ragdoll_sound(id: StringName, at: Vector3, volume: float) -> void:
+	if audio != null:
+		var _played := audio.on_body(id, at, volume)
+
+
+## [param who]'s body falls the way the server picked ([member HsPlayer.death]), copied from the
+## figure this client draws; the figure itself stays hidden while they are dead
+## ([method HsPlayer.present_body]). Nobody's figure, nothing: a first-person player who never
+## had one drawn here. Called from [method _on_death], solo and connected alike.
+func _fall(who: HsPlayer) -> void:
+	if who == null or ragdolls == null or who.figure == null or not who.figure.is_inside_tree():
+		return
+	if game.physics != null:
+		# The rooms and the props: a body lands on them and on nothing else (not on a person).
+		game.ragdoll_rules.collision_mask = game.physics.layer_mask(&"world") | game.physics.layer_mask(&"prop")
+	var velocity := who.controller.state.velocity if who.controller != null else Vector3.ZERO
+	var _body := ragdolls.spawn(who.figure, who.death if who.death != null else DotPlayerDeath.new(), velocity)
 
 
 ## A hider was caught. Everybody hears it; the one caught is told what they are now.

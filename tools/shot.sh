@@ -6,6 +6,7 @@
 #   tools/shot.sh --view=seeker                                   # a seeker's eyes, seeking
 #   tools/shot.sh --view=hider --third                            # a hider from behind, in blue
 #   tools/shot.sh --view=caught                                   # the moment a hider is caught
+#   tools/shot.sh --view=ragdoll --seconds=0.6                    # a stand-in slain, its body 0.6 s into the fall
 #   tools/shot.sh --view=bots --pick=0 --hs-map-ids=hs_manor       # the stand-ins hidden; the best-hidden one
 #   tools/shot.sh --view=room --place=x,y,z --at=... --look=...     # the player stood somewhere (a branch), seen
 #   tools/shot.sh --view=door                                     # a hider at a door: the use-key prompt

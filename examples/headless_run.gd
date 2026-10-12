@@ -5,6 +5,7 @@ const HsCatalogue := preload("../game/hs_catalogue.gd")
 const HsConfig := preload("../game/hs_config.gd")
 const HsController := preload("../game/hs_controller.gd")
 const HsGame := preload("../game/hs_game.gd")
+const HsEvents := preload("../game/net/hs_events.gd")
 const HsInterest := preload("../game/net/hs_interest.gd")
 const HsMapDoc := preload("../game/hs_map_doc.gd")
 const HsPlayer := preload("../game/hs_player.gd")
@@ -26,7 +27,7 @@ const HsSettings := preload("../game/hs_settings.gd")
 
 const SECTIONS := 22
 
-const CHECKS := 112
+const CHECKS := 119
 
 const TICK_RATE := 64
 const TICK := 1.0 / float(TICK_RATE)
@@ -497,6 +498,14 @@ func _test_falls() -> void:
 	_finished()
 
 
+func _death_sounds_listed() -> bool:
+	var catalogue: DotAudioCatalogue = (load("res://game/hs_audio.gd") as GDScript).call("sound_catalogue")
+	for row: Dictionary in DotPlayerDeathSounds.rows():
+		if catalogue.find(row["id"]) == null:
+			return false
+	return not DotPlayerDeathSounds.rows().is_empty()
+
+
 func _test_the_beacon() -> void:
 	_section("the last hider is given away")
 	var game := await _seek_round(func(c: HsConfig) -> void:
@@ -658,6 +667,53 @@ func _test_the_client() -> void:
 		and strip.colour(&"highlight") == (load("res://game/hs_hud.gd") as GDScript).get("MAP_COLOUR"),
 		"a theme picked in the menu reaches the clock and the HUD's lines at once, the accent kept")
 	_t = themed.settings.set_value(&"ui_theme", &"midnight")
+
+	# A slain stand-in falls as dot-player-char's ragdoll: the world picked the fall, and the
+	# client copied the body from the figure it draws, under the game's rules, the figure hidden.
+	world._set_phase(HsGame.Phase.SEEK)
+	var ragdolls: DotPlayerRagdolls = client.get("ragdolls")
+	var victim: HsPlayer = null
+	for id: StringName in world.players:
+		var p: HsPlayer = world.players[id]
+		if p != client.get("player") and p.is_alive() and p.figure != null and p.figure.visible:
+			victim = p
+			break
+	_check(victim != null and ragdolls != null and ragdolls.rules == world.ragdoll_rules,
+		"the client keeps the dead under the game's sv_ragdoll* rules")
+	if victim != null:
+		var slay := DotDamage.make(0, victim.entity_id, victim.health.max_health * 10.0, null)
+		slay.tick = world._tick
+		var _applied := world.combat.apply_damage(slay)
+		await get_tree().process_frame
+		_check(victim.death != null and DotPlayerDeathReactions.stock().has(victim.death.reaction),
+			"the world picked how the body falls", str(victim.death.describe()) if victim.death != null else "none")
+		var bodies := ragdolls.live()
+		_check(bodies.size() == 1 and not victim.figure.visible,
+			"and the client laid the body down from the figure, which is hidden", str(bodies.size()))
+		for i in 30:
+			await get_tree().physics_frame
+		for i in 60:
+			await get_tree().physics_frame
+		var down := bodies.size() == 1 and is_instance_valid(bodies[0])
+		_check(down and bodies[0].centre().y < 0.8 and bodies[0].lowest_point() > -0.25,
+			"a second on, the body lies on the floor: not standing, not through it",
+			str(bodies[0].describe()) if down else "gone")
+	else:
+		for k in 3:
+			_check(false, "a stand-in drawn to slay")
+	_check(_death_sounds_listed(), "the death sounds are in the game's catalogue")
+
+	# The fall rides DEATH last and optional, so a death from an older server still reads.
+	var fall := DotPlayerDeath.new()
+	fall.reaction = &"face_plant"
+	fall.roll_seed = 1234
+	fall.direction = Vector3(1, 0, 0)
+	var died := HsEvents.read_death(DotNetReader.new(HsEvents.write_death(5, 6, HsGame.DIED_SLAIN, fall)))
+	var carried: DotPlayerDeath = died.get("death")
+	_check(bool(died["ok"]) and carried != null and carried.reaction == &"face_plant" and carried.roll_seed == 1234
+		and carried.direction.distance_to(Vector3(1, 0, 0)) < 0.02, "a DEATH carries the fall the server picked")
+	var bare := HsEvents.read_death(DotNetReader.new(HsEvents.write_death(5, 6, HsGame.DIED_SLAIN)))
+	_check(bool(bare["ok"]) and not bare.has("death"), "and one without a fall still reads")
 
 	# A hider a step in front of a door is prompted by DotKeyPrompt with the use key as bound.
 	# The seek first, which lets this seeker's blindfold hold go; then a hider.

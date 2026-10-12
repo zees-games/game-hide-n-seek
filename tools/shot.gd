@@ -152,6 +152,33 @@ func _run() -> void:
 						break
 			_free_camera().look_at_from_position(from, eye)
 			print("looking at %s from %s" % [who.display_name, from.snapped(Vector3.ONE * 0.1)])
+		"ragdoll":
+			# A stand-in slain in front of a free camera, and [member _seconds] of its fall:
+			# `--seconds=0.15`, `0.6` and `2` are the start, the drop and the body at rest.
+			game._set_phase(HsGame.Phase.SEEK)
+			await _seconds_of(0.6)
+			var victim: HsPlayer = null
+			for id: StringName in game.players:
+				var p: HsPlayer = game.players[id]
+				if p != local and p.is_alive() and p.figure != null and p.figure.visible:
+					victim = p
+					break
+			if victim == null:
+				print("nobody drawn to slay")
+				get_tree().quit(1)
+				return
+			if _place != Vector3.INF:
+				victim.place_at(_place, 0.0)
+				await _seconds_of(0.3)
+			var feet: Vector3 = victim.controller.state.position
+			var camera := _free_camera()
+			camera.look_at_from_position(_at if _at != Vector3.INF else feet + Vector3(2.4, 1.6, 2.4), feet + Vector3(0.0, 0.7, 0.0))
+			var slay := DotDamage.make(0, victim.entity_id, victim.health.max_health * 10.0, null)
+			slay.tick = game._tick
+			slay.direction = (feet - camera.global_position) * Vector3(1, 0, 1)
+			var _applied: Variant = game.combat.apply_damage(slay)
+			print("slew %s at %s: %s" % [victim.display_name, feet.snapped(Vector3.ONE * 0.1), victim.death.describe() if victim.death != null else "no fall"])
+			await _seconds_of(_seconds)
 		"caught":
 			game._set_phase(HsGame.Phase.SEEK)
 			if _at != Vector3.INF:

@@ -119,6 +119,11 @@ var combat: DotCombatManager = null
 var match_node: DotMatch = null
 var random: DotRandomManager = null
 var physics: DotPhysicsLayout = null
+
+## What a dead body does, and which death reactions the server allows: dot-player-char's
+## `sv_ragdoll*` cvars, bound by the module (REPLICATED) and followed by a client through its
+## link, because the client draws the bodies.
+var ragdoll_rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
 var effects: DotFxManager = null
 var spectate: HsSpectate = null
 var progress: HsProgress = null
@@ -1595,8 +1600,25 @@ func _on_player_died(player: HsPlayer, damage: DotDamage) -> void:
 	if progress != null and why == DIED_FELL:
 		progress.on_fell(player.player_id)
 
+	# How the body falls, picked once, here, and carried on DEATH to every client.
+	player.death = decide_death(player, damage)
+
 	player_died.emit(player.player_id, by, why)
 	DotLog.debug(CHANNEL, "player died", {"id": String(player.player_id), "by": String(by), "why": String(why)})
+
+
+## The fall a death gets: dot-player-char's reaction rule over the server's weights, seeded from
+## the player and the tick. Nothing here shoots, so there is no weapon def: an administrator's
+## slay pushes the body away from whoever did it, and a fall below the map pushes nothing.
+func decide_death(player: HsPlayer, damage: DotDamage) -> DotPlayerDeath:
+	var direction := damage.direction
+	var attacker: HsPlayer = players.get(entities.key_for_id(damage.attacker)) if damage.attacker != 0 else null
+	if direction.length_squared() < 0.0001 and attacker != null and attacker != player:
+		direction = player.controller.state.position - attacker.controller.state.position
+	return DotPlayerDeath.decide(
+		ragdoll_rules.reactions(), damage.is_headshot(), damage.amount, direction,
+		DotPlayerDeath.seed_of(player.entity_id, _tick)
+	)
 
 
 # --- Reporting --------------------------------------------------------------

@@ -530,8 +530,10 @@ func _on_phase_changed(phase: int) -> void:
 
 
 func _on_player_died(player_id: StringName, by: StringName, why: StringName) -> void:
+	var who: HsPlayer = game.players.get(player_id) if game != null else null
 	_broadcast(HsEvents.Kind.DEATH, HsEvents.write_death(
-		session_of(player_id), session_of(by) if by != &"" else 0, why
+		session_of(player_id), session_of(by) if by != &"" else 0, why,
+		who.death if who != null else null
 	))
 
 
@@ -1055,6 +1057,12 @@ func _on_event(message: DotNetMessage) -> void:
 			var death := HsEvents.read_death(reader)
 
 			if bool(death["ok"]):
+				# The fall goes on the player before anybody hears of the death, so the client
+				# that draws it reads the server's pick.
+				var fell: HsPlayer = game.players.get(player_key(int(death["player_id"]))) \
+					if game != null else null
+				if fell != null and death.has("death"):
+					fell.death = death["death"]
 				death_received.emit(
 					int(death["player_id"]), int(death["by"]), death["why"]
 				)

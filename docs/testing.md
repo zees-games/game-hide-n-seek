@@ -20,7 +20,7 @@
 
 ## Renders
 
-`tools/shot.sh --view=overview|room|hider|seeker|blind|caught`, with `--hs-map-ids=<id>`, `--at=x,y,z --look=x,y,z`, `--third`, `--board`, `--doors=open`. Shirt colours, HUD overlaps, wording, fog colour, floor striping and the secret panel's outline were all found by rendering.
+`tools/shot.sh --view=overview|room|hider|seeker|blind|caught|ragdoll`, with `--hs-map-ids=<id>`, `--at=x,y,z --look=x,y,z`, `--third`, `--board`, `--doors=open`. Shirt colours, HUD overlaps, wording, fog colour, floor striping and the secret panel's outline were all found by rendering.
 
 ## The deployment
 

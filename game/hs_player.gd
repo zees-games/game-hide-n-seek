@@ -103,6 +103,10 @@ var beacon_marker: DotFxBeacon = null
 ## What other people see this player as. Client side.
 var figure: HsFigure = null
 
+## How this player's body falls on their death: the server's pick ([method HsGame.decide_death]),
+## carried on DEATH and set here before anybody hears of it. Null before a first death.
+var death: DotPlayerDeath = null
+
 var tick_rate: int = 64:
 	set(value):
 		tick_rate = value

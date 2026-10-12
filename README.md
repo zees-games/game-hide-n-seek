@@ -126,6 +126,8 @@ hs_vote_after 20               // seconds into a map's last round before the vot
 
 The bot cvars are the family's shared ones: how many is dot-server's `DotBotQuota`, how well they see, hear, turn and know a map is [dot-bot](https://github.com/modcommunity/dot-bot)'s `bot_difficulty` (easy, medium, hard, nightmare) and its `bot_*` settings (`bot_settings` lists them). The same names work at the console in solo, and `./game.sh -- --bot_difficulty hard` sets it at launch. `hs_min_players` still works and sets `bot_quota`; it is deprecated.
 
+Somebody slain by an administrator (or killed by a fall) drops as a ragdoll ([dot-player-char](https://github.com/modcommunity/dot-player-char)); the server picks how each body goes down and everybody sees the same fall. `sv_ragdoll 0` makes it a quick fall with no physics, `sv_ragdoll_style` picks ragdoll, stiff, topple or hide, `sv_ragdoll_time` and `sv_ragdoll_max` say how long and how many, and `sv_ragdoll_reactions` weights the falls (`limp`, `face_plant`, `crumple`, `headshot_launch`, `power_launch`; 0 turns one off).
+
 `--hs-map-ids=<ids>` limits a server to some maps, and every other setting in `game/hs_config.gd` can be given the same way (`--hs-sprint-scale=1.5`, `--hs-taunt-range=80`). The taunts are listed in `taunts/taunts.json`: edit it to add your own sounds. The vote's settings go in `user://cfg/hideseek_vote.json` (`{"enabled": false}` turns it off); dot-vote's README lists them.
 
 Console commands:
