@@ -20,30 +20,19 @@ const HsPaths := preload("hs_paths.gd")
 ## remote player, `render_state()` for one this process simulates — and nothing here
 ## computes one.
 ##
-## [b]A Kenney character rather than primitives,[/b] because a seeker is somebody to see coming and
-## a capsule does not say which way somebody is facing from forty metres; the kit's head,
-## arms and a walk cycle do, for 113 KB. One mesh set and six atlases, the ones
-## mg-buses-from-hell chose for being people; which one a player wears comes from their id,
-## so every client dresses the same person the same way. [b]The side is the shirt[/b]: the
-## torso is painted the side's colour outright, and the head, arms and legs stay the player's
-## own. The first thing anybody needs to read off a body is whether to run from it. A tint
-## over the atlas was tried first and a render of the park showed why not: a teal shirt tinted
-## blue reads as teal, and a red one as a muddy purple.
-##
-## [b]Loaded by path and repainted by hand, for the pack.[/b] A delivered game is mounted
-## under `res://dot_cloud/<id>/<version>/`; the model is loaded through [HsPaths.rebase], and
-## every surface is given its atlas explicitly rather than trusting the import's own external
-## dependency, which records an absolute `res://assets/…` path that does not exist once
-## mounted. mg-buses-from-hell shipped a round where every crate's mesh loaded and none of
-## their textures did.
+## [b]One of the family's people[/b] (dot-player-char's `DotHumanoidFigure`: animated, on the
+## rig every game's players, bots and NPCs share), because a seeker is somebody to see coming and
+## a capsule does not say which way somebody is facing from forty metres. Which person a player
+## is still comes from the blocky kit's atlas their avatar names (`HsAvatars`, [constant ATLASES]):
+## the atlas letter is a look (`DotHumanoidLook.from_letter`), so every document written before
+## the people arrived dresses the same person on every client. [b]The side is the shirt[/b]: the
+## top is the side's colour outright, and the face, hair and legs stay the player's own. The first
+## thing anybody needs to read off a body is whether to run from it.
 
 const CHANNEL := "hs.figure"
 
-## Rebased where it is defined, like the atlases below: see [method HsPaths.rebase].
-static var MODEL := HsPaths.rebase("res://assets/kenney/characters/character-a.glb")
-
-## Six ordinary people. Every Blocky Character carries byte-identical geometry and UVs, so
-## the variety is a texture and nothing else — vendoring six GLBs would be six copies of one.
+## The six people a player can be, by the blocky kit's atlas letters (the avatar documents name
+## them). Only the letter is read: the people are coloured, not textured.
 static var ATLASES: Array[String] = [
 	HsPaths.rebase("res://assets/kenney/characters/Textures/texture-a.png"),
 	HsPaths.rebase("res://assets/kenney/characters/Textures/texture-b.png"),
@@ -53,33 +42,24 @@ static var ATLASES: Array[String] = [
 	HsPaths.rebase("res://assets/kenney/characters/Textures/texture-k.png"),
 ]
 
-## How much of the side's colour goes on the torso. Enough to read at the far corner of the
-## ring; not so much that the atlas under it becomes a flat block.
+## How much of the side's colour goes on the top: all of it (a tint over a teal shirt read as
+## teal, a red one as muddy purple).
 const TEAM_TINT := 1.0
-
-## Ground speeds, in metres a second, at which the body starts walking and starts running.
-const WALK_FROM := 0.4
-const RUN_FROM := 3.6
 
 ## Which atlas this figure wears, and the side colour on it. Read by the suite.
 var atlas: String = ""
 var team_colour: Color = Color.WHITE
 
-## Whether the Kenney model loaded, or the capsule fallback is standing in for it.
+## Whether the people's art loaded, or a capsule stands in.
 var from_art: bool = false
 
 ## The clip playing, for the suite and for `describe()`.
 var clip: StringName = &""
 
+## The person, under this node.
+var person: DotHumanoidFigure = null
 
-
-var _model: Node3D = null
-var _anim: AnimationPlayer = null
-var _arm: Node3D = null
-var _scale_by: float = 1.0
 var _posed_at_usec: int = -1
-
-
 
 
 func _init() -> void:
@@ -87,67 +67,36 @@ func _init() -> void:
 	top_level = true
 
 
-## Builds the figure to stand [param height] metres tall, feet at this node's origin.
-##
-## [b]Measured, not a constant.[/b] A Blocky Character is 2.7 m; a figure at its own size is
-## half again a player's hull and would stand with its head in the underside of a chopper.
+## Builds the figure to stand [param height] metres tall, feet at this node's origin, as the
+## person [param atlas_path]'s letter is, wearing [param colour] on the top.
 func build(height: float, atlas_path: String, colour: Color) -> void:
 	atlas = atlas_path
 	team_colour = colour
 	clip = &""
-	_anim = null
-	_arm = null
 	_posed_at_usec = -1
-
-	if _model != null:
-		_model.queue_free()
-		_model = null
-
-	var scene: Variant = load(MODEL)
-
-	if scene is PackedScene:
-		_model = (scene as PackedScene).instantiate() as Node3D
-
-	if _model == null:
-		# A capsule rather than nothing. An invisible player is the bug this file exists to
-		# end; a grey one is a player whose art did not ship, which is a lesser thing.
-		DotLog.warn(CHANNEL, "no character model; drawing a capsule", {
-			"path": MODEL,
-		})
-		_model = _capsule(height, colour)
-		add_child(_model)
-		from_art = false
-		return
-
-	add_child(_model)
-	from_art = true
-
-	var bounds := _bounds(_model, Transform3D.IDENTITY)
-	var scale_by := height / maxf(bounds.size.y, 0.01)
-
-	# [b]Turned round, because the kit faces +Z and this family's forward is -Z.[/b]
-	# mg-buses-from-hell's bus chased people cab-last until a render showed it.
-	_model.basis = Basis(Vector3.UP, PI).scaled(Vector3.ONE * scale_by)
-	_model.position = Vector3(0.0, -bounds.position.y * scale_by, 0.0)
-
-	_paint(_model, atlas_path, colour)
-	_scale_by = scale_by
-	_arm = _model.find_child("arm-right", true, false) as Node3D
-	_anim = _model.find_child("AnimationPlayer", true, false) as AnimationPlayer
-
-	# [b]Advanced by [method pose], not by the engine[/b], so that the arm can be held up
-	# AFTER the walk has been applied to it. The kit's `holding-right` clip is the whole body
-	# standing still with one arm out; playing it would stop the legs. Left to the engine, the
-	# player's own process and this one's run in an order nothing here controls, and an arm
-	# set before the clip writes it is an arm the clip puts back down.
-	if _anim != null:
-		_anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	var look := DotHumanoidLook.from_letter(atlas_path)
+	if look == null:
+		look = DotHumanoidLook.stock(hash(atlas_path))
+	if colour != Color.WHITE:
+		look = look.with_side(colour, TEAM_TINT)
+	if person == null:
+		person = DotHumanoidFigure.new()
+		person.name = "Person"
+		add_child(person)
+	person.build(look, height)
+	from_art = person.from_art
 
 
-## The drawn model, for a death that breaks it apart (`HsPlayer.break_body`). Null before
-## [method build].
+## The drawn model, for a death that breaks it apart or falls. Null before [method build].
 func body_node() -> Node3D:
-	return _model
+	return person
+
+
+## How the player moves besides its ground speed: `on_floor`, `vertical`, `crouched` and the
+## rest [DotHumanoidFigure.set_motion] reads.
+func set_motion(motion: Dictionary) -> void:
+	if person != null:
+		person.set_motion(motion)
 
 
 ## Puts the figure where this frame draws its player, facing [param yaw_radians], moving at
@@ -155,124 +104,14 @@ func body_node() -> Node3D:
 func pose(at: Vector3, yaw_radians: float, speed: float) -> void:
 	global_position = at
 	rotation = Vector3(0.0, yaw_radians, 0.0)
-
-	var wanted := &"idle"
-
-	if speed >= RUN_FROM:
-		wanted = &"sprint"
-	elif speed >= WALK_FROM:
-		wanted = &"walk"
-
-	_play(wanted)
-
-	if _anim != null:
-		var now := Time.get_ticks_usec()
-		# A figure that was hidden for a minute is not a minute behind: clamped, so it picks
-		# up the clip where it was rather than fast-forwarding through it in one frame.
-		var delta := 0.0 if _posed_at_usec < 0 else clampf((now - _posed_at_usec) / 1e6, 0.0, 0.1)
-		_posed_at_usec = now
-		_anim.advance(delta)
-
-
-
-func _play(wanted: StringName) -> void:
-	if _anim == null or clip == wanted or not _anim.has_animation(wanted):
+	if person == null:
 		return
-
-	clip = wanted
-	# The kit's clips are imported as one-shots. A walk that stops after one stride reads as
-	# somebody sliding the rest of the way across the platform.
-	var animation := _anim.get_animation(wanted)
-	if animation != null:
-		animation.loop_mode = Animation.LOOP_LINEAR
-	_anim.play(wanted, 0.15)
-
-
-static func _bounds(node: Node, to_root: Transform3D) -> AABB:
-	var out := AABB()
-	var seeded := false
-	var mesh := node as MeshInstance3D
-
-	if mesh != null and mesh.mesh != null:
-		out = to_root * mesh.mesh.get_aabb()
-		seeded = true
-
-	for child in node.get_children():
-		var child_to_root := to_root
-		if child is Node3D:
-			child_to_root = to_root * (child as Node3D).transform
-		var inner := _bounds(child, child_to_root)
-		# An empty AABB is a branch with no mesh in it; merging one would pull the bounds out
-		# to the origin of whatever node it came from.
-		if inner.size == Vector3.ZERO and inner.position == Vector3.ZERO:
-			continue
-		out = inner if not seeded else out.merge(inner)
-		seeded = true
-
-	return out
-
-
-func _paint(root: Node, atlas_path: String, colour: Color) -> void:
-	var texture: Variant = load(HsPaths.rebase(atlas_path))
-
-	if not (texture is Texture2D):
-		DotLog.warn(CHANNEL, "a character atlas is missing", {"path": atlas_path})
-		return
-
-	# Unshaded, as the kit's own material is (`KHR_materials_unlit`), and nearest-filtered
-	# because the atlas is pixel art.
-	var plain := StandardMaterial3D.new()
-	plain.albedo_texture = texture
-	plain.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	plain.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-
-	var side := plain.duplicate() as StandardMaterial3D
-	side.albedo_texture = null
-	side.albedo_color = Color.WHITE.lerp(colour, TEAM_TINT)
-
-	for node in _meshes(root):
-		node.material_override = side if node.name == &"torso" else plain
-
-
-static func _meshes(node: Node) -> Array[MeshInstance3D]:
-	var out: Array[MeshInstance3D] = []
-	var as_mesh := node as MeshInstance3D
-
-	if as_mesh != null:
-		out.append(as_mesh)
-
-	for child in node.get_children():
-		out.append_array(_meshes(child))
-
-	return out
-
-
-static func _capsule(height: float, colour: Color) -> Node3D:
-	var root := Node3D.new()
-	root.name = "Capsule"
-
-	var material := StandardMaterial3D.new()
-	material.albedo_color = colour
-
-	var trunk := MeshInstance3D.new()
-	var capsule := CapsuleMesh.new()
-	capsule.radius = 0.35
-	capsule.height = height
-	trunk.mesh = capsule
-	trunk.material_override = material
-	trunk.position = Vector3(0.0, height * 0.5, 0.0)
-	root.add_child(trunk)
-
-	# A nose, so which way they face reads from across the field.
-	var nose := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(0.16, 0.16, 0.3)
-	nose.mesh = box
-	nose.material_override = material
-	nose.position = Vector3(0.0, height * 0.85, -0.4)
-	root.add_child(nose)
-
-	return root
+	var now := Time.get_ticks_usec()
+	# A figure that was hidden for a minute is not a minute behind: clamped.
+	var delta := 0.0 if _posed_at_usec < 0 else clampf((now - _posed_at_usec) / 1e6, 0.0, 0.1)
+	_posed_at_usec = now
+	person.animate(speed, delta)
+	clip = person.clip
 
 
 func describe() -> Dictionary:

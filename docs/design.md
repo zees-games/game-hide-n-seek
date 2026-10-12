@@ -34,7 +34,7 @@ As in prop hunt: the HUD paints a seeker's screen black during the hide, the `HO
 
 ## Everybody is themselves, and the side is the shirt
 
-A hider is their site avatar (dot-platform, `HsAvatars`) with the torso **painted** the side's colour outright: hiders blue, seekers orange. Not tinted: tinting over the atlas made a teal shirt read teal and a red one purple. A side change rebuilds the figure, so a caught hider turns orange on the next frame.
+A hider is drawn as one of the family's animated people (dot-player-char's `DotHumanoidFigure`, the style every game's players, bots and NPCs share): the person their site avatar's blocky atlas letter names (dot-platform, `HsAvatars`, `DotHumanoidLook.from_letter`), with the top the side's colour outright: hiders blue, seekers orange. Not tinted: tinting a teal shirt blue read teal and a red one purple. The figure is told the floor, the vertical speed and the crouch, so a crouched hider is drawn crouching and a jump is drawn as one. A side change rebuilds the figure, so a caught hider turns orange on the next frame.
 
 ## Taunts, the beacon, points and stats
 

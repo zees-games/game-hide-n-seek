@@ -643,7 +643,8 @@ func _portrait(atlas: String) -> Texture2D:
 	var eye := Camera3D.new()
 	eye.fov = 30.0
 	view.add_child(eye)
-	eye.look_at_from_position(Vector3(0.0, 1.55, -1.6), Vector3(0.0, 1.45, 0.0), Vector3.UP)
+	# The people's heads are big: the face is about 1.35 m up a 1.8 m person.
+	eye.look_at_from_position(Vector3(0.0, 1.45, -2.0), Vector3(0.0, 1.35, 0.0), Vector3.UP)
 	eye.current = true
 
 	var texture := view.get_texture()
