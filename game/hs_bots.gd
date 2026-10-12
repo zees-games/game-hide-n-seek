@@ -81,6 +81,11 @@ const STUCK_LEFT := 1.5
 ## metre wide), before it turns to shut it.
 const DOOR_CLEAR := 1.4
 
+## How long a walking bot stays within [constant STUCK_LEFT] of one spot beside an open door's
+## panel before it shuts that door (`_linger_by_door`). `headless_bots` holds the worst to 10 s.
+const LINGER_SHUT := 5.0
+
+
 ## How far off, as a share of `bot_sight`, somebody keeping still and crouched is made out, and
 ## then only whole (head and chest): a head over a sofa's back is passed over. 10 m at medium.
 ## It was 0.25 with either showing, and a seeker that walked the hidden places found nearly
@@ -693,6 +698,120 @@ func _shut_door(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> 
 	return true
 
 
+## A shut door the walk goes into that would swing into the bot itself (a door pinned to open
+## one way, `away: false`, from the side it opens towards): the game refuses a use while anybody
+## stands where the panel will pass, the opener too, so pressing from there does nothing. A
+## person steps back first. Plans a point out of the swing, square to the door's middle, on the
+## mesh; true when it did, and `_open_from_clear` walks there and opens it. Without it a hider
+## fleeing a park cabin stood at its inward front door for eighteen seconds (`headless_bots`
+## round 10).
+func _plan_open_from_clear(player: HsPlayer, state: Dictionary, dir: Vector3) -> bool:
+	if dir.length() < 0.01 or _before(state, "open_check"):
+		return false
+	var map: Node3D = game.get("map")
+	var doors: Object = map.get("doors") if map != null else null
+	if doors == null or int(doors.call("count")) == 0:
+		return false
+	var at := player.controller.state.position
+	var index: int = doors.call("door_for", player.eye_position(), dir.normalized(), 1.6)
+	if index < 0 or bool(doors.call("is_open", index)) or bool(doors.call("moving", index, int(game.get("_tick")))):
+		return false
+	var spec: Dictionary = ((doors.get("doors") as Array)[index] as Dictionary)["spec"]
+	if str(spec["motion"]) != "swing":
+		return false
+	var flip := 1 if bool(doors.call("flips_for", index, player.eye_position())) else 0
+	if not bool(doors.call("sweeps", index, at, HsPlayer.BODY_RADIUS, player.hull_height(), 0.0, 1.0, flip)):
+		return false
+	state["open_check"] = now() + 1.0
+	var shut: Transform3D = doors.call("panel_transform", index, 0.0)
+	var normal := shut.basis.z.normalized()
+	normal.y = 0.0
+	if normal.dot(at - shut.origin) < 0.0:
+		normal = -normal
+	var width := float((spec["size"] as Array)[0])
+	var point := Vector3(shut.origin.x, at.y, shut.origin.z) + normal * (width + HsPlayer.BODY_RADIUS + 0.2)
+	if nav.is_ready():
+		var floor_at := nav.closest(point)
+		if Vector2(floor_at.x - point.x, floor_at.z - point.z).length() > 0.5 or absf(floor_at.y - at.y) > HsPlayer.BODY_STEP + 0.1:
+			_give_up_goal(player, state)
+			return true
+		point = floor_at
+	if bool(doors.call("sweeps", index, point, HsPlayer.BODY_RADIUS, player.hull_height(), 0.0, 1.0, flip)):
+		# No room on this side to stand clear of it (a cupboard's door): somewhere else.
+		_give_up_goal(player, state)
+		return true
+	state["opening"] = {"index": index, "at": point, "until": now() + 3.0}
+	return true
+
+
+## The other half of the same: an open panel across the way with no room round it, and the bot
+## standing in the arc it would sweep shutting. Plans a point out of that arc, back from the
+## hinge, on the mesh; true when it did.
+func _plan_shut_from_clear(player: HsPlayer, state: Dictionary, index: int) -> bool:
+	var map: Node3D = game.get("map")
+	var doors: Object = map.get("doors")
+	var at := player.controller.state.position
+	var f: float = doors.call("fraction", index, int(game.get("_tick")))
+	var spec: Dictionary = ((doors.get("doors") as Array)[index] as Dictionary)["spec"]
+	var hinge: Vector3 = (doors.call("panel_ends", index, f) as PackedVector3Array)[0]
+	var out := Vector3(at.x - hinge.x, 0.0, at.z - hinge.z)
+	if out.length() < 0.05:
+		return false
+	var width := float((spec["size"] as Array)[0])
+	var point := Vector3(hinge.x, at.y, hinge.z) + out.normalized() * (width + HsPlayer.BODY_RADIUS + 0.25)
+	if not nav.is_ready():
+		return false
+	var floor_at := nav.closest(point)
+	if Vector2(floor_at.x - point.x, floor_at.z - point.z).length() > 0.5 or absf(floor_at.y - at.y) > HsPlayer.BODY_STEP + 0.1 \
+			or bool(doors.call("sweeps", index, floor_at, HsPlayer.BODY_RADIUS, player.hull_height(), f, 0.0)):
+		return false
+	state["opening"] = {"index": index, "at": floor_at, "until": now() + 3.0, "open": false}
+	return true
+
+
+## Walks back to `state.opening`'s point, facing the door, and presses use once it is out of the
+## swing: to open it, or (`open` false) to shut it. Returns true while it is at it.
+func _open_from_clear(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> bool:
+	var opening: Dictionary = state.get("opening", {})
+	if opening.is_empty():
+		return false
+	var map: Node3D = game.get("map")
+	var doors: Object = map.get("doors") if map != null else null
+	var index: int = opening["index"]
+	var want_open := bool(opening.get("open", true))
+	if doors == null or now() > float(opening["until"]) or bool(doors.call("is_open", index)) == want_open:
+		state["opening"] = {}
+		state["path"] = PackedVector3Array()
+		if doors != null and bool(doors.call("is_open", index)) != want_open:
+			# It would not move (somebody else in its swing): somewhere else, or the next step
+			# plans the same step back.
+			state["open_check"] = now() + 2.0
+			if not want_open:
+				state["shut_failed"] = index
+			_give_up_goal(player, state)
+		return false
+	var at := player.controller.state.position
+	var tick := int(game.get("_tick"))
+	var f: float = doors.call("fraction", index, tick)
+	var panel_at: Vector3 = (doors.call("panel_transform", index, f) as Transform3D).origin
+	_look(player, command, panel_at)
+	var point: Vector3 = opening["at"]
+	var in_swing: bool = doors.call("sweeps", index, at, HsPlayer.BODY_RADIUS, player.hull_height(), f, 0.0) if not want_open \
+		else doors.call("sweeps", index, at, HsPlayer.BODY_RADIUS, player.hull_height(), 0.0, 1.0,
+			1 if bool(doors.call("flips_for", index, player.eye_position())) else 0)
+	if in_swing and Vector2(point.x - at.x, point.z - at.z).length() > 0.2:
+		_walk(command, point - at)
+		return true
+	command.move = Vector2.ZERO
+	var facing: int = doors.call("door_for", player.eye_position(), player.aim_direction())
+	state["use_now"] = facing == index and not bool(doors.call("moving", index, int(game.get("_tick"))))
+	return true
+
+
+func _before(state: Dictionary, key: String) -> bool:
+	return now() < float(state.get(key, -INF))
+
+
 # --- Seeking ----------------------------------------------------------------------
 
 func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
@@ -801,6 +920,10 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 	var _there := _walk_to(player, command, state, place["at"], false)
 	# Searching is done at a walk: somebody running through a house looks at nothing.
 	command.move = command.move.limit_length(SEARCH_PACE)
+	if not (state.get("opening", {}) as Dictionary).is_empty() or not (state.get("shut", {}) as Dictionary).is_empty():
+		# Facing a door to open or shut it: the search's glances would turn it away, and the
+		# use key goes to the door it faces.
+		return
 
 	# Looking: at the place once near it, else along the way with a glance from side to side.
 	var target: Vector3 = place["at"]
@@ -822,8 +945,17 @@ func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal:
 	# Shutting a door that stands open across the way (see the detour below).
 	if _shut_door(player, command, state):
 		return false
+	# Stepping back out of a shut door's swing to open it (see `_open_from_clear`).
+	if _open_from_clear(player, command, state):
+		return false
 	var at := player.controller.state.position
 	var flat := Vector2(goal.x - at.x, goal.z - at.z).length()
+	if player.controller.has_modifier(HsPlayer.HsController.HOLD):
+		# Held (a new seeker's freeze): going nowhere is the rule, not being stuck, and the
+		# walk starts its count afresh when let go.
+		state["stuck"] = [at, now()]
+		state["linger_at"] = Vector3.INF
+		return false
 
 	if flat < 0.6 and absf(goal.y - at.y) < 1.2:
 		state["path"] = PackedVector3Array()
@@ -836,6 +968,8 @@ func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal:
 	_note_lingering(state, at, now())
 
 	var t := now()
+	if _linger_by_door(player, state, at, t):
+		return false
 	var path: PackedVector3Array = state["path"]
 	if path.is_empty() or (state["goal"] as Vector3).distance_to(goal) > 1.0 or t - float(state["path_at"]) > 3.0:
 		path = nav.path(at, goal) if nav.is_ready() else PackedVector3Array()
@@ -872,9 +1006,14 @@ func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal:
 			if int(state.get("shut_failed", -1)) != index \
 					and not bool(doors.call("sweeps", index, at, HsPlayer.BODY_RADIUS, player.hull_height(), f, 0.0)):
 				state["shut"] = {"index": index, "until": t + 1.5, "count": false}
+			elif int(state.get("shut_failed", -1)) != index and _plan_shut_from_clear(player, state, index):
+				# Standing where it swings: a step back out of its way first, then shut it.
+				state["detour_check"] = t + 1.0
+				return false
 			else:
-				# Standing where it would swing (in the doorway, or a corridor the panel spans), or
-				# it would not shut: somewhere else, by another way.
+				# It would not shut, or there is no floor to stand clear of it on: somewhere else,
+				# by another way. Giving up every second while standing in the swing of a panel
+				# across a manor landing kept a hider there for twenty seconds.
 				_give_up_goal(player, state)
 				state["detour_check"] = t + 1.0
 				return false
@@ -904,6 +1043,8 @@ func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal:
 			corner = detour[0]
 	state["detour"] = detour
 	var dir := Vector3(corner.x - at.x, 0.0, corner.z - at.z)
+	if detour.is_empty() and _plan_open_from_clear(player, state, dir):
+		return false
 
 	# Stuck on something the mesh does not know (an open door's panel stands across a path baked
 	# without doors): step round it, sideways and back, for a moment.
@@ -1103,7 +1244,11 @@ func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> vo
 		# Moving, but round the same spot.
 		state["stuck"] = [at, t]
 		return
-	if stuck and player.controller.state.mode == DotFpsState.Mode.GROUND:
+	# On the ground, or caught on an edge in the air without rising or falling: a bot pressed
+	# into a door's jamb at the top of a camp cabin's steps hung a few centimetres up for half a
+	# minute, never on the ground, so it was never stuck (`headless_bots` round 18).
+	var hung := player.controller.state.mode == DotFpsState.Mode.AIR and absf(player.controller.state.velocity.y) < 1.0
+	if stuck and (player.controller.state.mode == DotFpsState.Mode.GROUND or hung):
 		if first == Vector3.INF:
 			state["stuck_at"] = at
 		# A panel it could not see coming: round it, before anything blinder.
@@ -1132,14 +1277,50 @@ func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> vo
 	state["stuck"] = [at, t]
 
 
+## Round and round one spot beside an open door's panel for [constant LINGER_SHUT]: whatever
+## the walk is trying there is not getting it past (a free edge against a bench, a jamb's corner
+## it keeps catching). The panel is the thing in the way, so the bot shuts it, as a person
+## would, and the walk opens it again from its own side; standing where it swings, it steps
+## back out of the way first, or with no floor for that goes somewhere else. Once for each
+## spot. True when it started any of them.
+func _linger_by_door(player: HsPlayer, state: Dictionary, at: Vector3, t: float) -> bool:
+	var anchor: Vector3 = state.get("linger_at", Vector3.INF)
+	var since := float(state.get("linger_since", t))
+	if anchor == Vector3.INF or t - since < LINGER_SHUT or float(state.get("linger_acted", -INF)) == since:
+		return false
+	var index := _open_door_index_near(anchor, 2.0)
+	if index < 0:
+		return false
+	state["linger_acted"] = since
+	var map: Node3D = game.get("map")
+	var doors: Object = map.get("doors")
+	var f: float = doors.call("fraction", index, int(game.get("_tick")))
+	if not bool(doors.call("sweeps", index, at, HsPlayer.BODY_RADIUS, player.hull_height(), f, 0.0)):
+		state["shut"] = {"index": index, "until": t + 1.5, "count": false}
+		state["path"] = PackedVector3Array()
+		state["detour"] = PackedVector3Array()
+		return true
+	if not _plan_shut_from_clear(player, state, index):
+		_give_up_goal(player, state)
+	return true
+
+
 ## Measures, apart from what [method _unstick] does about it, how long a walking bot has been
 ## within [constant STUCK_LEFT] of one spot without getting there: the suite's number.
 ## Whether an open (or opening) door's panel is within [param reach] of [param at], flat.
 func _open_door_near(at: Vector3, reach: float) -> bool:
+	return _open_door_index_near(at, reach) >= 0
+
+
+## The nearest open (or opening) door whose panel is within [param reach] of [param at], flat;
+## -1 for none.
+func _open_door_index_near(at: Vector3, reach: float) -> int:
 	var map: Node3D = game.get("map")
 	var doors: Object = map.get("doors") if map != null else null
 	if doors == null:
-		return false
+		return -1
+	var best := -1
+	var nearest := reach
 	var tick := int(game.get("_tick"))
 	for index in range(int(doors.call("count"))):
 		var f: float = doors.call("fraction", index, tick)
@@ -1149,9 +1330,11 @@ func _open_door_near(at: Vector3, reach: float) -> bool:
 		if absf(ends[0].y - at.y) > 2.0:
 			continue
 		var p := Geometry2D.get_closest_point_to_segment(Vector2(at.x, at.z), Vector2(ends[0].x, ends[0].z), Vector2(ends[1].x, ends[1].z))
-		if p.distance_to(Vector2(at.x, at.z)) < reach:
-			return true
-	return false
+		var d := p.distance_to(Vector2(at.x, at.z))
+		if d < nearest:
+			nearest = d
+			best = index
+	return best
 
 
 ## Somewhere else: a seeker's next place, a hider's next spot (not this one).

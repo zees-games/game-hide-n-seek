@@ -45,10 +45,13 @@ const NEVER_FOUND := Vector2(0.15, 0.40)
 ## The longest any stand-in may spend walking and still within 1.5 m of one spot beside an open
 ## door's panel, in seconds. A seeker spent about thirty pressed into the corner behind an open
 ## fire door (`hns-bot-door-corner-1`), and a hider a whole hide against one at the top of a
-## stair, until a bot went round an open panel's free edge. 25 s, not less, because the worst
-## left on 48 seeds is 18 s (a panel spanning a corridor, a stair foot beside a door): that is
-## unfinished work (`hns-bot-door-linger-1`), not the target.
-const MAX_STUCK := 25.0
+## stair, until a bot went round an open panel's free edge; then 18 s was left on 48 seeds
+## (panels spanning a corridor or a stair top, doors pinned to open towards a bot leaving).
+## Bots now step out of a swing to open or shut a door and shut a panel they linger at, and
+## the maps were fixed where a panel had no way round: seeds 0-23 give 9.8 s at worst, 24-47
+## 14.5 s (a manor door's jamb, a cottage bedroom door). 15 s, not 10: the rest is unfinished
+## work (`hns-bot-door-linger-2`), not the target.
+const MAX_STUCK := 15.0
 
 const SECTIONS := 2
 
