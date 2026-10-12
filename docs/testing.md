@@ -6,7 +6,7 @@
 | --- | --- |
 | `examples/headless_run` | the simulation: catching by touch and sight (both wall tests armed), conversion and the hold, the draw, falls, taunts, beacons, doors as walls and the sweep |
 | `examples/headless_maps` | every map: validated, built, every door swung, every doorway walked |
-| `examples/headless_climb` | somebody at the foot of every stairway that matters, holding forward, and a play tube standing and crouched; its coordinates are the maps repository's, so a map moved there is a climb that fails here |
+| `examples/headless_climb` | a garden first (no maps needed): somebody walks in under a tree's leaves to its trunk, jumps onto its low branch and crouch-jumps onto the one 1.5 m up and stands there, and a line under a table is clear while one through its top is not. Then somebody at the foot of every stairway that matters, holding forward, and a play tube standing and crouched; its coordinates are the maps repository's, so a map moved there is a climb that fails here. `-- --props` runs the garden alone; `HS_CLIMB_SEARCH=<prop id>` tries every approach at a prop and prints the ones that end up on it, which is how the garden's approaches were found |
 | `examples/headless_net` | over a loopback: the blindfold on the wire (a seeker's copy of a hider does not move during the hide), the sight meter owner-only, the caught hold predicted, doors posed before prediction |
 | `examples/dedicated` | a real server: stand-in seekers catch everybody inside a round |
 

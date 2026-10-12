@@ -17,6 +17,7 @@ extends SceneTree
 
 const KITS := "res://props/kits.json"
 const OUT := "res://props/catalogue.json"
+const PIECES := "res://props/pieces.json"
 
 
 func _initialize() -> void:
@@ -30,6 +31,7 @@ func _initialize() -> void:
 
 	var titles: Dictionary = (spec as Dictionary).get("titles", {})
 	var props: Array = []
+	var shaped: Dictionary = {}
 
 	for kit: Dictionary in (spec as Dictionary).get("kits", []):
 		var dir := "res://%s" % str(kit["dir"])
@@ -51,15 +53,23 @@ func _initialize() -> void:
 
 			var node := packed.instantiate() as Node3D
 			var box := _bounds(node, Transform3D.IDENTITY)
-			node.free()
 
 			if box.size == Vector3.ZERO:
 				printerr("no mesh in ", file)
+				node.free()
 				continue
 
 			var size := box.size * scale
 			var centre := box.get_center() * scale
 			var id := "%s_%s" % [str(kit["id"]), _snake(model)]
+			# Doubles for the file (a Vector3 is single precision and writes 0.725 as
+			# 0.725000023841858); the Vector3 only for the pieces' frame.
+			var offset_xyz := [_r(-centre.x), _r(-box.position.y * scale), _r(-centre.z)]
+			var offset := Vector3(offset_xyz[0], offset_xyz[1], offset_xyz[2])
+			# Collision shaped like the model (dot-props' DotPropPieces): a trunk and its
+			# branches, a table's top and legs. Empty for a prop one box fits.
+			var pieces := DotPropPieces.measure(node, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * scale), offset))
+			node.free()
 
 			props.append({
 				"id": id,
@@ -70,9 +80,12 @@ func _initialize() -> void:
 				"size": [_r(size.x), _r(size.y), _r(size.z)],
 				# What to add to a model's origin so its footprint is centred on the prop's
 				# position and its base is on the floor.
-				"offset": [_r(-centre.x), _r(-box.position.y * scale), _r(-centre.z)],
+				"offset": offset_xyz,
 				"disguise": not fixed.has(model),
 			})
+
+			if not pieces.is_empty():
+				shaped[id] = DotPropPieces.encode(pieces)
 
 	props.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a["id"]) < str(b["id"]))
 
@@ -89,6 +102,7 @@ func _initialize() -> void:
 		"props": props,
 	}
 	var text := JSON.stringify(out, "  ", false) + "\n"
+	var pieces_text := _pieces_text(shaped)
 
 	if check:
 		var have := FileAccess.get_file_as_string(OUT)
@@ -96,19 +110,43 @@ func _initialize() -> void:
 			printerr("props/catalogue.json is not what the models measure; run tools/measure_props.gd")
 			quit(1)
 			return
-		print("props/catalogue.json matches %d models" % props.size())
+		if FileAccess.get_file_as_string(PIECES) != pieces_text:
+			printerr("props/pieces.json is not what the models measure; run tools/measure_props.gd")
+			quit(1)
+			return
+		print("props/catalogue.json and props/pieces.json match %d models" % props.size())
 		quit(0)
 		return
 
 	var f := FileAccess.open(OUT, FileAccess.WRITE)
 	f.store_string(text)
 	f.close()
+	f = FileAccess.open(PIECES, FileAccess.WRITE)
+	f.store_string(pieces_text)
+	f.close()
 
+	var total := 0
 	for p: Dictionary in props:
-		print("%-34s %5.2f x %5.2f x %5.2f%s" % [p["id"], p["size"][0], p["size"][1], p["size"][2], "" if p["disguise"] else "  (fixed)"])
+		var count := (shaped.get(p["id"], []) as Array).size()
+		total += count
+		print("%-34s %5.2f x %5.2f x %5.2f%s%s" % [p["id"], p["size"][0], p["size"][1], p["size"][2],
+			"" if p["disguise"] else "  (fixed)", "  %d pieces" % count if count > 0 else ""])
 
-	print("wrote %s: %d props" % [OUT, props.size()])
+	print("wrote %s: %d props; %s: %d shaped, %d pieces" % [OUT, props.size(), PIECES, shaped.size(), total])
+
 	quit(0)
+
+
+## The part-shaped collision (dot-props' DotPropPieces), one prop a line so a re-measure's diff
+## reads by prop: `{id: [[x, y, z, ...] per convex piece]}` in the prop's frame. A prop not in it
+## collides as its catalogue box.
+static func _pieces_text(shaped: Dictionary) -> String:
+	var ids := shaped.keys()
+	ids.sort()
+	var lines := PackedStringArray()
+	for id: String in ids:
+		lines.append("    %s: %s" % [JSON.stringify(id), JSON.stringify(shaped[id])])
+	return "{\n  \"format\": 1,\n  \"comment\": \"Written by tools/measure_props.gd with dot-props' DotPropPieces. Do not edit by hand. A prop not listed collides as its catalogue box.\",\n  \"pieces\": {\n%s\n  }\n}\n" % ",\n".join(lines)
 
 
 func _bounds(node: Node, parent: Transform3D) -> AABB:

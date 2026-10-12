@@ -20,13 +20,13 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 | --- | --- |
 | `game/hs_game.gd`, `hs_rules.gd` | the simulation: the draw, hide/seek, catching, conversion, taunts, falls, beacons, bots; a `DotMatchRules` whose outcome is whatever `HsGame` decided |
 | `game/hs_map_doc.gd`, `hs_map.gd`, `hs_doors.gd`, `hs_catalogue.gd` | what a map is (boxes, props by catalogue id, lights, spawns), validated; a map built; the doors; every map the server has and the built-in practice house |
-| `game/hs_props.gd`, `hs_materials.gd` | the prop catalogue (`props/catalogue.json`); surfaces: Kenney's prototype grid under a pastel for every building surface, the rest made in code |
+| `game/hs_props.gd`, `hs_materials.gd` | the prop catalogue (`props/catalogue.json`) and each prop's collision pieces (`props/pieces.json`); surfaces: Kenney's prototype grid under a pastel for every building surface, the rest made in code |
 | `game/hs_player.gd`, `hs_controller.gd` | one person (body, caught, sight meter, hold, beacon); `DotFpsController` with the HOLD modifier |
 | `game/hs_config.gd`, `hs_paths.gd` | every rule a round is played under; `rebase` for pack delivery |
 | `game/hs_module.gd`, `hs_services.gd`, `hs_vote.gd`, `hs_progress.gd`, `hs_spectate.gd`, `hs_server.gd` | the `DotGameModule` (cvars, `hs_status`/`hs_maps`/`hs_catch`/`hs_map`, stand-ins, delivered maps); chat/voice/moderation; the map vote; stats; spectating |
 | `game/net/` | the codec (MAP, CAUGHT, TAUNT, DOOR…), link, player behaviour, bridge, and `hs_interest.gd` (the blindfold on the wire) |
 | `game/hs_client.gd`, `hs_hud.gd`, `hs_audio.gd`, `hs_figure.gd`, `hs_avatars.gd`, `hs_bindings.gd`, `hs_settings.gd`, `hs.tscn` | the client: first person, F5 for third; keys as dot-menu bindings; the Escape menu |
-| `props/`, `assets/props/`, `taunts/` | `kits.json` and the measured `catalogue.json`; vendored Kenney furniture and nature models (CC0); taunt sounds and `taunts.json` (CC0, edit freely) |
+| `props/`, `assets/props/`, `taunts/` | `kits.json`, the measured `catalogue.json` and `pieces.json`; vendored Kenney furniture and nature models (CC0); taunt sounds and `taunts.json` (CC0, edit freely) |
 | `maps/` | link to `../hide-n-seek-maps/maps` |
 | `examples/` | `headless_run`, `headless_maps`, `headless_climb`, `headless_net`, `dedicated` |
 | `tools/` | `shot.sh` (render a view; `--doors=open`, `--view=door` for the use-key prompt), `measure_props.gd`, `audio_probe` (xvfb only) |
@@ -34,13 +34,15 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 ## Running and testing
 
 - `./game.sh` plays offline; `./game.sh online` runs a local server and browser client; `./game.sh test` parses and runs all five suites. After a map change, `python3 ../hide-n-seek-maps/tools/build_maps.py --check`.
-- `headless_maps` swings every door and walks every doorway; `headless_climb` walks every stairway and a tube. Both need `maps/` linked, and say so when it is not. [testing](docs/testing.md)
+- `headless_maps` swings every door and walks every doorway; `headless_climb` walks every stairway and a tube. Both need `maps/` linked, and say so when it is not; `headless_climb`'s garden (a tree's branches, a table's legs) needs nothing. [testing](docs/testing.md)
+- After adding a model or changing a kit's scale, `godot --headless --path . --script tools/measure_props.gd` (about two minutes: it decomposes every model) rewrites both `props/` files; `-- --check` compares them.
 - **Render after touching what anyone sees** (`tools/shot.sh`); the shirt colour, HUD overlaps, fog and floor striping were only found in a picture.
 
 ## Rules
 
 - **A catch is the server's measurement**: touch (`tag_range`, feet close, no wall between) or sight (cone, range, nothing solid between, a meter). A client sends movement and the use key, nothing a catch could come from. [design](docs/design.md#a-catch-is-a-measurement-and-only-the-server-makes-one)
 - People do not collide with people.
+- **A prop collides as its pieces, or as its box when it has none** (`HsProps.shapes_of`, dot-props' `DotPropPieces`): never hand-place a collision shape; re-measure. The sight test and the walls a body meets are the same shapes. [design](docs/design.md#props-collide-as-their-shape)
 - **Holding still is the `HOLD` modifier in the movement state**, never a timer the game checks, so the held client predicts it exactly (the blindfold and a new seeker's freeze both).
 - A joiner during the seek seeks; a fall during the seek is a catch (`CAUGHT_FELL`).
 - The first caught seeks next (`seeker_pick` `FIRST_CAUGHT`); side wishes are honoured except over that.

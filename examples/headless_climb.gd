@@ -3,6 +3,7 @@ extends Node
 const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
 const HsPlayer := preload("../game/hs_player.gd")
+const HsMapDoc := preload("../game/hs_map_doc.gd")
 
 ## The maps' ways UP and ways IN, walked by a body rather than read from a document.
 ##
@@ -82,7 +83,17 @@ func _run() -> void:
 	print("hideseek climbs")
 	print("")
 
-	var linked := DirAccess.dir_exists_absolute(ProjectSettings.globalize_path("res://maps"))
+	if OS.has_environment("HS_CLIMB_SEARCH"):
+		await _search(StringName(OS.get_environment("HS_CLIMB_SEARCH")))
+		get_tree().quit(0)
+		return
+
+	# Needs no map directory: a garden built here out of the catalogue's own props.
+	await _test_props()
+
+	# `-- --props` runs the garden alone, for tuning a prop's pieces without the maps' minute.
+	var linked := DirAccess.dir_exists_absolute(ProjectSettings.globalize_path("res://maps")) \
+		and not "--props" in OS.get_cmdline_user_args()
 
 	if not linked:
 		print("(no map directory: nothing to climb)")
@@ -163,6 +174,118 @@ func _test_the_tube() -> void:
 
 	await _dispose(game)
 	_finished()
+
+
+## Trees and furniture collide as their shapes (dot-props' DotPropPieces, `props/pieces.json`),
+## not as one box: Christian's first play test circled the trees wanting their branches and met
+## the canopy's box at arm's length. Each prop stands alone in a garden built here.
+const GARDEN := [
+	# prop id, where it stands
+	[&"nature_tree_default", Vector3(0.0, 0.0, 0.0)],
+	[&"furniture_table", Vector3(0.0, 0.0, 20.0)],
+]
+
+
+func _test_props() -> void:
+	_section("trees and furniture collide as their shapes, not as one box")
+	_expected_checks += 6
+	var game := await _world("hs_practice")
+	var props: Array = []
+	for item: Array in GARDEN:
+		props.append({"id": String(item[0]), "at": [item[1].x, item[1].y, item[1].z]})
+	var doc := {
+		"format": 1, "kind": "hideseek_map", "id": "hs_garden", "name": "Garden",
+		"boxes": [{"at": [0.0, -0.1, 0.0], "size": [80.0, 0.2, 80.0], "mat": "grass"}],
+		"props": props,
+		"spawns": {"hiders": [{"at": [0.0, 0.05, 30.0]}], "seekers": [{"at": [5.0, 0.05, 30.0]}]},
+	}
+	var valid := HsMapDoc.validate(doc)
+	var built: DotResult = game.build_map(valid.value) if valid.ok else valid
+	_check(built.ok and not game.props_catalogue.pieces_of(&"nature_tree_default").is_empty(),
+		"the garden builds, and a tree has pieces to collide as", str(built.error.message if not built.ok else ""))
+	var body := game.add_player(&"u1", "Climber")
+	await _physics_frame()
+
+	# Walking at the trunk under the canopy: a box the canopy's width stopped a person 1.7 m out.
+	body.place_at(Vector3(0.0, 0.05, 4.0), 0.0)
+	# The motor slides a walker round the trunk and on, so the nearest it came is the answer.
+	var gap := INF
+	for _i in range(TICK_RATE * 2):
+		_drive(body, 0.0, false)
+		await _step(game)
+		gap = minf(gap, Vector2(body.controller.state.position.x, body.controller.state.position.z).length())
+	_check(gap < 1.2, "a person walks in under a tree's leaves, up to its trunk (its box stopped them 1.9 m out)",
+		"%.2f m from the trunk's middle" % gap)
+
+	# The commonest tree on the maps has stubby branches either side of its trunk, 1.1 m and
+	# 1.5 m up. Run at one, jump (tucking the legs up), and stand on it. Found by `_search`.
+	var low := await _jump_onto(game, body, Vector3(0.0, 0.05, 5.0), 0.0, Vector3.ZERO, 2.2)
+	_check(low.y > 0.9 and body.controller.state.mode == DotFpsState.Mode.GROUND,
+		"a jump lands on a tree's low branch, and the player stands on it", "feet at %.2f" % low.y)
+	var high := await _jump_onto(game, body, Vector3(4.92, 0.05, 0.87), 80.0, Vector3.ZERO, 3.4)
+	_check(high.y > 1.4 and body.controller.state.mode == DotFpsState.Mode.GROUND,
+		"a crouch-jump lands on its branch 1.5 m up", "feet at %.2f" % high.y)
+	var stood := high.y
+	for _i in range(TICK_RATE * 2):
+		body.controller.apply_command(DotFpsCommand.new())
+		await _step(game)
+	_check(body.controller.state.position.y > stood - 0.1 and stood > 1.4,
+		"and stays up there standing still for two seconds", "feet at %.2f" % body.controller.state.position.y)
+
+	# A table is a top and four legs: a seeker's eye sees through under it, and a box would not.
+	var space: PhysicsDirectSpaceState3D = game.get_world_3d().direct_space_state
+	var under := PhysicsRayQueryParameters3D.create(Vector3(0.0, 0.35, 23.0), Vector3(0.0, 0.35, 17.0))
+	var over := PhysicsRayQueryParameters3D.create(Vector3(0.0, 0.7, 23.0), Vector3(0.0, 0.7, 17.0))
+	_check(space.intersect_ray(under).is_empty() and not space.intersect_ray(over).is_empty(),
+		"a table is a top on legs: a line under it is clear, a line through its top is not")
+
+	await _dispose(game)
+	_finished()
+
+
+## `HS_CLIMB_SEARCH=<prop id>`: runs at the prop from every 20 degrees, jumping at four
+## distances, and prints every approach that ends with the feet up on it. How the approaches
+## in [method _test_props] were found; run it after re-measuring a prop's pieces.
+func _search(prop: StringName) -> void:
+	var game := await _world("hs_practice")
+	var doc := {
+		"format": 1, "kind": "hideseek_map", "id": "hs_garden", "name": "Garden",
+		"boxes": [{"at": [0.0, -0.1, 0.0], "size": [80.0, 0.2, 80.0], "mat": "grass"}],
+		"props": [{"id": String(prop), "at": [0.0, 0.0, 0.0]}],
+		"spawns": {"hiders": [{"at": [0.0, 0.05, 30.0]}], "seekers": [{"at": [5.0, 0.05, 30.0]}]},
+	}
+	var _b: DotResult = game.build_map(HsMapDoc.validate(doc).value)
+	var body := game.add_player(&"u1", "Climber")
+	await _physics_frame()
+	for a in range(0, 360, 20):
+		for d in [1.6, 2.2, 2.8, 3.4]:
+			var yaw := float(a)
+			var back := -Vector3(-sin(deg_to_rad(yaw)), 0.0, -cos(deg_to_rad(yaw))) * 5.0
+			var end := await _jump_onto(game, body, Vector3(back.x, 0.05, back.z), yaw, Vector3.ZERO, d)
+			if end.y > 0.5:
+				print("yaw %d jump %.1f -> feet %s mode %d" % [a, d, end.snapped(Vector3.ONE * 0.01), body.controller.state.mode])
+	print("searched")
+
+
+## Runs at [param yaw] from [param start], jumps once within [param jump_at] metres of
+## [param centre] (flat), holds crouch in the air, keeps going a moment, and returns where the
+## feet ended.
+func _jump_onto(game: HsGame, body: HsPlayer, start: Vector3, yaw: float, centre: Vector3, jump_at: float) -> Vector3:
+	body.place_at(start, yaw)
+	await _step(game)
+	var jumped := -1
+	for i in range(TICK_RATE * 3):
+		var at := body.controller.state.position
+		var command := DotFpsCommand.new()
+		command.yaw = yaw
+		command.move = Vector2(0.0, 1.0) if jumped < 0 or i - jumped < TICK_RATE / 2 else Vector2.ZERO
+		if jumped < 0 and Vector2(centre.x - at.x, centre.z - at.z).length() <= jump_at:
+			command.set_button(DotFpsCommand.BUTTON_JUMP, true)
+			jumped = i
+		command.set_button(DotFpsCommand.BUTTON_CROUCH, jumped >= 0 and i - jumped > 4 and i - jumped < TICK_RATE / 2)
+		body.controller.apply_command(command)
+		await _step(game)
+	return body.controller.state.position
 
 
 # --- Helpers --------------------------------------------------------------------

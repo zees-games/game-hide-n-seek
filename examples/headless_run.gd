@@ -25,7 +25,7 @@ const HsSettings := preload("../game/hs_settings.gd")
 
 const SECTIONS := 21
 
-const CHECKS := 102
+const CHECKS := 104
 
 const TICK_RATE := 64
 const TICK := 1.0 / float(TICK_RATE)
@@ -142,6 +142,26 @@ func _test_catalogue() -> void:
 		if not ResourceLoader.exists("res://" + str(e["model"])):
 			bad += 1
 	_check(bad == 0, "every prop's model is in the game", "%d missing" % bad)
+
+	# Part-shaped collision (props/pieces.json, dot-props' DotPropPieces): a tree is pieces, a
+	# fridge stays its box, and no piece reaches outside the prop's measured box by more than
+	# the decomposition's slack, or a player would bump into air beside the model.
+	var outside := PackedStringArray()
+	var shaped := 0
+	for id in props.order:
+		var pieces := props.pieces_of(id)
+		if pieces.is_empty():
+			continue
+		shaped += 1
+		var size := props.size_of(id)
+		var box := AABB(Vector3(-size.x * 0.5, 0.0, -size.z * 0.5), size).grow(0.08)
+		var inner := DotPropPieces.bounds(pieces)
+		if not box.encloses(inner):
+			outside.append(String(id))
+	_check(not props.pieces_of(&"nature_tree_default").is_empty() and props.pieces_of(&"furniture_kitchen_fridge").is_empty()
+		and props.shapes_of(&"nature_tree_default").size() == props.pieces_of(&"nature_tree_default").size(),
+		"a tree collides as pieces (%d props shaped) and a fridge as its box" % shaped)
+	_check(outside.is_empty(), "every prop's pieces stay inside its measured box", ", ".join(outside))
 	_finished()
 
 

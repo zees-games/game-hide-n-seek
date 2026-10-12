@@ -22,9 +22,12 @@ const HsDoors := preload("hs_doors.gd")
 ## [b]Props are drawn as [MultiMeshInstance3D]s, one per model mesh.[/b] Two hundred chairs are
 ## one draw call per chair mesh, not two hundred. They never move: they are the room.
 ##
-## [b]A prop's collision is its catalogue box, turned the way the map turns it.[/b] What a
-## seeker's sight stops on and what a player walks into or hides behind are the same box, so
-## the two can never disagree about where the sofa is.
+## [b]A prop's collision is its catalogue pieces (or its box), turned the way the map turns
+## it.[/b] A tree is a trunk, its branches and its canopy, so a player can stand by the trunk or
+## jump onto a low branch; a table is a top and legs, so a player can crawl under it (dot-props'
+## [DotPropPieces], measured offline into `props/pieces.json`). What a seeker's sight stops on
+## and what a player walks into or hides behind are the same shapes, so the two can never
+## disagree about where the sofa is.
 
 const CHANNEL := "hs.map"
 
@@ -48,7 +51,7 @@ var draw_world: bool = false
 ## The normalised document this was built from.
 var doc: Dictionary = {}
 
-## Every prop in the map: `{id, transform, size, shape}`. The transform's origin is the middle
+## Every prop in the map: `{id, transform, size, shapes}`. The transform's origin is the middle
 ## of the prop's footprint on the floor.
 var props: Array[Dictionary] = []
 
@@ -241,15 +244,17 @@ func _build_props() -> void:
 		), EULER_ORDER_YXZ)
 		var frame := Transform3D(basis, HsMapDoc.v3(raw["at"]))
 
-		var shape := CollisionShape3D.new()
-		var cube := BoxShape3D.new()
-		cube.size = size
-		shape.shape = cube
-		shape.transform = frame * Transform3D(Basis.IDENTITY, Vector3(0.0, size.y * 0.5, 0.0))
-		shape.set_meta(&"hs_prop", props.size())
-		_furniture.add_child(shape)
+		var shapes: Array = []
 
-		props.append({"id": prop_id, "transform": frame, "size": size, "shape": shape})
+		for part: Array in catalogue.shapes_of(prop_id):
+			var shape := CollisionShape3D.new()
+			shape.shape = part[0]
+			shape.transform = frame * (part[1] as Transform3D)
+			shape.set_meta(&"hs_prop", props.size())
+			_furniture.add_child(shape)
+			shapes.append(shape)
+
+		props.append({"id": prop_id, "transform": frame, "size": size, "shapes": shapes})
 
 		if draw_world:
 			if not by_id.has(prop_id):
@@ -439,6 +444,12 @@ func prop_containing(point: Vector3) -> int:
 		var size: Vector3 = prop["size"]
 		var local: Vector3 = (prop["transform"] as Transform3D).affine_inverse() * point
 		var half := size * 0.5 + Vector3.ONE * HIT_MARGIN
+		var pieces := catalogue.pieces_of(prop["id"]) if catalogue != null else []
+
+		if not pieces.is_empty():
+			if DotPropPieces.contains(pieces, local, HIT_MARGIN):
+				return index
+			continue
 
 		if absf(local.x) <= half.x and local.y >= -HIT_MARGIN and local.y <= size.y + HIT_MARGIN \
 				and absf(local.z) <= half.z:

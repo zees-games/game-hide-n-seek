@@ -44,6 +44,14 @@ Taunts are prop hunt's (`DotPropTaunts`): hiders only, from the seek on, forced 
 
 The clock is a `DotScoreStrip` with the hiders still hidden and the seekers as its two side plates, in the sides' colours, and "Hiders win in · <map>" under it (the blindfold's own clock uses `DotScoreStrip.clock_text`, so the two never disagree by a second). The door prompt under the crosshair is a `DotKeyPrompt`, "Open the toilet door" with the use key as bound drawn as a key; the sight meter sits under it, because a hider can have both up at once. The disc with the side's letter stays: nobody here has health, and the letter is the side. Colours from `HsHud.piece_theme()`. `tools/shot.sh --view=door` renders the prompt. Naming these classes makes the pack need a client shell with dot-ui API level 4; the derived `requires.json` asks for it and `headless_run` checks it.
 
+## Props collide as their shape
+
+Christian's first play test (2026-10-11) circled the trees wanting their low branches and met the canopy's box at arm's length all the way to the ground, and a bot pressed against that box looked like it hung in the air beside the tree. A prop now collides as its **pieces**: a few convex hulls measured out of the model by dot-props' `DotPropPieces` in `tools/measure_props.gd` (one decomposition per material, so a leaf clump and the trunk come apart), written to `props/pieces.json` and read by the server and every client alike, as the catalogue's sizes are. A tree is its trunk, its branch stubs and its leaf clumps; a table its top and legs, so a seeker sees under it; a sofa its seat, back and arms. A prop the decomposition cannot improve on (a fridge, a crate, anything under 0.6 m) keeps its box.
+
+What a person can now do with Kenney's trees: walk in under the leaves to the trunk, hide behind it, and jump onto the stubby branches of the commonest tree (1.1 m and 1.5 m up, `headless_climb`). Kenney's clumps sit on their branches and the conifers are stacked cones, so no tree in the kit has a long limb to stand on; that wants a model of its own.
+
+Measured on hs_camp (84 trees): 831 shapes became 2078, a server tick with twelve runners 1.04 ms became 1.05 ms, a ray 4.7 µs became 5.9 µs.
+
 ## Bots
 
 A stand-in hider runs to a spot beside a piece of furniture as far from the seekers' start as a seeded draw allows and crouches there, and runs from any seeker within nine metres it can see. A stand-in seeker wanders from prop to prop and sprints at any hider it sees ahead. Bots open a shut door they walk into and leave open ones alone.
