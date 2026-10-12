@@ -26,7 +26,7 @@ const HsSettings := preload("../game/hs_settings.gd")
 
 const SECTIONS := 22
 
-const CHECKS := 110
+const CHECKS := 112
 
 const TICK_RATE := 64
 const TICK := 1.0 / float(TICK_RATE)
@@ -646,6 +646,18 @@ func _test_the_client() -> void:
 		"the clock is DotScoreStrip's, with the hiders hidden and the seekers as its plates",
 		str(strip.describe())
 	)
+
+	# Christian's first play test: a darker HUD by default, restyled live by the menu's theme.
+	var themed: DotMenu = (client.get("settings") as Node).get("menu")
+	var plate := strip.colour(&"plate")
+	_check(plate.get_luminance() < 0.1 and plate.a >= 0.7 and strip.colour(&"highlight") == (load("res://game/hs_hud.gd") as GDScript).get("MAP_COLOUR"),
+		"the HUD is dark by default, in the menu's theme, with this game's colour as its accent", str(plate))
+	var _t: Variant = themed.settings.set_value(&"ui_theme", &"contrast")
+	var hints: Label = hud.get("_hints")
+	_check(strip.colour(&"plate") == themed.palette().hud_plate and hints.get_theme_color(&"font_color") == themed.palette().hud_text
+		and strip.colour(&"highlight") == (load("res://game/hs_hud.gd") as GDScript).get("MAP_COLOUR"),
+		"a theme picked in the menu reaches the clock and the HUD's lines at once, the accent kept")
+	_t = themed.settings.set_value(&"ui_theme", &"midnight")
 
 	# A hider a step in front of a door is prompted by DotKeyPrompt with the use key as bound.
 	# The seek first, which lets this seeker's blindfold hold go; then a hider.
