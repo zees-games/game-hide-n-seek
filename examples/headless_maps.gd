@@ -20,7 +20,7 @@ const HsMapDoc := preload("../game/hs_map_doc.gd")
 ## Adding a map adds a section and CHECKS_PER_MAP checks.
 
 const MAPS := ["hs_practice", "hs_apartments", "hs_warehouse", "hs_manor", "hs_village", "hs_park", "hs_school", "hs_mall", "hs_ship", "hs_castle", "hs_camp", "hs_museum"]
-const CHECKS_PER_MAP := 10
+const CHECKS_PER_MAP := 12
 
 ## The maps actually checked: all of MAPS, or only the practice house where `maps/` is not
 ## linked in (CI, which clones this repository alone). As mg-deathrun's headless_courses
@@ -196,10 +196,60 @@ func _test_map(id: StringName) -> void:
 		doors.apply(index, bool(spec["open"]), false, -1)
 		doors.pose_at(0)
 
+	# The toys (dot-props'): all built, none standing in a wall, a prop or another toy, and two
+	# seconds of physics later every loose one still where the map put it, not through a floor
+	# or flung off by an overlap the solver pushed apart.
+	var box := game.map.toys
+	var placed := (doc.get("toys", []) as Array).size()
+	var stuck: Array = []
+	var own: Array[RID] = []
+	for toy in box.toys:
+		for part: CollisionObject3D in [toy.fixed, toy.body]:
+			if part != null:
+				own.append(part.get_rid())
+	for toy in box.toys:
+		var hit := _toy_hits(game, toy, own)
+		if hit != "":
+			stuck.append("%s %d at %s: %s" % [toy.def["id"], toy.index, toy.global_position.snapped(Vector3.ONE * 0.1), hit])
+	_check(box.count() == placed and box.missing.is_empty() and stuck.is_empty(),
+		"every toy is one dot-props has, and stands clear", "%d of %d built%s; %s" % [box.count(), placed,
+			" (missing %s)" % ", ".join(box.missing) if not box.missing.is_empty() else "", "; ".join(stuck.slice(0, 6))])
+	for _i in range(120):
+		await get_tree().physics_frame
+	var strayed: Array = []
+	for toy in box.toys:
+		if toy.body != null and toy.body.global_position.distance_to(toy.rest.origin) > 0.6:
+			strayed.append("%s %d: %s to %s" % [toy.def["id"], toy.index, toy.rest.origin.snapped(Vector3.ONE * 0.1), toy.body.global_position.snapped(Vector3.ONE * 0.1)])
+	_check(strayed.is_empty(), "two seconds on, every toy is still where the map put it", "; ".join(strayed.slice(0, 6)))
+
 	_check(swung_into.is_empty(), "every door swings into free space", "%d doors; %s" % [doors.count(), "; ".join(swung_into.slice(0, 6))])
 	_check(blocked.is_empty(), "every doorway is clear to walk through once its door is open", "; ".join(blocked.slice(0, 6)))
 	await _dispose(game)
 	_finished()
+
+
+## What a toy's own shapes, lifted five centimetres off the floor it stands on, are inside of
+## the map's walls and furniture, or "". Every toy's colliders are left out: a see-saw's plank
+## lies on its own base.
+func _toy_hits(game: HsGame, toy: DotPropToy, own: Array[RID]) -> String:
+	var space := game.get_world_3d().direct_space_state
+	for part: CollisionObject3D in [toy.fixed, toy.body]:
+		if part == null:
+			continue
+		for child in part.get_children():
+			var shape := child as CollisionShape3D
+			if shape == null or shape.shape == null:
+				continue
+			var query := PhysicsShapeQueryParameters3D.new()
+			query.shape = shape.shape
+			query.transform = shape.global_transform.translated(Vector3(0, 0.05, 0))
+			query.collision_mask = game.physics.layer_mask(&"world") | game.physics.layer_mask(&"prop")
+			query.exclude = own
+			var hits := space.intersect_shape(query, 1)
+			if not hits.is_empty():
+				var other: Object = hits[0].get("collider")
+				return str(other.name) if other is Node else "something"
+	return ""
 
 
 ## What door [param index]'s panel, [param f] of the way open and swung the map's way or (with

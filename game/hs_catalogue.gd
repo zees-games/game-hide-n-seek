@@ -178,7 +178,7 @@ func describe_lines() -> PackedStringArray:
 ## — a fresh clone, a suite — has something to play, and the suites have a map whose every
 ## number is in front of them. They lean on these: the floor is x -10..10, z -8..8 at y 0; the
 ## wall between the rooms is at x 0 with a 1.8 m door at z -1..0.8; the seekers start in the
-## east room, the hiders in the west; the garden is x 10..22.
+## east room, the hiders in the west; the garden is x 10..22, with its toys.
 static func practice() -> Dictionary:
 	var boxes: Array = []
 	var height := 3.2
@@ -241,6 +241,17 @@ static func practice() -> Dictionary:
 		{"id": "nature_flower_red_a", "at": [12.0, 0.0, -7.0]},
 	]
 
+	# Toys in the garden (dot-props'): balls to kick about, a tyre, and a lamp on a switch by the
+	# door. The suites lean on these too: headless_net pushes the beach ball and presses the
+	# switch, and checks a client sees both.
+	var toys: Array = [
+		{"toy": "beach_ball", "at": [16.5, 0.0, -2.5]},
+		{"toy": "football", "at": [14.0, 0.0, 3.0]},
+		{"toy": "tyre", "at": [18.5, 0.0, 4.5], "yaw": 30.0},
+		{"toy": "lamp_post", "at": [13.5, 0.0, -5.0]},
+		{"toy": "light_switch", "at": [12.0, 0.0, -3.0], "links": [3]},
+	]
+
 	var source := {
 		"format": HsMapDoc.FORMAT,
 		"kind": HsMapDoc.KIND,
@@ -250,6 +261,7 @@ static func practice() -> Dictionary:
 		"blurb": "Two rooms and a garden.",
 		"boxes": boxes,
 		"props": props,
+		"toys": toys,
 		"lights": [
 			{"at": [-5.0, 2.8, 0.0], "range": 9.0, "energy": 0.9},
 			{"at": [5.0, 2.8, 0.0], "range": 9.0, "energy": 0.9},

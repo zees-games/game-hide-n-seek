@@ -5,6 +5,7 @@ const HsEvents := preload("hs_events.gd")
 const HsNetCommand := preload("hs_net_command.gd")
 const HsNetLink := preload("hs_net_link.gd")
 const HsPlayerNet := preload("hs_player_net.gd")
+const HsToyNet := preload("hs_toy_net.gd")
 const HsInterest := preload("hs_interest.gd")
 const HsRequest := preload("hs_request.gd")
 
@@ -177,6 +178,11 @@ var _client_ticked_for: int = -1
 ## The map the clients were last sent, so a late joiner is sent the same bytes.
 var _map_body: PackedByteArray = PackedByteArray()
 
+## The map's toys on the wire, one behaviour per toy in toy order, and the TOYS event that
+## names their net ids (kept for a joiner, as [member _map_body] is).
+var _toy_nets: Array = []
+var _toys_body: PackedByteArray = PackedByteArray()
+
 
 # --- Wiring ----------------------------------------------------------------
 
@@ -226,6 +232,9 @@ func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
 	# simulates what it predicts and leaves the rest to interpolation. A world still running
 	# its own `_physics_process` would move every player twice.
 	game.external_tick = true
+
+	# Both ends: the old map's toys leave the registry before their nodes go.
+	game.world_clearing.connect(_release_toys)
 
 	if net.is_server:
 		# See [HsInterest]: no hider in a seeker's snapshot while the hiders hide.
@@ -512,6 +521,86 @@ func _on_world_rebuilt() -> void:
 
 	_map_body = HsEvents.write_map(encoded)
 	_broadcast(HsEvents.Kind.MAP, _map_body)
+	_register_toys()
+
+
+# --- Both ends: the toys --------------------------------------------------------
+
+## Server: an entity for each of the map's toys, and TOYS naming them, after MAP.
+func _register_toys() -> void:
+	_release_toys()
+	var box := game.map.toys if game != null and game.map != null else null
+	var ids := PackedInt64Array()
+	if box != null:
+		for toy in box.toys:
+			var behaviour := _toy_entity(toy, 0)
+			if behaviour == null:
+				break
+			ids.append(behaviour.identity.net_id)
+	_toys_body = HsEvents.write_toys(ids)
+	_broadcast(HsEvents.Kind.TOYS, _toys_body)
+
+
+## A toy's behaviour and identity, registered under [param net_id] (0 allocates one: the
+## server). Null when the registry refused it.
+func _toy_entity(toy: DotPropToy, net_id: int) -> HsToyNet:
+	var behaviour := HsToyNet.new()
+	behaviour.name = "Net"
+	behaviour.toy = toy
+	toy.add_child(behaviour)
+	if net.is_server:
+		behaviour.pull()
+
+	var identity := DotNetIdentity.new()
+	identity.name = "Identity"
+	identity.owner_peer_id = 0
+	identity.authority = DotNetIdentity.Authority.SERVER
+	# Relevant to everybody but a seeker while the hiders hide ([HsInterest]): a ball rolling
+	# away from where a hider just walked is a hider on the wire.
+	identity.always_relevant = false
+	identity.interest_linger_sec = 0.0
+	toy.add_child(identity)
+
+	var registered := net.registry.register(identity, net_id, net.clock.tick, net.config)
+	if not registered.ok:
+		DotLog.warn(CHANNEL, "could not replicate a toy", {"toy": toy.index, "error": str(registered.error)})
+		behaviour.queue_free()
+		identity.queue_free()
+		return null
+	_toy_nets.append(behaviour)
+	return behaviour
+
+
+## Every toy entity out of the registry: a map change, or a new TOYS.
+func _release_toys() -> void:
+	for behaviour: HsToyNet in _toy_nets:
+		if is_instance_valid(behaviour) and behaviour.identity != null and net != null:
+			var net_id := behaviour.identity.net_id
+			if net.registry.has(net_id):
+				if net.is_server:
+					_unregister(net_id)
+				else:
+					net.registry.unregister(net_id)
+	_toy_nets.clear()
+
+
+## Client: TOYS. A mirror for each toy, under the server's ids, in toy order.
+func _apply_toys(reader: DotNetReader) -> void:
+	var told := HsEvents.read_toys(reader)
+	if not bool(told["ok"]) or game == null or game.map == null or game.map.toys == null:
+		return
+	_release_toys()
+	var box := game.map.toys
+	var ids: PackedInt64Array = told["ids"]
+	if ids.size() != box.count():
+		DotLog.warn(CHANNEL, "the server's map has a different number of toys", {"server": ids.size(), "here": box.count()})
+	for i in mini(ids.size(), box.count()):
+		var _mirror := _toy_entity(box.toy(i), int(ids[i]))
+
+
+## How many toys this end replicates. For a check.
+func toy_count() -> int:
+	return _toy_nets.size()
 
 
 # --- Server: the round -----------------------------------------------------
@@ -568,6 +657,10 @@ func server_tick(tick: int) -> void:
 	_game_ticked_for = -1
 
 	if net != null:
+		# The toys where the physics left them, before the snapshot goes.
+		for behaviour: HsToyNet in _toy_nets:
+			behaviour.pull()
+
 		_in_server_tick = true
 		net.server_tick(tick)
 		_in_server_tick = false
@@ -873,6 +966,9 @@ func _admit(peer_id: int) -> void:
 	if not _map_body.is_empty():
 		_tell(peer_id, HsEvents.Kind.MAP, _map_body)
 
+	if not _toys_body.is_empty():
+		_tell(peer_id, HsEvents.Kind.TOYS, _toys_body)
+
 	for other in _behaviours.keys():
 		_tell(peer_id, HsEvents.Kind.JOIN, _join_body(int(other)))
 
@@ -1005,6 +1101,8 @@ func _on_event(message: DotNetMessage) -> void:
 			_apply_hello(reader)
 		HsEvents.Kind.MAP:
 			_apply_map(reader)
+		HsEvents.Kind.TOYS:
+			_apply_toys(reader)
 		HsEvents.Kind.JOIN:
 			_apply_join(reader)
 		HsEvents.Kind.LEAVE:

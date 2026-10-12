@@ -25,9 +25,9 @@ const HsSettings := preload("../game/hs_settings.gd")
 ## ([method HsCatalogue.practice]), whose comment lists where everything is: the wall between
 ## the rooms at x 0 with its door at z -1..0.8, the kitchen east of it, the living room west.
 
-const SECTIONS := 22
+const SECTIONS := 23
 
-const CHECKS := 119
+const CHECKS := 127
 
 const TICK_RATE := 64
 const TICK := 1.0 / float(TICK_RATE)
@@ -77,6 +77,7 @@ func _run() -> void:
 	await _test_progress()
 	await _test_bots()
 	await _test_doors()
+	await _test_toys()
 	await _test_the_client()
 	await _test_help_and_menu()
 	await _test_the_map_menu()
@@ -949,6 +950,72 @@ func _test_doors() -> void:
 			break
 	_check(bot.controller.state.position.x > 12.0, "a stand-in opens a shut door it walks into",
 		"at %s; the door is %s" % [bot.controller.state.position.snapped(Vector3.ONE * 0.1), "open" if doors.is_open(GARDEN_DOOR) else "shut"])
+	_finished()
+
+
+## The practice house's garden toys (dot-props'): the beach ball at 16.5, -2.5, the football at
+## 14, 3, the tyre, and the lamp (3) on its switch (4) at 12, -3.
+func _test_toys() -> void:
+	_section("toys: walked into, kicked, switched, bounced on, home again at the next round")
+	var game := await _seek_round()
+	var toys := game.map.toys
+	var hider: HsPlayer = game.players_on(HsGame.HIDERS)[0]
+
+	# A person is not a rigid body: walking into the ball is the game's push, every tick.
+	var ball := toys.toy(0)
+	var start := ball.body.global_position
+	hider.place_at(Vector3(13.0, 0.05, -2.5), -90.0)
+	for _i in range(TICK_RATE):
+		_drive(hider, Vector2(0.0, 1.0))
+		await _step(game, 1)
+	_check(ball.body.global_position.x > start.x + 0.8, "walking into the beach ball sends it on ahead",
+		"%.2f m" % (ball.body.global_position.x - start.x))
+
+	var football := toys.toy(1)
+	var kick_from := football.body.global_position
+	hider.place_at(kick_from + Vector3(0.0, 0.05, 1.3), 0.0)
+	_drive(hider, Vector2.ZERO)
+	await _step(game, 2)
+	_aim(hider, kick_from)
+	_check(game.toy_aimed(hider) == football.index and toys.toy(game.toy_aimed(hider)).prompt() == "Kick the football",
+		"looking at the football, the use key's prompt says so", toys.toy(game.toy_aimed(hider)).prompt() if game.toy_aimed(hider) >= 0 else "nothing aimed")
+	await _press(game, hider)
+	await _step(game, TICK_RATE / 2)
+	_check(football.body.global_position.distance_to(kick_from) > 1.5, "and the use key kicks it",
+		"%.2f m" % football.body.global_position.distance_to(kick_from))
+
+	var lamp := toys.toy(3)
+	var switch := toys.toy(4)
+	var was_lit := lamp.on
+	hider.place_at(switch.global_position + Vector3(0.0, 0.05, 1.2), 0.0)
+	await _step(game, 2)
+	_aim(hider, switch.global_position + Vector3(0.0, 0.9, 0.0))
+	await _press(game, hider)
+	_check(lamp.on != was_lit and switch.count == 1, "the switch turns the lamp", "lit %s" % lamp.on)
+
+	# A trampoline: landing on it throws a person up, from inside their movement (so a
+	# predicting client is thrown on the same tick), and counts the bounce for everybody to hear.
+	var placements: Array = (game.map_doc["toys"] as Array).duplicate()
+	placements.append({"toy": "trampoline", "at": [19.5, 0.0, 0.0]})
+	var _rebuilt := toys.build(placements)
+	var tramp := toys.toy(placements.size() - 1)
+	hider.place_at(Vector3(19.5, 1.2, 0.0), 0.0)
+	var highest := 0.0
+	for _i in range(TICK_RATE * 2):
+		_drive(hider, Vector2.ZERO)
+		await _step(game, 1)
+		highest = maxf(highest, hider.controller.state.position.y)
+	_check(highest > 2.0, "landing on the trampoline throws a person up", "%.2f m at the top" % highest)
+	_check(tramp.count >= 2, "and every bounce is counted, which is what a client hears", str(tramp.count))
+
+	var _off := game.toy_rules.set_cvar(DotPropToyRules.CVAR_ENABLED, "0")
+	_check(not toys.toy(0).visible and toys.toy(0).process_mode == Node.PROCESS_MODE_DISABLED, "sv_toys 0 takes the toys away")
+	var _on := game.toy_rules.set_cvar(DotPropToyRules.CVAR_ENABLED, "1")
+
+	await _end_round(game)
+	var home := toys.toy(1)
+	_check(home.body.global_position.distance_to(home.rest.origin) < 0.05, "a new round puts every toy home",
+		"%.2f m away" % home.body.global_position.distance_to(home.rest.origin))
 	_finished()
 
 

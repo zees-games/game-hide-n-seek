@@ -18,6 +18,7 @@ Each round starts with the **hide**. The hiders get 40 seconds to run off and fi
 - **Taunts.** Once the seekers are let go, a hider can press **T** to play a sound from where they are standing (or **F3** to pick one). Every taunt is worth points, but everybody hears where it came from. Stand still for too long and the game taunts for you, with a meter on screen showing how close it is.
 - **The beacon.** When only one hider is left, or with 30 seconds to go, every hider still hidden pings out a sound and a ring everybody can see.
 - **Doors.** Press **E** at a door to open or shut it: every room, cupboard, toilet stall, gate and shipping container has one, and the loading bays have shutters. A shut door is a wall, to a seeker's eyes and hands as much as to anybody's feet, so shutting yourself in is hiding, and opening every door is seeking. A door swings away from whoever opens it, and never opens into anybody, which can give away who is standing behind it. Somewhere on most maps is a panel of wall that slides.
+- **Toys.** Every map has things to play with, picked for the place: beach balls and footballs to kick (walk into one, or press **E** looking at it), swings and punching bags to push, see-saws and wobbly platforms that tip under you, a roundabout to spin, trampolines and bounce pads that throw you, skittles, barrels and tyres, lamps on a switch, a fountain to turn on, a ship's horn and a school bell. Everybody sees the same ball in the same place. Hide behind a barrel or the roundabout; a ball you kicked rolling away from your hiding place is a clue. Every toy goes back to its place at the start of a round.
 - **Falling** off the map catches a hider. A seeker who falls is put back at the start.
 
 The hiders win if any of them is still hidden when the clock runs out. The seekers win if they catch everybody. Winning is worth 10 points to everyone on that side, a catch 5 and surviving a round 5. Catches, rounds survived, times caught and the rest go to your stats and the leaderboards on TMC.
@@ -49,7 +50,7 @@ There are twelve maps: a small practice house built into the game, and eleven fr
 | **Ctrl** | Crouch |
 | **Alt** | Walk quietly |
 | **Space** | Jump |
-| **E** | Open or shut a door |
+| **E** | Open or shut a door; kick, push, spin or press the toy you are looking at |
 | **T** / **F3** | Taunt / pick a taunt (hiders) |
 | **V** | Talk (voice) |
 | **F5** | First or third person |
@@ -126,6 +127,8 @@ hs_vote_after 20               // seconds into a map's last round before the vot
 
 The bot cvars are the family's shared ones: how many is dot-server's `DotBotQuota`, how well they see, hear, turn and know a map is [dot-bot](https://github.com/modcommunity/dot-bot)'s `bot_difficulty` (easy, medium, hard, nightmare) and its `bot_*` settings (`bot_settings` lists them). The same names work at the console in solo, and `./game.sh -- --bot_difficulty hard` sets it at launch. `hs_min_players` still works and sets `bot_quota`; it is deprecated.
 
+The map's toys follow `sv_toys` (0 takes them all away), `sv_toys_awake` (how many may simulate at once; 0 is 24, or 8 on a machine without threads) and `sv_toys_push` (how hard walking into one sends it).
+
 Somebody slain by an administrator (or killed by a fall) drops as a ragdoll ([dot-player-char](https://github.com/modcommunity/dot-player-char)); the server picks how each body goes down and everybody sees the same fall. `sv_ragdoll 0` makes it a quick fall with no physics, `sv_ragdoll_style` picks ragdoll, stiff, topple or hide, `sv_ragdoll_time` and `sv_ragdoll_max` say how long and how many, and `sv_ragdoll_reactions` weights the falls (`limp`, `face_plant`, `crumple`, `headshot_launch`, `power_launch`; 0 turns one off).
 
 `--hs-map-ids=<ids>` limits a server to some maps, and every other setting in `game/hs_config.gd` can be given the same way (`--hs-sprint-scale=1.5`, `--hs-taunt-range=80`). The taunts are listed in `taunts/taunts.json`: edit it to add your own sounds. The vote's settings go in `user://cfg/hideseek_vote.json` (`{"enabled": false}` turns it off); dot-vote's README lists them.
@@ -157,11 +160,11 @@ A map is a JSON file: the building as boxes, the furniture as props, the doors, 
 
 | Suite | What it covers |
 | --- | --- |
-| `headless_run` | The game itself: the draw, the hide, tagging, being watched, the caught, taunts, falls, the beacon, doors, bots |
-| `headless_maps` | Every map: it fits on the wire, every spawn is clear, every prop stands on something, there is enough to hide behind, every door swings clear and every doorway can be walked through |
+| `headless_run` | The game itself: the draw, the hide, tagging, being watched, the caught, taunts, falls, the beacon, doors, toys, ragdolls, bots |
+| `headless_maps` | Every map: it fits on the wire, every spawn is clear, every prop stands on something, there is enough to hide behind, every door swings clear and every doorway can be walked through, every toy stands clear and stays put |
 | `headless_climb` | Somebody stands on a tree's branch, sees under a table, climbs every stairway that matters and crawls through a play tube |
 | `headless_bots` | Bots play whole rounds against each other; how long a hider lasts, how spread out they are, who wins |
-| `headless_net` | A server and a client in one process, over the network code: the blindfold, a door, a catch, the sight meter, taunts |
+| `headless_net` | A server and a client in one process, over the network code: the blindfold, a door, a catch, the sight meter, taunts, the toys |
 | `dedicated` | A real server: boots, loads the game, runs its commands, a round of bots, the map vote |
 
 [`CLAUDE.md`](CLAUDE.md) has the design decisions and the reasoning behind them.
@@ -174,7 +177,7 @@ A map is a JSON file: the building as boxes, the furniture as props, the doors, 
 - Not yet tried in a browser.
 
 ## Credits
-The furniture is Kenney's Furniture Kit, the trees, plants and rocks his Nature Kit (the two climbing trees are this game's own, made in that kit's style by `tools/climb_trees.py`, CC0 like it), the players are the family's people from Quaternius' [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) (CC0 1.0, credited in dot-player-char), chosen by the blocky kit's skins, and the taunts come from his Voiceover Pack and Music Jingles ([kenney.nl](https://kenney.nl), CC0). The Nature Kit's colours are toned down when the game loads them. Floors, walls and roofs are his Prototype Textures under a pastel; the remaining surfaces (glass, boards, lockers, lines) are drawn in code. Each kit's licence is next to its files. Footsteps are Kenney's Impact Sounds and the ambience beds are generated by dot-audio, both CC0 and shipped in dot-audio (`addons/dot_audio/stock/CREDITS.md`).
+The furniture is Kenney's Furniture Kit, the trees, plants and rocks his Nature Kit (the two climbing trees are this game's own, made in that kit's style by `tools/climb_trees.py`, CC0 like it), the players are the family's people from Quaternius' [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) (CC0 1.0, credited in dot-player-char), chosen by the blocky kit's skins, and the taunts come from his Voiceover Pack and Music Jingles ([kenney.nl](https://kenney.nl), CC0). The Nature Kit's colours are toned down when the game loads them. Floors, walls and roofs are his Prototype Textures under a pastel; the remaining surfaces (glass, boards, lockers, lines) are drawn in code. Each kit's licence is next to its files. Footsteps are Kenney's Impact Sounds and the ambience beds are generated by dot-audio, both CC0 and shipped in dot-audio (`addons/dot_audio/stock/CREDITS.md`). The toys are [dot-props](https://github.com/modcommunity/dot-props)' (drawn in code; their sounds are Kenney's CC0 Impact, Interface, Foley and Digital Audio sounds plus a horn made for it, listed in `addons/dot_props/toys/sounds/CREDITS.md`), and the death sounds are dot-player-char's (Kenney, CC0).
 
 ## License
 MIT. See [LICENSE](LICENSE). The Kenney art is CC0, which is public domain.

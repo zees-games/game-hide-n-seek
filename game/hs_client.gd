@@ -196,6 +196,8 @@ func _build_netcode() -> DotResult:
 	var _solid := game.body_rules.follow_cvars(link)
 	# The server's sv_ragdoll* set: this end draws the bodies.
 	var _dead := game.ragdoll_rules.follow_cvars(link)
+	# And sv_toys*: a client hides the toys a server took away.
+	var _toys := game.toy_rules.follow_cvars(link)
 	net.messages.seal()
 
 	bridge.hello_received.connect(_on_hello)
@@ -320,6 +322,10 @@ func _on_map(map_id: StringName) -> void:
 		# A body on the old map would hang in the new one's air.
 		ragdolls.clear()
 
+	# The new map's toys are heard: a bounce, a knock, a switch, a honk.
+	if game.map != null and game.map.toys != null and not game.map.toys.sound.is_connected(_toy_sound):
+		var _c := game.map.toys.sound.connect(_toy_sound)
+
 	if audio != null:
 		audio.on_map_doc(map_id, game.map_doc)
 
@@ -373,6 +379,11 @@ func _build_ragdolls() -> void:
 	ragdolls.rules = game.ragdoll_rules
 	ragdolls.sound_fn = _ragdoll_sound
 	add_child(ragdolls)
+
+
+func _toy_sound(id: StringName, at: Vector3, strength: float) -> void:
+	if audio != null:
+		var _played := audio.on_toy(id, at, strength)
 
 
 func _ragdoll_sound(id: StringName, at: Vector3, volume: float) -> void:

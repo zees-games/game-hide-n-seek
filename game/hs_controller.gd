@@ -21,3 +21,28 @@ func _register_extensions() -> void:
 	held.deny_crouch = true
 	held.max_speed_scale = 0.0
 	var _id := motor.register_modifier(held)
+
+
+## A person thrown by a toy (a trampoline, a bounce pad): which one, by its index in the map's
+## toy box. Not during a replay, which is a tick already heard.
+signal bounced(index: int)
+
+## `func(feet: Vector3, velocity: Vector3) -> Dictionary`: the velocity a toy under the feet
+## throws this person at, `{velocity, index}`, or empty. The game's ([method HsGame._launch]).
+var launcher: Callable = Callable()
+
+
+## The trampolines and pads, before the move: a pure function of where the toys stand, on
+## every end that simulates this person, so a predicting client is thrown on the very tick the
+## server throws it. AIR at once, as a jump leaves the ground, or the motor snaps them back.
+func _on_pre_simulate(_tick: int, _delta: float) -> void:
+	if not launcher.is_valid() or state.mode != DotFpsState.Mode.GROUND:
+		return
+	var thrown: Dictionary = launcher.call(state.position, state.velocity)
+	if thrown.is_empty():
+		return
+	state.velocity = thrown["velocity"]
+	state.mode = DotFpsState.Mode.AIR
+	state.time_since_grounded = 1000.0
+	if not is_replaying():
+		bounced.emit(int(thrown["index"]))

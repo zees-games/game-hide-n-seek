@@ -124,6 +124,13 @@ var physics: DotPhysicsLayout = null
 ## `sv_ragdoll*` cvars, bound by the module (REPLICATED) and followed by a client through its
 ## link, because the client draws the bodies.
 var ragdoll_rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
+
+## dot-props' `sv_toys*` (whether a map's toys are there, how many simulate at once, how hard a
+## walk pushes one). Bound by the module (REPLICATED) and followed by a client, which draws them.
+var toy_rules: DotPropToyRules = DotPropToyRules.new()
+
+## What a person weighs on a see-saw, kg.
+const PERSON_MASS := 70.0
 var effects: DotFxManager = null
 var spectate: HsSpectate = null
 var progress: HsProgress = null
@@ -274,12 +281,19 @@ func _on_body_rules_changed() -> void:
 ## distance the server measures (`tag_range` 1.2 m, past the 0.7 m two bodies keep), so
 ## tagging works either way.
 func _build_physics() -> void:
-	physics = DotPhysicsLayout.custom(&"hideseek", [&"world", &"player", &"prop"])
+	physics = DotPhysicsLayout.custom(&"hideseek", [&"world", &"player", &"prop", &"toy", &"footprint"])
 
 	for layer in physics.layers:
 		match layer.id:
 			&"player":
 				layer.collides_with = [&"world", &"prop"]
+			# A loose toy: the rooms, the furniture and the other toys, never a person, who
+			# walks through it and pushes it (see [method _advance_toys]).
+			&"toy":
+				layer.collides_with = [&"world", &"prop", &"toy"]
+			# A toy's footprint, for the bots' walkable mesh only: nothing collides with it.
+			&"footprint":
+				layer.collides_with = []
 			_:
 				layer.collides_with = [&"player"]
 
@@ -325,6 +339,9 @@ func _build_map() -> void:
 	map.catalogue = props_catalogue
 	map.draw_world = draw_world
 	map.tick_rate = tick_rate
+	map.authoritative = authoritative
+	map.toy_rules = toy_rules
+	map.gravity = config.gravity
 	add_child(map)
 
 
@@ -558,6 +575,11 @@ func add_player(
 	players[player_id] = player
 	sides[player_id] = side
 
+	# The trampolines and pads: in the movement, so a predicting client is thrown on the tick
+	# the server throws it.
+	player.controller.launcher = _launch
+	var _b := player.controller.bounced.connect(_on_bounced)
+
 	if match_node != null:
 		var seated := match_node.add_player(String(player_id), display_name, _tick, side)
 
@@ -725,6 +747,10 @@ func _on_round_started(number: int) -> void:
 	# clue.
 	if map.doors != null:
 		map.doors.reset()
+
+	# And every toy home: a ball kicked into last round's hiding place is not a pointer to it.
+	if map.toys != null:
+		map.toys.reset()
 
 	_draw_sides()
 	_first_caught_before = first_caught
@@ -1247,12 +1273,18 @@ func _advance_doors() -> void:
 	if map == null or map.doors == null or map.doors.count() == 0:
 		return
 
+	map.doors.pose_at(_tick)
+
+
+## The use key going down, for everybody: on a toy looked at (a ray, so only the one in the
+## middle of the view), else on the nearest door in reach.
+func _advance_use() -> void:
 	for id: StringName in players:
 		var player: HsPlayer = players[id]
 		var pressed := player.wants_use and not player.use_was_held
 		player.use_was_held = player.wants_use
 
-		if not pressed or not player.is_alive() or player.watching:
+		if not pressed or not player.is_alive() or player.watching or map == null:
 			continue
 
 		# Held is held: a seeker counting with the blindfold on does not open the cupboard
@@ -1260,12 +1292,19 @@ func _advance_doors() -> void:
 		if player.controller.has_modifier(HsController.HOLD):
 			continue
 
+		var toy := toy_aimed(player)
+
+		if toy >= 0:
+			var _played := use_toy(toy, id)
+			continue
+
+		if map.doors == null or map.doors.count() == 0:
+			continue
+
 		var index := map.doors.door_for(player.eye_position(), player.aim_direction())
 
 		if index >= 0:
 			var _used := use_door(index, id)
-
-	map.doors.pose_at(_tick)
 
 
 ## Opens or shuts door [param index] for [param by], now, if it can be. What the use key does,
@@ -1313,6 +1352,64 @@ func use_door(index: int, by: StringName) -> bool:
 		"door": map.doors.name_of(index), "open": open, "by": String(by), "tick": _tick,
 	})
 	return true
+
+
+# --- Toys ----------------------------------------------------------------------
+
+## The toy [param player] is looking at within reach, or -1. Both ends: the client asks it
+## for the use prompt.
+func toy_aimed(player: HsPlayer) -> int:
+	if map == null or map.toys == null or player == null:
+		return -1
+	return map.toys.aimed(player.eye_position(), player.aim_direction(), TOY_REACH)
+
+
+## How far the use key reaches a toy: a ball at your feet, a switch at arm's length.
+const TOY_REACH := 2.3
+
+
+## Toy [param index] used by [param by]: a kick, a push, a switch, a honk. Server side.
+func use_toy(index: int, by: StringName) -> bool:
+	var player: HsPlayer = players.get(by)
+	if map == null or map.toys == null or player == null:
+		return false
+	return map.toys.use(index, player.eye_position(), player.aim_direction())
+
+
+## Everybody against the toys this tick, after they moved: a walk into a ball pushes it, weight
+## on a see-saw tips it, and then the box's own tick (the awake cap, the lost sent home). A
+## person is not a rigid body, so this is how one touches a toy at all. Server side.
+func _advance_toys(delta: float) -> void:
+	if map == null or map.toys == null or not authoritative:
+		return
+
+	for id: StringName in players:
+		var player: HsPlayer = players[id]
+
+		if not player.is_alive() or player.watching:
+			continue
+
+		var state := player.controller.state
+		var _pushed := map.toys.push_from(state.position, state.velocity, HsPlayer.BODY_RADIUS, player.hull_height())
+
+		if state.mode == DotFpsState.Mode.GROUND:
+			var _bore := map.toys.stand_on(state.position, PERSON_MASS)
+
+	map.toys.advance(delta)
+
+
+## The trampolines and bounce pads, for every player's movement on both ends
+## ([member HsController.launcher]): `{velocity, index}` or empty.
+func _launch(feet: Vector3, velocity: Vector3) -> Dictionary:
+	if map == null or map.toys == null:
+		return {}
+	return map.toys.launch_for(feet, velocity)
+
+
+## A person thrown by a toy: its count goes up, which every client hears. Server side.
+func _on_bounced(index: int) -> void:
+	if authoritative and map != null and map.toys != null:
+		map.toys.launched(index)
 
 
 ## A use the server made, applied on a client.
@@ -1448,6 +1545,7 @@ func _step(delta: float) -> void:
 	_advance_phase(delta)
 	_advance_holds()
 	_drive_bots()
+	_advance_use()
 	_advance_doors()
 
 	for id: StringName in players:
@@ -1455,6 +1553,8 @@ func _step(delta: float) -> void:
 
 		if player.is_alive() and not player.watching:
 			player.simulate(_tick, delta)
+
+	_advance_toys(delta)
 
 	_watch_world()
 	_advance_catching(delta)
@@ -1560,7 +1660,8 @@ func _clear_between(from: Vector3, to: Vector3, furniture: bool = false) -> bool
 	query.collision_mask = physics.layer_mask(&"world") if physics != null else 1
 
 	if furniture and physics != null:
-		query.collision_mask |= physics.layer_mask(&"prop")
+		# The toys too: a hider crouched behind a barrel or the roundabout is behind something.
+		query.collision_mask |= physics.layer_mask(&"prop") | physics.layer_mask(&"toy")
 
 	return world.direct_space_state.intersect_ray(query).is_empty()
 

@@ -61,6 +61,14 @@ var doors: HsDoors = null
 ## The tick rate a door's seconds are counted in. Set by the game before it builds.
 var tick_rate: int = 64
 
+## The map's toys (dot-props' [DotPropToyBox]): balls, swings, see-saws, switches. Simulated
+## where [member authoritative], posed from snapshots elsewhere; under the game's `sv_toys*`
+## [member toy_rules]. Set by the game before it builds.
+var toys: DotPropToyBox = null
+var authoritative: bool = true
+var toy_rules: DotPropToyRules = null
+var gravity: float = 20.0
+
 var _solid: StaticBody3D = null
 var _furniture: StaticBody3D = null
 var _drawn: Node3D = null
@@ -105,6 +113,8 @@ func build(p_doc: Dictionary) -> DotResult:
 	add_child(doors)
 	doors.build(doc)
 
+	_build_toys()
+
 	if draw_world:
 		_build_lights()
 		_build_environment()
@@ -132,9 +142,37 @@ func clear() -> void:
 	_solid = null
 	_furniture = null
 	doors = null
+	toys = null
 	_drawn = null
 	_environment = null
 	_sun = null
+
+
+## The toys, on their own layers: a loose one (a ball, a barrel) on `toy`, which people walk
+## through and push (`HsGame._advance_toys`) and nothing but the world, the props and other
+## toys stops; one somebody stands on (a see-saw, a roundabout) and every frame on `prop`, a
+## wall to a person like a table; and their footprints on `footprint`, which nothing collides
+## with and a bot's walkable mesh is baked round.
+func _build_toys() -> void:
+	toys = DotPropToyBox.new()
+	toys.name = "Toys"
+	toys.authoritative = authoritative
+	toys.draw = draw_world
+	if toy_rules != null:
+		toys.rules = toy_rules
+	toys.gravity = gravity
+	toys.kill_y = kill_height()
+	if physics != null:
+		toys.loose_layer = physics.layer_mask(&"toy")
+		toys.loose_mask = physics.collision_mask(&"toy")
+		toys.solid_layer = physics.layer_mask(&"prop")
+		toys.solid_mask = physics.collision_mask(&"prop")
+		toys.footprint_layer = physics.layer_mask(&"footprint")
+		toys.aim_mask = physics.layer_mask(&"world") | physics.layer_mask(&"prop") | physics.layer_mask(&"toy")
+	add_child(toys)
+	var built := toys.build(doc.get("toys", []))
+	if not built.ok:
+		DotLog.warn(CHANNEL, "a map's toys would not build", {"map": String(id()), "why": built.error.message})
 
 
 func _put_on(body: CollisionObject3D, layer: StringName) -> void:

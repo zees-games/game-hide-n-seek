@@ -45,6 +45,9 @@ enum Kind {
 	## A door set off: which, which way, and the tick it went. A joiner is sent one per door
 	## that has moved this round.
 	DOOR,
+	## The map's toys' net ids, in toy order (both ends build the toys in the same order from
+	## the map). Sent after MAP, and to a joiner after theirs.
+	TOYS,
 }
 
 enum Ask {
@@ -443,6 +446,25 @@ static func read_door(r: DotNetReader) -> Dictionary:
 	var flip := r.read_bool()
 	var tick := r.read_varint()
 	return {"index": index, "open": open, "flip": flip, "tick": tick, "ok": r.ok()}
+
+
+## The toys' net ids in toy order.
+static func write_toys(net_ids: PackedInt64Array) -> PackedByteArray:
+	var w := _w()
+	w.write_varint(net_ids.size())
+	for id in net_ids:
+		w.write_varint(maxi(int(id), 0))
+	return w.to_bytes()
+
+
+static func read_toys(r: DotNetReader) -> Dictionary:
+	var count := r.read_varint()
+	var ids := PackedInt64Array()
+	if count < 0 or count > 256:
+		return {"ids": ids, "ok": false}
+	for i in count:
+		ids.append(r.read_varint())
+	return {"ids": ids, "ok": r.ok()}
 
 
 ## A taunt asked for: an id from the list, or empty for any.

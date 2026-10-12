@@ -466,11 +466,19 @@ func _draw_door_prompt() -> void:
 		prompt.show_prompt(words, _key(HsBindings.USE))
 
 
-## "Open the pantry door", or empty while no door in reach would do anything.
+## "Open the pantry door", "Kick the beach ball", or empty while nothing in reach would do
+## anything. A toy looked at first, as the use key takes it first (`HsGame._advance_use`).
 func _door_words() -> String:
 	if player == null or not player.is_alive() or player.watching or is_blindfolded() \
-			or game.map == null or game.map.doors == null or not game.config.doors_enabled \
-			or player.controller.has_modifier(HsController.HOLD):
+			or game.map == null or player.controller.has_modifier(HsController.HOLD):
+		return ""
+
+	var toy := game.toy_aimed(player)
+
+	if toy >= 0:
+		return game.map.toys.toy(toy).prompt()
+
+	if game.map.doors == null or not game.config.doors_enabled:
 		return ""
 
 	var doors := game.map.doors

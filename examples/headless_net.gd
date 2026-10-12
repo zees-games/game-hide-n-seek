@@ -24,8 +24,8 @@ const HsRequest := preload("../game/net/hs_request.gd")
 ##
 ## Sections and checks are both counted; mg-smash-copter's notes say why the second matters.
 
-const SECTIONS := 12
-const CHECKS := 48
+const SECTIONS := 13
+const CHECKS := 54
 
 const CLIENT_PEER := 7
 const SESSION := 42
@@ -82,6 +82,7 @@ func _run() -> void:
 		await _test_a_catch_crosses()
 		await _test_taunting()
 		await _test_the_round_ends()
+		await _test_the_toys_cross()
 		await _test_leaving()
 
 	print("")
@@ -365,6 +366,54 @@ func _test_a_door_crosses() -> void:
 		and server_me.controller.state.position.x < 10.1 and apart < 0.25,
 		"a shut door stops the client's own prediction where it stops the server",
 		"client x %.2f, server x %.2f, %.3f m apart" % [mine.controller.state.position.x, server_me.controller.state.position.x, apart])
+	_finished()
+
+
+## The toys are the server's physics, drawn on the client from snapshots: the practice house's
+## garden has a beach ball, a football, a tyre and a lamp on a switch.
+func _test_the_toys_cross() -> void:
+	_section("the toys are the server's, and every client sees them where the server has them")
+	var server_toys := _server_game.map.toys
+	var client_toys := _client_game.map.toys
+	_check(server_toys.count() == 5 and client_toys.count() == server_toys.count()
+		and _server_bridge.toy_count() == server_toys.count() and _client_bridge.toy_count() == client_toys.count(),
+		"both ends build the map's toys, and each is an entity on both", "%d and %d, %d and %d replicated" % [
+			server_toys.count(), client_toys.count(), _server_bridge.toy_count(), _client_bridge.toy_count()])
+	var ball := server_toys.toy(0)
+	var copy := client_toys.toy(0)
+	_check(not ball.body.freeze and copy.body.freeze and not copy.authoritative,
+		"the server simulates the beach ball; the client's is frozen and drawn")
+
+	# During the hide a seeker is told nothing a hider moved: a ball kicked then stays put.
+	await _hide_with(HsGame.SEEKERS)
+	var was := copy.body.global_position
+	var _kicked := server_toys.use(0, ball.body.global_position + Vector3(-1.0, 1.4, 0.0), Vector3(1.0, -0.3, 0.0))
+	await _steps(40)
+	_check(ball.body.global_position.distance_to(was) > 1.0 and copy.body.global_position.distance_to(was) < 0.05,
+		"a seeker's client is not told a ball moved while the hiders hide",
+		"server %.2f m, client %.2f m" % [ball.body.global_position.distance_to(was), copy.body.global_position.distance_to(was)])
+
+	_server_game._set_phase(HsGame.Phase.SEEK)
+	await _steps(30)
+	_check(copy.body.global_position.distance_to(ball.body.global_position) < 0.3,
+		"and once the seekers are let go, it is where the server has it",
+		"%.2f m apart" % copy.body.global_position.distance_to(ball.body.global_position))
+
+	var _again := server_toys.use(0, ball.body.global_position + Vector3(0.0, 1.4, 1.0), Vector3(0.0, -0.3, -1.0))
+	for _i in range(20):
+		await _step()
+	var moving := ball.body.linear_velocity.length()
+	await _steps(30)
+	_check(moving > 0.5 and copy.body.global_position.distance_to(ball.body.global_position) < 0.4,
+		"a ball in motion is followed, a snapshot behind", "moving %.1f m/s, %.2f m apart" % [moving, copy.body.global_position.distance_to(ball.body.global_position)])
+
+	var lamp := server_toys.toy(3)
+	var switch := server_toys.toy(4)
+	var was_lit := lamp.on
+	var _pressed := server_toys.use(4, switch.global_position + Vector3(0.0, 1.5, 1.0), Vector3(0.0, -0.4, -1.0))
+	await _steps(30)
+	_check(lamp.on != was_lit and client_toys.toy(3).on == lamp.on and client_toys.toy(4).count == switch.count and switch.count > 0,
+		"the switch is pressed on the server, and the client's lamp goes out with it", "lit %s, count %d" % [client_toys.toy(3).on, client_toys.toy(4).count])
 	_finished()
 
 

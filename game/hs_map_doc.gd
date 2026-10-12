@@ -42,6 +42,7 @@ const MAX_PROPS := 2000
 const MAX_LIGHTS := 128
 const MAX_SPAWNS := 64
 const MAX_DOORS := 256
+const MAX_TOYS := 48
 
 ## How a door moves: about a hinge at one edge, sideways into the wall, or up like a shutter.
 const DOOR_MOTIONS := ["swing", "slide", "lift"]
@@ -166,6 +167,26 @@ static func validate(source: Dictionary) -> DotResult:
 		return _refuse("%d doors; the most is %d" % [doors.size(), MAX_DOORS], source)
 
 	doc["doors"] = doors
+
+	# Toys: dot-props' DotPropToyBox placements, `{toy, at, yaw, links?, on?}`. Which ids exist
+	# is the catalogue's to say when the map is built (an unknown one is left out and listed),
+	# so a map with a toy a newer dot-props has still plays on an older server.
+	var toys: Array = []
+	for raw: Variant in source.get("toys", []):
+		var toy := DotPropToyBox.normal_placement(raw)
+		if toy.is_empty():
+			return _refuse("toy %d is not {toy, at}" % toys.size(), source)
+		toys.append(toy)
+
+	if toys.size() > MAX_TOYS:
+		return _refuse("%d toys; the most is %d" % [toys.size(), MAX_TOYS], source)
+
+	for toy: Dictionary in toys:
+		for link: int in toy.get("links", []):
+			if link < 0 or link >= toys.size():
+				return _refuse("a %s links to toy %d, and there are %d" % [toy["toy"], link, toys.size()], source)
+
+	doc["toys"] = toys
 
 	var spawns: Variant = source.get("spawns", {})
 	if not (spawns is Dictionary):

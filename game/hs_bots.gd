@@ -205,6 +205,12 @@ func _prepare() -> void:
 		# The walls, floors and furniture, never the doors: a door baked shut is a doorway the
 		# mesh does not go through.
 		var still: Array = [map.get("_solid"), map.get("_furniture")]
+		# And round every toy that stands in the way (a swing's sweep, a see-saw, a trampoline):
+		# a bot never paths across one. The loose toys are not in it; a bot walks through a
+		# ball and pushes it, as anybody does.
+		var toys: Variant = map.get("toys")
+		if toys is DotPropToyBox:
+			still.append_array((toys as DotPropToyBox).nav_bodies())
 		var baked := nav.bake(map, {"radius": HsPlayer.BODY_RADIUS, "height": HsPlayer.BODY_CROUCH, "climb": HsPlayer.BODY_STEP}, 0, still)
 		if not baked.ok:
 			_surveyed = key
