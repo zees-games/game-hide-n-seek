@@ -230,6 +230,17 @@ func panel_transform(index: int, f: float, flip: int = -1) -> Transform3D:
 				* Transform3D(Basis.IDENTITY, -hinge)
 
 
+## Door [param index]'s panel at [param f] of the way open as two world points at its middle
+## height, `[hinge edge, free edge]`. A bot steps round the free edge of an open panel that
+## stands across its way (`HsBots._door_detour`); the hinge edge is against the wall.
+func panel_ends(index: int, f: float) -> PackedVector3Array:
+	var spec: Dictionary = doors[index]["spec"]
+	var half := HsMapDoc.v3(spec["size"]).x * 0.5
+	var side := 1.0 if str(spec["hinge"]) == "right" else -1.0
+	var frame := panel_transform(index, f)
+	return PackedVector3Array([frame * Vector3(side * half, 0.0, 0.0), frame * Vector3(-side * half, 0.0, 0.0)])
+
+
 ## Poses every door for [param tick]. Cheap enough to call every tick: a door at rest is
 ## written once and skipped after.
 func pose_at(tick: int) -> void:

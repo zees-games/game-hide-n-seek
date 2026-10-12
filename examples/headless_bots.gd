@@ -20,12 +20,13 @@ const HsPlayer := preload("../game/hs_player.gd")
 ## - that the hiders shut doors behind them;
 ## - how far apart the hiders are when the seekers are let go, and how few stand within 3 m of
 ##   another;
-## - that the seekers catch somebody at all in most rounds.
+## - that the seekers catch somebody at all in most rounds;
+## - that no stand-in stays stuck beside an open door's panel for long.
 ##
 ## Twenty-four rounds by default, four a map, about four minutes: a band on six rounds was a band
 ## on noise. `-- --rounds N` plays another number, `-- --first N` starts
 ## at the Nth round's map and seed, `-- --difficulty hard` plays another preset, and
-## `HS_BOTS_TRACE=1` prints where everybody is every two seconds and every catch (with what last sent the hider moving). `HS_CAUGHT_FROM`, `HS_BEACON_LEFT` and `HS_BEACON_SECONDS` set those rules for a measurement. Without `maps/` linked it plays the practice house.
+## `HS_BOTS_TRACE=1` prints where everybody is every two seconds and every catch (with what last sent the hider moving), and `HS_BOTS_FOLLOW=u903` one stand-in every half second. `HS_CAUGHT_FROM`, `HS_BEACON_LEFT` and `HS_BEACON_SECONDS` set those rules for a measurement. Without `maps/` linked it plays the practice house.
 
 ## Maps the rounds rotate through, when `maps/` is there.
 const MAPS := ["hs_manor", "hs_apartments", "hs_village", "hs_park", "hs_school", "hs_camp"]
@@ -40,6 +41,14 @@ const MIN_MEAN_SURVIVAL := 90.0
 ## At medium: the share of rounds the hiders win, and of hiders never found.
 const HIDER_WINS := Vector2(0.30, 0.60)
 const NEVER_FOUND := Vector2(0.15, 0.40)
+
+## The longest any stand-in may spend walking and still within 1.5 m of one spot beside an open
+## door's panel, in seconds. A seeker spent about thirty pressed into the corner behind an open
+## fire door (`hns-bot-door-corner-1`), and a hider a whole hide against one at the top of a
+## stair, until a bot went round an open panel's free edge. 25 s, not less, because the worst
+## left on 48 seeds is 18 s (a panel spanning a corridor, a stair foot beside a door): that is
+## unfinished work (`hns-bot-door-linger-1`), not the target.
+const MAX_STUCK := 25.0
 
 const SECTIONS := 2
 
@@ -85,9 +94,9 @@ func _run() -> void:
 		var map_id: String = MAPS[r % MAPS.size()] if linked else "hs_practice"
 		var result := await _round(map_id, r, difficulty)
 		results.append(result)
-		print("  round %2d %-14s %d seekers  caught %d of %d  mean last %5.1f s  spread %.1f m, %d within 3 m  survey %4.0f ms  %d doors shut" % [
-			r + 1, map_id, result["seekers"], result["caught"], result["hiders"], result["mean_last"],
-			result["spread"], result["close"], result["survey_ms"], result["doors_shut"]])
+		print("  round %2d %-14s %d seekers  caught %d of %d  mean last %5.1f s  first %5.1f s  spread %.1f m, %d within 3 m  survey %4.0f ms  %d doors shut  stuck %4.1f s (%s at %s)" % [
+			r + 1, map_id, result["seekers"], result["caught"], result["hiders"], result["mean_last"], minf(float(result["first"]), 999.0),
+			result["spread"], result["close"], result["survey_ms"], result["doors_shut"], result["stuck"], result["stuck_who"], str((result["stuck_at"] as Vector3).snapped(Vector3.ONE * 0.1))])
 	_completed += 1
 
 	_section("the bands")
@@ -100,7 +109,10 @@ func _run() -> void:
 	var hider_wins := 0
 	var first_catches := PackedFloat32Array()
 	var doors_shut := 0
+	var stuck_worst := {}
 	for result in results:
+		if stuck_worst.is_empty() or float(result["stuck"]) > float(stuck_worst["stuck"]):
+			stuck_worst = result
 		doors_shut += int(result["doors_shut"])
 		lasts += float(result["sum_last"])
 		hiders += int(result["hiders"])
@@ -131,6 +143,8 @@ func _run() -> void:
 			if f < 3.0:
 				none_at_once = false
 		_check(none_at_once, "nobody is caught in the first three seconds of a seek")
+	_check(float(stuck_worst.get("stuck", 0.0)) <= MAX_STUCK, "no stand-in stays stuck beside an open door's panel more than %.0f s" % MAX_STUCK,
+		"%.1f s, %s at %s on %s" % [float(stuck_worst.get("stuck", 0.0)), stuck_worst.get("stuck_who", ""), str((stuck_worst.get("stuck_at", Vector3.ZERO) as Vector3).snapped(Vector3.ONE * 0.1)), stuck_worst.get("map", "")])
 	_completed += 1
 
 	print("")
@@ -187,6 +201,7 @@ func _round(map_id: String, index: int, difficulty: String) -> Dictionary:
 				who.controller.state.position.snapped(Vector3.ONE * 0.1) if who != null else Vector3.ZERO, st.get("mode", ""), st.get("why", ""), game.bots.now() - float(st.get("moved_at", -INF))]))
 	game.start()
 
+	var follow := StringName(OS.get_environment("HS_BOTS_FOLLOW"))
 	var hiders: Array[StringName] = []
 	var spread := 0.0
 	var close := 0
@@ -209,6 +224,8 @@ func _round(map_id: String, index: int, difficulty: String) -> Dictionary:
 						str((spot.get("at", Vector3.ZERO) as Vector3).snapped(Vector3.ONE * 0.1)), float(spot.get("exposure", -1.0)), st.get("mode", "")])
 		if seek_started >= 0.0 and game.phase != HsGame.Phase.SEEK:
 			break
+		if follow != &"" and tick % (TICK_RATE / 2) == 0 and game.players.has(follow):
+			_follow(game, follow)
 		if OS.has_environment("HS_BOTS_TRACE") and tick % (TICK_RATE * 2) == 0 and (seek_started >= 0.0 or OS.has_environment("HS_BOTS_HIDE")):
 			var line := "    %5.1f s" % game.seek_elapsed
 			for id: StringName in game.players:
@@ -239,10 +256,38 @@ func _round(map_id: String, index: int, difficulty: String) -> Dictionary:
 		"spread": spread, "close": close, "survey_ms": float((game.get("bots") as Object).get("survey_ms")) if game.get("bots") != null else 0.0,
 	}
 	result["doors_shut"] = int(game.bots.doors_shut)
+	result["stuck"] = float(game.bots.longest_stuck)
+	result["stuck_at"] = game.bots.longest_stuck_at
+	result["stuck_who"] = game.bots.longest_stuck_who
+	result["map"] = map_id
 	remove_child(game)
 	game.free()
 	await get_tree().process_frame
 	return result
+
+
+## `HS_BOTS_FOLLOW=<id>`: one stand-in every half second, where it is going and the doors
+## round it, which is how the door-corner seekers were found.
+func _follow(game: HsGame, id: StringName) -> void:
+	var who: HsPlayer = game.players[id]
+	var st: Dictionary = game.bots._state.get(id, {})
+	var at := who.controller.state.position
+	var line := "    %6.2f s %s %s v %s %s" % [game.bots.now(), id, str(at.snapped(Vector3.ONE * 0.1)),
+		str(who.controller.state.velocity.snapped(Vector3.ONE * 0.1)), st.get("mode", "")]
+	var path: PackedVector3Array = st.get("path", PackedVector3Array())
+	if not path.is_empty():
+		line += " corner %s" % str(path[mini(int(st.get("corner", 0)), path.size() - 1)].snapped(Vector3.ONE * 0.1))
+	var detour: PackedVector3Array = st.get("detour", PackedVector3Array())
+	if not detour.is_empty():
+		line += " detour %s" % str(detour[0].snapped(Vector3.ONE * 0.1))
+	line += " goal %s stuck %d" % [str((st.get("goal", Vector3.ZERO) as Vector3).snapped(Vector3.ONE * 0.1)), int(st.get("stuck_count", 0))]
+	for index in range(game.map.doors.count()):
+		var panel: Vector3 = game.map.doors.panel_transform(index, game.map.doors.fraction(index, game._tick)).origin
+		if panel.distance_to(at + Vector3(0.0, 1.0, 0.0)) < 2.5:
+			var ends: PackedVector3Array = game.map.doors.panel_ends(index, game.map.doors.fraction(index, game._tick))
+			line += " door %d %s, hinge %s free %s" % [index, "open" if game.map.doors.is_open(index) else "shut",
+				str(Vector2(ends[0].x, ends[0].z).snapped(Vector2.ONE * 0.1)), str(Vector2(ends[1].x, ends[1].z).snapped(Vector2.ONE * 0.1))]
+	print(line)
 
 
 ## The hiders' mean distance to their nearest other hider, and how many have one within 3 m.
