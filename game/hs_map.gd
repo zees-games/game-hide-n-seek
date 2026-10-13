@@ -31,6 +31,9 @@ const HsDoors := preload("hs_doors.gd")
 
 const CHANNEL := "hs.map"
 
+## dot-lighting's contact shade, loaded by path (API 4): see [method _add_contact_shade].
+const CONTACT_SHADE_SCRIPT := "res://addons/dot_lighting/runtime/dot_contact_shade.gd"
+
 ## Metres of world one batched mesh covers. See the class notes.
 const CHUNK := 12.0
 
@@ -72,6 +75,8 @@ var gravity: float = 20.0
 var _solid: StaticBody3D = null
 var _furniture: StaticBody3D = null
 var _drawn: Node3D = null
+## The boxes the contact shade is built from, gathered by the box and furniture builders.
+var _shade_boxes: Array = []
 var _environment: WorldEnvironment = null
 var _sun: DirectionalLight3D = null
 var _bounds: AABB = AABB()
@@ -104,6 +109,8 @@ func build(p_doc: Dictionary) -> DotResult:
 
 	_build_boxes()
 	_build_props()
+	_add_contact_shade(_shade_boxes)
+	_shade_boxes = []
 
 	doors = HsDoors.new()
 	doors.name = "Doors"
@@ -224,6 +231,8 @@ func _build_boxes() -> void:
 			batches[key] = {"tool": tool, "mat": str(box["mat"]), "tint": tint}
 
 		_add_box((batches[key] as Dictionary)["tool"], frame, size)
+		if not HsMaterials.is_transparent(str(box["mat"])):
+			_shade_boxes.append({"transform": frame, "size": size})
 
 	for key: String in batches:
 		var batch: Dictionary = batches[key]
@@ -266,6 +275,38 @@ static func _add_box(tool: SurfaceTool, frame: Transform3D, size: Vector3) -> vo
 			tool.add_vertex(v)
 
 
+## Whether map furniture [param prop_id] casts a contact shade: only a furniture-kit block (a
+## cabinet, a counter, a fridge, a bookcase, a washer) that collides as its box and stands
+## upright. Its box is then its shape, so the shade is where its foot is. A piece-built prop (a
+## chair, a table, a tree) is open underneath and its box would shade floor that is lit. Nothing
+## here breaks or moves (the furniture is one static body; doors are their own panels), so the
+## shade, one mesh built at load, never outlives what cast it. mg-prop-hunt makes the same call
+## and also leaves out breakable furniture. See docs/design.md#colour-and-light.
+func _shades_floor(prop_id: StringName, raw: Dictionary) -> bool:
+	if catalogue == null or not catalogue.pieces_of(prop_id).is_empty():
+		return false
+	if str(catalogue.entry(prop_id).get("kit", "")) != "furniture":
+		return false
+	return is_zero_approx(float(raw.get("pitch", 0.0))) and is_zero_approx(float(raw.get("roll", 0.0)))
+
+
+## dot-lighting's contact shade (API 4) where a box meets the floor, a wall or another box: the
+## Compatibility renderer has no ambient occlusion, and a wall met the floor with no shade at its
+## foot. Glass and water neither cast nor take one; doors and secret panels move and are not
+## boxes here. By path, behind the level, so a client shell older than the helper still runs the
+## map without it.
+func _add_contact_shade(boxes: Array) -> void:
+	if boxes.is_empty() or _drawn == null or DotAddonApi.build_level("dot_lighting") < 4 \
+			or not ResourceLoader.exists(CONTACT_SHADE_SCRIPT):
+		return
+	var shade: Variant = (load(CONTACT_SHADE_SCRIPT) as GDScript).call(&"node", boxes)
+	if shade is MeshInstance3D and (shade as MeshInstance3D).mesh != null:
+		(shade as Node).name = "ContactShade"
+		_drawn.add_child(shade)
+	elif shade is Node:
+		(shade as Node).free()
+
+
 func _build_props() -> void:
 	var by_id := {}
 
@@ -296,6 +337,11 @@ func _build_props() -> void:
 			shapes.append(shape)
 
 		props.append({"id": prop_id, "transform": frame, "size": size, "shapes": shapes})
+
+		if draw_world and _shades_floor(prop_id, raw):
+			# Its box casts and takes none: bands on a cabinet's own sides would float off its model.
+			_shade_boxes.append({"transform": frame.translated_local(Vector3(0.0, size.y * 0.5, 0.0)),
+				"size": size, "casts": true, "shaded": false})
 
 		if draw_world:
 			if not by_id.has(prop_id):
