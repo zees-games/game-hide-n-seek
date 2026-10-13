@@ -6,7 +6,11 @@ const HsEvents := preload("hs_events.gd")
 
 const NAME := &"hs.event"
 const KIND_BITS := 5
-const MAX_BODY := 4096
+## Room for the largest MAP a reader accepts ([constant HsEvents.MAP_BYTES]) and its length.
+## It was 4096, and a body past the cap is read as EMPTY with no error: game-hide-n-seek's
+## hs_park grew to 4100 bytes with its toys and every delivered client got a MAP of nothing and
+## built no map. headless_net round-trips a MAP of the largest size through this message.
+const MAX_BODY := HsEvents.MAP_BYTES + 8
 
 var kind: int = 0
 var body: PackedByteArray = PackedByteArray()
