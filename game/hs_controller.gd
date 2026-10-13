@@ -46,3 +46,27 @@ func _on_pre_simulate(_tick: int, _delta: float) -> void:
 	state.time_since_grounded = 1000.0
 	if not is_replaying():
 		bounced.emit(int(thrown["index"]))
+
+
+## `func(feet: Vector3, delta: float, ground_id: int) -> Dictionary`: how far a turning
+## roundabout under the feet carries this person this tick, `{offset, yaw, index}`, or empty.
+## The game's ([method HsGame._carry], dot-props' `carry_for`).
+var carrier: Callable = Callable()
+
+
+## A roundabout's rider goes round with it, after the move, on every end that simulates this
+## person: a rotation about the hub, so a rider a metre out is a metre out after it. A client
+## carries its own player by the spin it measures from the poses it is shown, near enough the
+## server's that the correction is small. Written into the state as well as the body: the next
+## move starts from `state.position`, and a lift on the node alone would be undone by it. The
+## view is not turned: a command's yaw is the player's.
+func _on_post_simulate(_tick: int, delta: float) -> void:
+	if not carrier.is_valid() or not state.is_grounded():
+		return
+	var carried: Dictionary = carrier.call(state.position, delta, state.ground_id)
+	var offset: Vector3 = carried.get("offset", Vector3.ZERO)
+	if offset == Vector3.ZERO:
+		return
+	state.position += offset
+	if _body_node != null:
+		_body_node.global_position = state.position

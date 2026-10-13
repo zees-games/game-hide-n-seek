@@ -10,8 +10,9 @@ extends DotNetBehaviour
 ## game-playground's prop behaviour is the same decision for spawned props.
 ##
 ## [b]Paired by index[/b]: both ends build the same toys in the same order from the map document,
-## so the TOYS event carries only the net ids, in toy order, and nothing here says which toy it
-## is.
+## so the TOYS event carries only the map's id and the net ids, in toy order, and nothing here
+## says which toy it is. A client's has no [member toy] until that map is built here: it is
+## registered anyway, because a snapshot is read no further than its first unknown entity.
 ##
 ## [b]Use count, not a use event[/b]: a honk, a switch and a bounce each move [member net_count]
 ## by one, and a client plays the sound when it sees it move, so a joiner and a lost packet cost
@@ -35,7 +36,9 @@ func _register_net_vars() -> void:
 
 ## Authority only: the toy's state into the replicated fields.
 func pull() -> void:
-	if toy == null or not is_instance_valid(toy):
+	# Out of the tree is a stage rebuilt inside the netcode's own tick: the manager is still
+	# walking the list it took before, and a toy taken out has no transform to give.
+	if toy == null or not is_instance_valid(toy) or not toy.is_inside_tree():
 		return
 	var at := toy.state_transform()
 	net_position = at.origin

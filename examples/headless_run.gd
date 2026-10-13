@@ -27,7 +27,7 @@ const HsSettings := preload("../game/hs_settings.gd")
 
 const SECTIONS := 23
 
-const CHECKS := 127
+const CHECKS := 129
 
 const TICK_RATE := 64
 const TICK := 1.0 / float(TICK_RATE)
@@ -997,8 +997,10 @@ func _test_toys() -> void:
 	# predicting client is thrown on the same tick), and counts the bounce for everybody to hear.
 	var placements: Array = (game.map_doc["toys"] as Array).duplicate()
 	placements.append({"toy": "trampoline", "at": [19.5, 0.0, 0.0]})
+	placements.append({"toy": "merry_go_round", "at": [16.0, 0.0, 4.5]})
 	var _rebuilt := toys.build(placements)
-	var tramp := toys.toy(placements.size() - 1)
+	var tramp := toys.toy(placements.size() - 2)
+	var deck := toys.toy(placements.size() - 1)
 	hider.place_at(Vector3(19.5, 1.2, 0.0), 0.0)
 	var highest := 0.0
 	for _i in range(TICK_RATE * 2):
@@ -1007,6 +1009,30 @@ func _test_toys() -> void:
 		highest = maxf(highest, hider.controller.state.position.y)
 	_check(highest > 2.0, "landing on the trampoline throws a person up", "%.2f m at the top" % highest)
 	_check(tramp.count >= 2, "and every bounce is counted, which is what a client hears", str(tramp.count))
+
+	# A roundabout: a person standing on it a metre from the hub goes round with it, in their
+	# movement (HsController.carrier, dot-props' carry_for), and is still a metre out after.
+	var hub := deck.global_position
+	hider.place_at(hub + Vector3(1.0, 0.5, 0.0), 0.0)
+	for _i in range(TICK_RATE / 2):
+		_drive(hider, Vector2.ZERO)
+		await _step(game, 1)
+	var before := hider.controller.state.position - hub
+	var _spun := toys.use(deck.index, hub + Vector3(0.0, 1.5, 2.5), Vector3(1.0, -0.3, 0.0))
+	var turned := 0.0
+	var last := atan2(before.z, before.x)
+	for _i in range(TICK_RATE):
+		_drive(hider, Vector2.ZERO)
+		await _step(game, 1)
+		var now := hider.controller.state.position - hub
+		turned += absf(wrapf(atan2(now.z, now.x) - last, -PI, PI))
+		last = atan2(now.z, now.x)
+	var after := hider.controller.state.position - hub
+	var out := Vector2(after.x, after.z).length()
+	_check(turned > 0.8 and hider.controller.state.is_grounded(), "standing on a turning roundabout carries a person round its hub",
+		"%.0f degrees in a second" % rad_to_deg(turned))
+	_check(absf(out - Vector2(before.x, before.z).length()) < 0.25, "and leaves them as far out as they stood",
+		"%.2f m from the hub, from %.2f" % [out, Vector2(before.x, before.z).length()])
 
 	var _off := game.toy_rules.set_cvar(DotPropToyRules.CVAR_ENABLED, "0")
 	_check(not toys.toy(0).visible and toys.toy(0).process_mode == Node.PROCESS_MODE_DISABLED, "sv_toys 0 takes the toys away")

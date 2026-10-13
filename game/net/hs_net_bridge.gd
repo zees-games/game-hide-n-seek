@@ -183,6 +183,14 @@ var _map_body: PackedByteArray = PackedByteArray()
 var _toy_nets: Array = []
 var _toys_body: PackedByteArray = PackedByteArray()
 
+## Client: the map the last TOYS was for. Its mirrors are registered the moment it arrives and
+## handed this end's toys when this end has built that map ([method _pair_pending_toys]).
+var _toys_map: StringName = &""
+
+## Client: where the mirrors live, which is not under the toys: they are registered before this
+## end's map may exist, and stay registered through a map change.
+var _toy_holder: Node3D = null
+
 
 # --- Wiring ----------------------------------------------------------------
 
@@ -233,8 +241,13 @@ func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
 	# its own `_physics_process` would move every player twice.
 	game.external_tick = true
 
-	# Both ends: the old map's toys leave the registry before their nodes go.
-	game.world_clearing.connect(_release_toys)
+	# The old map's toys: the server's leave the registry before their nodes go; a client's
+	# mirrors stay registered without them, and are handed the new map's when it is built.
+	if net.is_server:
+		game.world_clearing.connect(_release_toys)
+	else:
+		game.world_clearing.connect(_unpair_toys)
+		game.world_rebuilt.connect(_pair_pending_toys)
 
 	if net.is_server:
 		# See [HsInterest]: no hider in a seeker's snapshot while the hiders hide.
@@ -533,21 +546,28 @@ func _register_toys() -> void:
 	var ids := PackedInt64Array()
 	if box != null:
 		for toy in box.toys:
-			var behaviour := _toy_entity(toy, 0)
+			var behaviour := _toy_entity(toy, toy, 0)
 			if behaviour == null:
 				break
 			ids.append(behaviour.identity.net_id)
-	_toys_body = HsEvents.write_toys(ids)
+	_toys_body = HsEvents.write_toys(game.map.id() if game != null and game.map != null else &"", ids)
 	_broadcast(HsEvents.Kind.TOYS, _toys_body)
 
 
-## A toy's behaviour and identity, registered under [param net_id] (0 allocates one: the
-## server). Null when the registry refused it.
-func _toy_entity(toy: DotPropToy, net_id: int) -> HsToyNet:
+## A toy's behaviour and identity under [param parent] (the toy on the server, a holder of
+## the client's own), registered under [param net_id] (0 allocates one: the server). Null when
+## the registry refused it. The behaviour before the identity, which collects behaviours in
+## its `_ready`.
+func _toy_entity(toy: DotPropToy, parent: Node, net_id: int) -> HsToyNet:
 	var behaviour := HsToyNet.new()
 	behaviour.name = "Net"
 	behaviour.toy = toy
-	toy.add_child(behaviour)
+	var holder := Node3D.new() if parent != toy else null
+	if holder != null:
+		holder.name = "Toy%d" % _toy_nets.size()
+		parent.add_child(holder)
+	var at: Node = holder if holder != null else toy
+	at.add_child(behaviour)
 	if net.is_server:
 		behaviour.pull()
 
@@ -559,48 +579,101 @@ func _toy_entity(toy: DotPropToy, net_id: int) -> HsToyNet:
 	# away from where a hider just walked is a hider on the wire.
 	identity.always_relevant = false
 	identity.interest_linger_sec = 0.0
-	toy.add_child(identity)
+	at.add_child(identity)
 
 	var registered := net.registry.register(identity, net_id, net.clock.tick, net.config)
 	if not registered.ok:
-		DotLog.warn(CHANNEL, "could not replicate a toy", {"toy": toy.index, "error": str(registered.error)})
-		behaviour.queue_free()
-		identity.queue_free()
+		DotLog.warn(CHANNEL, "could not replicate a toy", {"toy": _toy_nets.size(), "error": str(registered.error)})
+		for node: Node in [behaviour, identity]:
+			at.remove_child(node)
+			node.queue_free()
+		if holder != null:
+			parent.remove_child(holder)
+			holder.queue_free()
 		return null
 	_toy_nets.append(behaviour)
 	return behaviour
 
 
-## Every toy entity out of the registry: a map change, or a new TOYS.
+## Every toy entity out of the registry [b]and out of the tree at once[/b]: a new identity on
+## the same toy collects every behaviour under it in its `_ready`, and a freed one still found
+## there broke the next snapshot (game-playground found it). A map change, or a new TOYS.
 func _release_toys() -> void:
 	for behaviour: HsToyNet in _toy_nets:
-		if is_instance_valid(behaviour) and behaviour.identity != null and net != null:
-			var net_id := behaviour.identity.net_id
-			if net.registry.has(net_id):
-				if net.is_server:
-					_unregister(net_id)
-				else:
-					net.registry.unregister(net_id)
+		if not is_instance_valid(behaviour):
+			continue
+		if behaviour.identity != null and net != null and net.registry.has(behaviour.identity.net_id):
+			if net.is_server:
+				_unregister(behaviour.identity.net_id)
+			else:
+				net.registry.unregister(behaviour.identity.net_id)
+		var at := behaviour.get_parent()
+		for node: Node in [behaviour.identity, behaviour]:
+			if node != null and is_instance_valid(node) and node.get_parent() != null:
+				node.get_parent().remove_child(node)
+				node.queue_free()
+		if at != null and _toy_holder != null and at.get_parent() == _toy_holder:
+			_toy_holder.remove_child(at)
+			at.queue_free()
 	_toy_nets.clear()
 
 
-## Client: TOYS. A mirror for each toy, under the server's ids, in toy order.
+## Client: TOYS. A mirror for every id at once, under the holder, whether this end has built
+## that map or not. [b]A client must know every entity a snapshot carries[/b]: dot-net stops
+## reading a snapshot at the first one it does not know (a body cannot be skipped without its
+## declarations), so a client whose MAP never arrived (one too large for a browser's socket,
+## or a format behind) had every player listed after the toys frozen. Paired with this end's
+## toys by index as soon as both are here.
 func _apply_toys(reader: DotNetReader) -> void:
 	var told := HsEvents.read_toys(reader)
-	if not bool(told["ok"]) or game == null or game.map == null or game.map.toys == null:
+	if not bool(told["ok"]) or net == null or net.is_server:
 		return
 	_release_toys()
-	var box := game.map.toys
-	var ids: PackedInt64Array = told["ids"]
-	if ids.size() != box.count():
-		DotLog.warn(CHANNEL, "the server's map has a different number of toys", {"server": ids.size(), "here": box.count()})
-	for i in mini(ids.size(), box.count()):
-		var _mirror := _toy_entity(box.toy(i), int(ids[i]))
+	if _toy_holder == null:
+		_toy_holder = Node3D.new()
+		_toy_holder.name = "ToyMirrors"
+		add_child(_toy_holder)
+	_toys_map = told["map_id"]
+	for id in (told["ids"] as PackedInt64Array):
+		var _mirror := _toy_entity(null, _toy_holder, int(id))
+	_pair_pending_toys()
 
 
-## How many toys this end replicates. For a check.
-func toy_count() -> int:
+## Client: each mirror handed this end's toy at its index, once this end's map is the one TOYS
+## named; none while it is not (a map on the way, or one that never came).
+func _pair_pending_toys() -> void:
+	if net == null or net.is_server or game == null:
+		return
+	# No id is a server from before TOYS carried one: the map it means is the last MAP.
+	var same_map := game.map != null and (_toys_map == &"" or game.map.id() == _toys_map)
+	var box := game.map.toys if same_map and game.map.toys != null else null
+	if box != null and box.count() != _toy_nets.size():
+		DotLog.warn(CHANNEL, "the server's map has a different number of toys", {"server": _toy_nets.size(), "here": box.count()})
+	for i in range(_toy_nets.size()):
+		var behaviour: HsToyNet = _toy_nets[i]
+		if is_instance_valid(behaviour):
+			behaviour.toy = box.toy(i) if box != null else null
+
+
+## Client: the old map's toys are about to go; the mirrors stay registered, without them.
+func _unpair_toys() -> void:
+	for behaviour: HsToyNet in _toy_nets:
+		if is_instance_valid(behaviour):
+			behaviour.toy = null
+
+
+## How many toy entities this end has registered (a client's paired or not). For a check.
+func toy_entities() -> int:
 	return _toy_nets.size()
+
+
+## How many toys this end replicates: a client's, mirrors paired with a toy. For a check.
+func toy_count() -> int:
+	var n := 0
+	for behaviour: HsToyNet in _toy_nets:
+		if is_instance_valid(behaviour) and (net.is_server or behaviour.toy != null):
+			n += 1
+	return n
 
 
 # --- Server: the round -----------------------------------------------------

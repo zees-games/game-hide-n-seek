@@ -24,8 +24,8 @@ const HsRequest := preload("../game/net/hs_request.gd")
 ##
 ## Sections and checks are both counted; mg-smash-copter's notes say why the second matters.
 
-const SECTIONS := 13
-const CHECKS := 54
+const SECTIONS := 14
+const CHECKS := 60
 
 const CLIENT_PEER := 7
 const SESSION := 42
@@ -83,6 +83,7 @@ func _run() -> void:
 		await _test_taunting()
 		await _test_the_round_ends()
 		await _test_the_toys_cross()
+		await _test_a_client_without_the_map()
 		await _test_leaving()
 
 	print("")
@@ -142,6 +143,10 @@ func _test_the_codec() -> void:
 	_check(bool(got["ok"]) and int(got["by"]) == 900001 and got["how"] == HsGame.CAUGHT_SIGHT
 		and bool(fell["ok"]) and int(fell["by"]) == 0 and fell["how"] == HsGame.CAUGHT_FELL,
 		"CAUGHT carries who, by whom (or nobody) and how", "%s, %s" % [got, fell])
+
+	var toys := HsEvents.read_toys(DotNetReader.new(HsEvents.write_toys(&"hs_camp", PackedInt64Array([7, 300, 9001]))))
+	_check(bool(toys["ok"]) and toys["map_id"] == &"hs_camp" and toys["ids"] == PackedInt64Array([7, 300, 9001]),
+		"TOYS carries the map and its toys' ids in order", str(toys))
 
 	var asked := HsEvents.read_ask_taunt(DotNetReader.new(HsEvents.write_ask_taunt(&"whistle")))
 	_check(bool(asked["ok"]) and asked["taunt_id"] == &"whistle", "a taunt request")
@@ -414,6 +419,75 @@ func _test_the_toys_cross() -> void:
 	await _steps(30)
 	_check(lamp.on != was_lit and client_toys.toy(3).on == lamp.on and client_toys.toy(4).count == switch.count and switch.count > 0,
 		"the switch is pressed on the server, and the client's lamp goes out with it", "lit %s, count %d" % [client_toys.toy(3).on, client_toys.toy(4).count])
+	_finished()
+
+
+## A client whose MAP never came (one past a browser socket's buffer, or a format behind) still
+## reads every snapshot. dot-net stops reading one at the first entity a client does not know,
+## so the TOYS for a map it has not built are registered as mirrors anyway, and paired with
+## its toys when the map arrives. Armed: registering them only once the map was built here
+## froze every player seated after the toys.
+func _test_a_client_without_the_map() -> void:
+	_section("a client without the server's map still follows every player, and pairs the toys when it comes")
+	_server_game._set_phase(HsGame.Phase.SEEK)
+	await _steps(4)
+	# The server lays out another map (the same house under another id) and this client is sent
+	# its TOYS but not its MAP, after losing its own map: a joiner's whose MAP never arrived.
+	var other := _server_game.map_doc.duplicate(true)
+	other["id"] = "practice_again"
+	var ready_peers: Dictionary = _server_bridge.get("_ready_peers")
+	ready_peers.erase(CLIENT_PEER)
+	var built := _server_game.build_map(other)
+	ready_peers[CLIENT_PEER] = true
+	_client_game.map.clear()
+	_server_bridge._tell(CLIENT_PEER, HsEvents.Kind.TOYS, _server_bridge.get("_toys_body"))
+	# Seated after the toys, so listed after them in every snapshot.
+	var third := _server_bridge.add_bot("Third")
+	third.is_bot = false
+	await _steps(8)
+	var ids: Array = []
+	for behaviour: Node in (_server_bridge.get("_toy_nets") as Array):
+		ids.append((behaviour.get("identity") as DotNetIdentity).net_id)
+	var known := ids.filter(func(id: int) -> bool: return _client_net.registry.has(id)).size()
+	_check(built.ok and ids.size() == 5 and known == ids.size() and _client_bridge.toy_count() == 0,
+		"the client registers the new map's toys at once, paired with nothing", "%d of %d known, %d paired" % [known, ids.size(), _client_bridge.toy_count()])
+
+	# Every snapshot read to its end: one abandoned at an unknown toy never says it was applied.
+	var applied := [0]
+	var count_applied := func(_t: int) -> void: applied[0] += 1
+	_client_net.snapshot_applied.connect(count_applied)
+	var received := _client_net.stats.snapshots_received
+	third.place_at(KITCHEN_B, 0.0)
+	await _steps(30)
+	_client_net.snapshot_applied.disconnect(count_applied)
+	received = _client_net.stats.snapshots_received - received
+	var copy: HsPlayer = _client_game.players.get(third.player_id)
+	_check(copy != null and copy.global_position.distance_to(third.global_position) < 0.3 and received > 10 and applied[0] == received,
+		"and reads every snapshot to its end, a player seated after them included", "%s, %d of %d snapshots applied" % [
+			"no copy" if copy == null else "%.2f m apart" % copy.global_position.distance_to(third.global_position), applied[0], received])
+
+	# The MAP arrives late: the same mirrors are handed the toys, nothing registered again.
+	_server_bridge._tell(CLIENT_PEER, HsEvents.Kind.MAP, _server_bridge.get("_map_body"))
+	await _steps(6)
+	var still := ids.filter(func(id: int) -> bool: return _client_net.registry.has(id)).size()
+	_check(_client_game.map.id() == &"practice_again" and _client_bridge.toy_count() == 5 and still == ids.size()
+		and _client_bridge.toy_entities() == ids.size(),
+		"when the map comes, the same mirrors are paired with its toys", "%s, %d paired" % [_client_game.map.id(), _client_bridge.toy_count()])
+
+	var ball := _server_game.map.toys.toy(0)
+	var mirror := _client_game.map.toys.toy(0)
+	var _kicked := _server_game.map.toys.use(0, ball.body.global_position + Vector3(-1.0, 1.4, 0.0), Vector3(1.0, -0.3, 0.0))
+	await _steps(50)
+	_check(ball.body.global_position.distance_to(ball.rest.origin) > 1.0 and mirror.body.global_position.distance_to(ball.body.global_position) < 0.3,
+		"and a ball kicked on the server is followed on the client", "%.2f m apart" % mirror.body.global_position.distance_to(ball.body.global_position))
+
+	# A TOYS again (a resend, or a new set): the old mirrors leave the tree at once as well as
+	# the registry, or a new identity beside a freed one collects it and the next snapshot breaks.
+	_server_bridge._tell(CLIENT_PEER, HsEvents.Kind.TOYS, _server_bridge.get("_toys_body"))
+	await _steps(2)
+	var holder: Node = _client_bridge.get("_toy_holder")
+	_check(holder != null and holder.get_child_count() == 5 and _client_bridge.toy_count() == 5,
+		"a second TOYS replaces the mirrors, and nothing of the first is left", "%d under the holder" % (holder.get_child_count() if holder != null else -1))
 	_finished()
 
 

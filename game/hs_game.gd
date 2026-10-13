@@ -579,6 +579,8 @@ func add_player(
 	# the server throws it.
 	player.controller.launcher = _launch
 	var _b := player.controller.bounced.connect(_on_bounced)
+	# And a turning roundabout carries whoever stands on it, after the move, the same way.
+	player.controller.carrier = _carry
 
 	if match_node != null:
 		var seated := match_node.add_player(String(player_id), display_name, _tick, side)
@@ -1404,6 +1406,14 @@ func _launch(feet: Vector3, velocity: Vector3) -> Dictionary:
 	if map == null or map.toys == null:
 		return {}
 	return map.toys.launch_for(feet, velocity)
+
+
+## A turning roundabout under a person, for their movement on both ends
+## ([member HsController.carrier]): `{offset, yaw, index}` or empty.
+func _carry(feet: Vector3, delta: float, ground_id: int) -> Dictionary:
+	if map == null or map.toys == null:
+		return {}
+	return map.toys.carry_for(feet, delta, ground_id)
 
 
 ## A person thrown by a toy: its count goes up, which every client hears. Server side.

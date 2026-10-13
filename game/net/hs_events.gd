@@ -45,8 +45,9 @@ enum Kind {
 	## A door set off: which, which way, and the tick it went. A joiner is sent one per door
 	## that has moved this round.
 	DOOR,
-	## The map's toys' net ids, in toy order (both ends build the toys in the same order from
-	## the map). Sent after MAP, and to a joiner after theirs.
+	## The map's toys' net ids in toy order, then the map's id (both ends build the toys in the
+	## same order from the map). Sent after MAP, and to a joiner after theirs; a client registers
+	## them whether it has that map or not, and pairs them when it does.
 	TOYS,
 }
 
@@ -448,12 +449,15 @@ static func read_door(r: DotNetReader) -> Dictionary:
 	return {"index": index, "open": open, "flip": flip, "tick": tick, "ok": r.ok()}
 
 
-## The toys' net ids in toy order.
-static func write_toys(net_ids: PackedInt64Array) -> PackedByteArray:
+## The toys' net ids in toy order, then the map's id. The id is what a client pairs by: a
+## client whose MAP never arrived (too large for its socket, or a format behind) has another
+## map's toys, or none. Appended, so the ids read the same as before it.
+static func write_toys(map_id: StringName, net_ids: PackedInt64Array) -> PackedByteArray:
 	var w := _w()
 	w.write_varint(net_ids.size())
 	for id in net_ids:
 		w.write_varint(maxi(int(id), 0))
+	w.write_string(String(map_id), ID_BYTES)
 	return w.to_bytes()
 
 
@@ -461,10 +465,11 @@ static func read_toys(r: DotNetReader) -> Dictionary:
 	var count := r.read_varint()
 	var ids := PackedInt64Array()
 	if count < 0 or count > 256:
-		return {"ids": ids, "ok": false}
+		return {"map_id": &"", "ids": ids, "ok": false}
 	for i in count:
 		ids.append(r.read_varint())
-	return {"ids": ids, "ok": r.ok()}
+	var map_id := StringName(r.read_string(ID_BYTES)) if r.has_more() else &""
+	return {"map_id": map_id, "ids": ids, "ok": r.ok()}
 
 
 ## A taunt asked for: an id from the list, or empty for any.
