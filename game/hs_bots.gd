@@ -77,16 +77,6 @@ const DETOUR_AGAIN := 10.0
 const STUCK_SECONDS := 0.6
 const STUCK_LEFT := 1.5
 
-## How much a seeker's next place is worth on another side of a wall (indoors or out, another
-## storey) than the place it last went to, while that side still has places unlooked. Picked by
-## score alone, a seeker in the manor's front doorway was handed places inside and outside in
-## turn, each crossed off as it came into view, and turned back and forth there for 9.8 s
-## (`hns-bot-door-linger-2`). It finishes one side, then crosses.
-const OTHER_SIDE := 0.25
-
-## A storey, for [method _side_of]: floors are at least this far apart.
-const STOREY := 2.6
-
 ## How near a corner a bot comes before it turns for the next one whatever is in the way.
 const CORNER_CLOSE := 0.15
 
@@ -141,10 +131,6 @@ var nav: DotBotNav = DotBotNav.new()
 
 ## `[{at, exposure}]` for the map built, or empty.
 var spots: Array[Dictionary] = []
-
-## The map's ceilings and roofs, flat (`Rect2` over x/z) with the height of each underside:
-## what [method _side_of] calls indoors, as the audio's indoor zones do.
-var _covers: Array[Array] = []
 
 ## Which map the survey is of, and which the mesh was baked for.
 var _surveyed: String = ""
@@ -286,13 +272,6 @@ func _prepare() -> void:
 
 	var los := func(a: Vector3, b: Vector3) -> bool: return bool(game.call("_clear_between", a, b, true))
 	spots = DotBotHiding.survey(candidates, watchers, los)
-	_covers.clear()
-	for box: Variant in doc.get("boxes", []):
-		if box is Dictionary and str(box.get("mat", "")) in ["ceiling", "roof"]:
-			var c: Array = box.get("at", [0, 0, 0])
-			var size: Array = box.get("size", [0, 0, 0])
-			_covers.append([Rect2(float(c[0]) - float(size[0]) * 0.5, float(c[2]) - float(size[2]) * 0.5, float(size[0]), float(size[2])),
-				float(c[1]) - float(size[1]) * 0.5])
 	survey_ms = (Time.get_ticks_usec() - started) / 1000.0 + nav.bake_ms
 	DotLog.debug(CHANNEL, "surveyed the map for the bots", {
 		"map": str(doc.get("id", "")), "spots": spots.size(), "nav_ms": snappedf(nav.bake_ms, 0.1), "ms": snappedf(survey_ms, 0.1),
@@ -956,14 +935,11 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 				if not theirs.is_empty():
 					claimed.append(theirs["at"])
 		var distance := func(a: Vector3, b: Vector3) -> float: return nav.path_length(a, b) if nav.is_ready() else a.distance_to(b)
-		var side: Vector2i = state.get("side", _side_of(at))
-		place = _next_place(search, side, at, t, claimed, stream, distance)
+		place = search.next(at, t, claimed, stream, distance)
 		if place.is_empty():
 			# Everything looked at: start over, nearest first.
 			search.recheck = 20.0
-			place = _next_place(search, side, at, t, claimed, stream, distance)
-		if not place.is_empty():
-			state["side"] = _side_of(place["at"])
+			place = search.next(at, t, claimed, stream, distance)
 		if place.is_empty():
 			place = {"at": nav.random_point(stream) if nav.is_ready() else at}
 		place["since"] = t
@@ -997,33 +973,6 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 		if dir.length() > 0.1:
 			dir = dir.normalized().rotated(Vector3.UP, deg_to_rad(sweep))
 			_look(player, command, player.eye_position() + dir * 5.0)
-
-
-## The search's next place, with places on another side than [param side] worth
-## [constant OTHER_SIDE] of their score while this side has any unlooked: the side is the last
-## place's, not the seeker's feet, so standing in a doorway does not flip it.
-func _next_place(search: DotBotSearch, side: Vector2i, at: Vector3, t: float, claimed: PackedVector3Array,
-		stream: DotRandomStream, distance: Callable) -> Dictionary:
-	var scaled: Array[Dictionary] = []
-	for place: Dictionary in search.places:
-		if not place.has("side"):
-			place["side"] = _side_of(place["at"])
-		if place["side"] != side:
-			place["weight"] = float(place["weight"]) * OTHER_SIDE
-			scaled.append(place)
-	var picked := search.next(at, t, claimed, stream, distance)
-	for place: Dictionary in scaled:
-		place["weight"] = float(place["weight"]) / OTHER_SIDE
-	return picked
-
-
-## Which side of the walls [param at] is on: x 1 under a ceiling or roof (indoors), 0 out; y
-## the storey. Outdoors is one side whatever the height (a deck, a slope).
-func _side_of(at: Vector3) -> Vector2i:
-	for cover: Array in _covers:
-		if (cover[0] as Rect2).has_point(Vector2(at.x, at.z)) and float(cover[1]) > at.y + 0.5:
-			return Vector2i(1, floori((at.y + 0.5) / STOREY))
-	return Vector2i(0, 0)
 
 
 # --- Moving -------------------------------------------------------------------------
