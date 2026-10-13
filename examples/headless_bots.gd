@@ -26,7 +26,7 @@ const HsPlayer := preload("../game/hs_player.gd")
 ## Twenty-four rounds by default, four a map, about four minutes: a band on six rounds was a band
 ## on noise. `-- --rounds N` plays another number, `-- --first N` starts
 ## at the Nth round's map and seed, `-- --difficulty hard` plays another preset, and
-## `HS_BOTS_TRACE=1` prints where everybody is every two seconds and every catch (with what last sent the hider moving), and `HS_BOTS_FOLLOW=u903` one stand-in every half second. `HS_CAUGHT_FROM`, `HS_BEACON_LEFT` and `HS_BEACON_SECONDS` set those rules for a measurement. Without `maps/` linked it plays the practice house.
+## `HS_BOTS_TRACE=1` prints where everybody is every two seconds and every catch (with what last sent the hider moving), and `HS_BOTS_FOLLOW=u903` one stand-in every half second (every tick with `HS_BOTS_EVERY=1`). `HS_CAUGHT_FROM`, `HS_BEACON_LEFT` and `HS_BEACON_SECONDS` set those rules for a measurement. Without `maps/` linked it plays the practice house.
 
 ## Maps the rounds rotate through, when `maps/` is there.
 const MAPS := ["hs_manor", "hs_apartments", "hs_village", "hs_park", "hs_school", "hs_camp"]
@@ -47,11 +47,10 @@ const NEVER_FOUND := Vector2(0.15, 0.40)
 ## fire door (`hns-bot-door-corner-1`), and a hider a whole hide against one at the top of a
 ## stair, until a bot went round an open panel's free edge; then 18 s was left on 48 seeds
 ## (panels spanning a corridor or a stair top, doors pinned to open towards a bot leaving).
-## Bots now step out of a swing to open or shut a door and shut a panel they linger at, and
-## the maps were fixed where a panel had no way round: seeds 0-23 give 9.8 s at worst, 24-47
-## 14.5 s (a manor door's jamb, a cottage bedroom door). 15 s, not 10: the rest is unfinished
-## work (`hns-bot-door-linger-2`), not the target.
-const MAX_STUCK := 15.0
+## Bots now step out of a swing to open or shut a door, shut a panel they linger at and go
+## somewhere else after 8 s, count a door only on their own storey, pass a corner only once the
+## way on is open, and the maps lost their panels with no way round (small rooms' doors slide).
+const MAX_STUCK := 10.0
 
 const SECTIONS := 2
 
@@ -227,7 +226,7 @@ func _round(map_id: String, index: int, difficulty: String) -> Dictionary:
 						str((spot.get("at", Vector3.ZERO) as Vector3).snapped(Vector3.ONE * 0.1)), float(spot.get("exposure", -1.0)), st.get("mode", "")])
 		if seek_started >= 0.0 and game.phase != HsGame.Phase.SEEK:
 			break
-		if follow != &"" and tick % (TICK_RATE / 2) == 0 and game.players.has(follow):
+		if follow != &"" and (tick % (TICK_RATE / 2) == 0 or OS.has_environment("HS_BOTS_EVERY")) and game.players.has(follow):
 			_follow(game, follow)
 		if OS.has_environment("HS_BOTS_TRACE") and tick % (TICK_RATE * 2) == 0 and (seek_started >= 0.0 or OS.has_environment("HS_BOTS_HIDE")):
 			var line := "    %5.1f s" % game.seek_elapsed
@@ -277,6 +276,7 @@ func _follow(game: HsGame, id: StringName) -> void:
 	var at := who.controller.state.position
 	var line := "    %6.2f s %s %s v %s %s" % [game.bots.now(), id, str(at.snapped(Vector3.ONE * 0.1)),
 		str(who.controller.state.velocity.snapped(Vector3.ONE * 0.1)), st.get("mode", "")]
+	line += " crouch %.1f" % who.controller.state.crouch_fraction
 	var path: PackedVector3Array = st.get("path", PackedVector3Array())
 	if not path.is_empty():
 		line += " corner %s" % str(path[mini(int(st.get("corner", 0)), path.size() - 1)].snapped(Vector3.ONE * 0.1))

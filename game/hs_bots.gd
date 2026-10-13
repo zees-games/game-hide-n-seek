@@ -77,6 +77,9 @@ const DETOUR_AGAIN := 10.0
 const STUCK_SECONDS := 0.6
 const STUCK_LEFT := 1.5
 
+## How near a corner a bot comes before it turns for the next one whatever is in the way.
+const CORNER_CLOSE := 0.15
+
 ## How far past a doorway a body is clear of the panel's swing (a door is at most about a
 ## metre wide), before it turns to shut it.
 const DOOR_CLEAR := 1.4
@@ -85,23 +88,36 @@ const DOOR_CLEAR := 1.4
 ## panel before it shuts that door (`_linger_by_door`). `headless_bots` holds the worst to 10 s.
 const LINGER_SHUT := 5.0
 
+## And still there this long after it first came (the door would not shut, or the walk went
+## straight back to the same spot): somewhere else, once. Without it a seeker searching a manor
+## dining room stayed in the corner behind its open door for ten seconds after its shut had
+## failed (`headless_bots` round 13).
+const LINGER_GIVE_UP := 8.0
+
+## How long a door that would not shut is left alone.
+const SHUT_FAILED_FOR := 10.0
+
 
 ## How far off, as a share of `bot_sight`, somebody keeping still and crouched is made out, and
 ## then only whole (head and chest): a head over a sofa's back is passed over. 10 m at medium.
 ## It was 0.25 with either showing, and a seeker that walked the hidden places found nearly
 ## everybody (`headless_bots`: 4% of hiders left at medium). 0.18 until 2026-10-12, when
 ## dot-player-controller stopped seekers hanging in the corners behind open doors and the hiders
-## fell from 12 rounds in 24 to 6; 0.12 (7 m at medium) brought them back to 11.
-const STILL_LOW_SIGHT := 0.12
+## fell from 12 rounds in 24 to 6; 0.12 (7 m at medium) brought them back to 11. 0.10 (6 m)
+## since bots stopped lingering at doors (`hns-bot-door-linger-2`), with the search pace below.
+## Not monotonic: 0.08 took the hiders from 10 rounds in 24 to 6.
+const STILL_LOW_SIGHT := 0.10
 
 ## Metres from the eye within which somebody is felt whichever way the bot faces: an arm's
 ## length, about, past the touch's reach.
 const FELT_WITHIN := 2.0
 
-## How fast a seeker searches, as a share of a run: a walk, looking (1.8 m/s). Chasing is a sprint.
+## How fast a seeker searches, as a share of a run: a walk, looking (1.7 m/s). Chasing is a sprint.
 ## At a run the seekers searched the hidden places of a house in a minute, and a round with one
-## seeker was over long before its clock.
-const SEARCH_PACE := 0.30
+## seeker was over long before its clock. 0.30 until seekers stopped lingering at doors
+## (`hns-bot-door-linger-2`): freed, they found more, and the hiders won 6 rounds in 24 on seeds
+## 0-23; 0.28 gives 11 on both halves of 48.
+const SEARCH_PACE := 0.28
 
 ## Seconds a hider waits after a move before it may move again for the same seeker.
 const SETTLE := 2.5
@@ -134,6 +150,8 @@ var doors_shut: int = 0
 ## of one spot beside an open door's panel (seconds), who, and where: `headless_bots` holds it
 ## down, which covers every door the rounds walk through.
 var longest_stuck: float = 0.0
+var _door_rid_list: Array[RID] = []
+var _door_rid_doors: Object = null
 var longest_stuck_at: Vector3 = Vector3.ZERO
 var longest_stuck_who: StringName = &""
 
@@ -692,7 +710,7 @@ func _shut_door(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> 
 			doors_shut += 1
 		if doors != null and bool(doors.call("is_open", index)):
 			# The moment passed with it still open (out of reach, or somebody in its sweep).
-			state["shut_failed"] = index
+			_note_shut_failed(state, index)
 		state["shut"] = {}
 		return false
 	var panel_at: Vector3 = (doors.call("panel_transform", index, 0.0) as Transform3D).origin
@@ -792,9 +810,9 @@ func _open_from_clear(player: HsPlayer, command: DotFpsCommand, state: Dictionar
 			# It would not move (somebody else in its swing): somewhere else, or the next step
 			# plans the same step back.
 			state["open_check"] = now() + 2.0
-			if not want_open:
-				state["shut_failed"] = index
 			_give_up_goal(player, state)
+			if not want_open:
+				_note_shut_failed(state, index)
 		return false
 	var at := player.controller.state.position
 	var tick := int(game.get("_tick"))
@@ -809,6 +827,13 @@ func _open_from_clear(player: HsPlayer, command: DotFpsCommand, state: Dictionar
 		_walk(command, point - at)
 		return true
 	command.move = Vector2.ZERO
+	# Out of the swing and pressing: a second of that without the door moving is somebody else
+	# in its way, and the rest of the three seconds was a bot standing facing a door at the top
+	# of a flats stair (`headless_bots` round 44).
+	if not opening.has("pressing"):
+		opening["pressing"] = now()
+	elif now() - float(opening["pressing"]) > 1.0 and not bool(doors.call("moving", index, tick)):
+		opening["until"] = now()
 	var facing: int = doors.call("door_for", player.eye_position(), player.aim_direction())
 	state["use_now"] = facing == index and not bool(doors.call("moving", index, int(game.get("_tick"))))
 	return true
@@ -924,8 +949,14 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 
 	state["sprint"] = false
 	var _there := _walk_to(player, command, state, place["at"], false)
-	# Searching is done at a walk: somebody running through a house looks at nothing.
-	command.move = command.move.limit_length(SEARCH_PACE)
+	# Searching is done at a walk: somebody running through a house looks at nothing. Crouched
+	# (a crawl space, under a table) at the same pace, not that pace slowed again by the crouch:
+	# a seeker crawling under a camp cabin at 0.8 m/s spent fifteen seconds there beside its door
+	# (`headless_bots` round 12).
+	var pace := SEARCH_PACE
+	if command.is_pressed(DotFpsCommand.BUTTON_CROUCH):
+		pace = minf(1.0, SEARCH_PACE / maxf(player.controller.tunables.crouch_speed_scale, 0.01))
+	command.move = command.move.limit_length(pace)
 	if not (state.get("opening", {}) as Dictionary).is_empty() or not (state.get("shut", {}) as Dictionary).is_empty():
 		# Facing a door to open or shut it: the search's glances would turn it away, and the
 		# use key goes to the door it faces.
@@ -1009,10 +1040,10 @@ func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal:
 			var map: Node3D = game.get("map")
 			var doors: Object = map.get("doors")
 			var f: float = doors.call("fraction", index, int(game.get("_tick")))
-			if int(state.get("shut_failed", -1)) != index \
+			if not _shut_failed(state, index) \
 					and not bool(doors.call("sweeps", index, at, HsPlayer.BODY_RADIUS, player.hull_height(), f, 0.0)):
 				state["shut"] = {"index": index, "until": t + 1.5, "count": false}
-			elif int(state.get("shut_failed", -1)) != index and _plan_shut_from_clear(player, state, index):
+			elif not _shut_failed(state, index) and _plan_shut_from_clear(player, state, index):
 				# Standing where it swings: a step back out of its way first, then shut it.
 				state["detour_check"] = t + 1.0
 				return false
@@ -1036,8 +1067,16 @@ func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal:
 			state["detour_door"] = int(round_door[0])
 			state["detour_at"] = t
 			state["detour_until"] = t + DETOUR_SECONDS
+			state["detour_pose"] = _door_fraction(int(round_door[0]))
 	if not detour.is_empty():
-		if t > float(state.get("detour_until", -INF)):
+		var round_index := int(state.get("detour_door", -1))
+		if round_index >= 0 and absf(_door_fraction(round_index) - float(state.get("detour_pose", 0.0))) > 0.05:
+			# The panel has moved since the way round it was planned (somebody was opening it):
+			# planned on a door still swinging, a seeker pushed into where the panel came to rest
+			# for four seconds at the school's fire door (`headless_bots` round 41). Again, now.
+			detour = PackedVector3Array()
+			state["detour_check"] = -INF
+		elif t > float(state.get("detour_until", -INF)):
 			detour = PackedVector3Array()
 			state["detour_check"] = t + 1.0
 		elif Vector2(detour[0].x - at.x, detour[0].z - at.z).length() < 0.35:
@@ -1096,7 +1135,7 @@ func _door_detour(at: Vector3, corner: Vector3) -> Array:
 		if str(spec["motion"]) != "swing":
 			continue
 		var c: Array = spec["at"]
-		if absf(float(c[1]) - at.y) > 2.5 or Vector2(float(c[0]) - at.x, float(c[2]) - at.z).length() > 3.5:
+		if not _door_on_level(spec, at) or Vector2(float(c[0]) - at.x, float(c[2]) - at.z).length() > 3.5:
 			continue
 		var f: float = doors.call("fraction", index, tick)
 		# Shut or nearly: a doorway, the use key's business.
@@ -1145,6 +1184,12 @@ func _door_detour(at: Vector3, corner: Vector3) -> Array:
 	return none
 
 
+func _door_fraction(index: int) -> float:
+	var map: Node3D = game.get("map")
+	var doors: Object = map.get("doors") if map != null else null
+	return float(doors.call("fraction", index, int(game.get("_tick")))) if doors != null else 0.0
+
+
 func _next_corner(state: Dictionary, at: Vector3) -> Vector3:
 	var path: PackedVector3Array = state["path"]
 	var corner: int = state["corner"]
@@ -1155,9 +1200,58 @@ func _next_corner(state: Dictionary, at: Vector3) -> Vector3:
 	# the manor's upstairs library door).
 	while corner < path.size() - 1 and Vector2(path[corner].x - at.x, path[corner].z - at.z).length() < _pass_within(path, corner) \
 			and absf(path[corner].y - at.y) < 0.9:
+		# Not until the way to the next one is open to a body: passed early, a bot turning round
+		# the end of a gallery's rail walked into the rail's end post and stood there thirteen
+		# seconds (`headless_bots` round 7, the manor's landing).
+		if Vector2(path[corner].x - at.x, path[corner].z - at.z).length() > CORNER_CLOSE and not _body_clear(at, path[corner + 1]):
+			break
 		corner += 1
 	state["corner"] = corner
 	return path[mini(corner, path.size() - 1)] if not path.is_empty() else at
+
+
+## Whether a body walking straight from [param at] to [param to] on one level meets no wall or
+## furniture at the height of a rail's bars: three lines, its middle and either side. Not the
+## doors: an open panel across the way is `_door_detour`'s, and counted here a corner beside one
+## was never passed, because a body cannot come within reach of a corner on a panel's edge
+## (`headless_bots` round 23, the school's gym doors).
+func _body_clear(at: Vector3, to: Vector3) -> bool:
+	if absf(to.y - at.y) > HsPlayer.BODY_STEP:
+		return true
+	var flat := Vector3(to.x - at.x, 0.0, to.z - at.z)
+	if flat.length() < 0.05:
+		return true
+	var world := (game as Node3D).get_world_3d()
+	if world == null:
+		return true
+	var space := world.direct_space_state
+	var physics: DotPhysicsLayout = game.get("physics")
+	var mask := physics.layer_mask(&"world") | physics.layer_mask(&"prop") if physics != null else 1
+	var side := flat.normalized().cross(Vector3.UP) * HsPlayer.BODY_RADIUS
+	for height in [0.47, 0.97]:
+		var up := Vector3(0.0, height, 0.0)
+		for off in [Vector3.ZERO, side, -side]:
+			var query := PhysicsRayQueryParameters3D.create(at + up + off, Vector3(to.x, at.y, to.z) + up + off, mask, _door_rids())
+			if not space.intersect_ray(query).is_empty():
+				return false
+	return true
+
+
+## The doors' bodies, for a ray that looks past them; gathered once for each map.
+func _door_rids() -> Array[RID]:
+	var map: Node3D = game.get("map")
+	var doors: Object = map.get("doors") if map != null else null
+	if doors == null:
+		return []
+	var specs: Array = doors.get("doors")
+	if _door_rid_list.size() != specs.size() or _door_rid_doors != doors:
+		_door_rid_list.clear()
+		_door_rid_doors = doors
+		for door: Dictionary in specs:
+			var body: Variant = door.get("body")
+			if body is CollisionObject3D:
+				_door_rid_list.append((body as CollisionObject3D).get_rid())
+	return _door_rid_list
 
 
 ## How near a bot must come to corner [param i] of [param path] to count it passed: half a
@@ -1214,7 +1308,15 @@ func _step_round_people(player: HsPlayer, command: DotFpsCommand, players: Dicti
 			push += off / d * (1.1 - d)
 	if push == Vector3.ZERO:
 		return
-	var world := forward * command.move.y + right * command.move.x + push * 2.0
+	var world := forward * command.move.y + right * command.move.x
+	# Aside, never back: two bots meeting in a doorway pushed each other back out of it, each
+	# pressing in again, and a seeker stood in a park cabin's doorway for sixteen seconds
+	# (`headless_bots` round 28). People pass through people, so going on through is allowed.
+	var heading := world.normalized()
+	var against := push.dot(heading)
+	if against < 0.0:
+		push -= heading * against
+	world += push * 2.0
 	command.move = Vector2(world.dot(right), world.dot(forward)).limit_length(1.0)
 
 
@@ -1259,6 +1361,12 @@ func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> vo
 			state["stuck_at"] = at
 		# A panel it could not see coming: round it, before anything blinder.
 		state["detour_check"] = -INF
+		# Caught on a doorway's frame on the way through: square to the doorway's middle and
+		# through, before a hop or a step aside.
+		if int(state.get("stuck_count", 0)) == 0 and _through_doorway(state, at, t):
+			state["stuck_count"] = 1
+			state["stuck"] = [at, t]
+			return
 		var stream: DotRandomStream = state["stream"]
 		# Every other time a hop (a kerb, a step), else a step aside. Never a hop at something
 		# waist-high: that is a desk, and a bot hopped up on one stood there for half a minute
@@ -1266,7 +1374,9 @@ func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> vo
 		var ahead := _next_corner(state, at) - at
 		ahead.y = 0.0
 		var waist := at + Vector3(0.0, 0.6, 0.0)
-		var low_only := ahead.length() < 0.01 or _los(waist, waist + ahead.normalized() * 0.8)
+		# Nor under a low ceiling (a crawl space): a hop there goes nowhere but into the floor above.
+		var headroom := _los(at + Vector3(0.0, 0.5, 0.0), at + Vector3(0.0, HsPlayer.BODY_HEIGHT + 0.05, 0.0))
+		var low_only := headroom and (ahead.length() < 0.01 or _los(waist, waist + ahead.normalized() * 0.8))
 		if int(state.get("stuck_count", 0)) % 2 == 0 and low_only:
 			command.set_button(DotFpsCommand.BUTTON_JUMP, true)
 		else:
@@ -1283,6 +1393,51 @@ func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> vo
 	state["stuck"] = [at, t]
 
 
+## Stuck within a metre of an open doorway the walk goes through (the next corner is on its
+## far side): two points, square to the doorway's middle on this side and past it on the far
+## side, as the detour. The path is baked at exactly a body's radius from the frame, so a bot a
+## little off it caught the jamb: a seeker climbing a camp cabin's steps stood against one for
+## twelve seconds (`headless_bots` round 12). Only once stuck: steering every path through every
+## doorway's middle sent bots round in circles elsewhere. True when it set one.
+func _through_doorway(state: Dictionary, at: Vector3, t: float) -> bool:
+	var map: Node3D = game.get("map")
+	var doors: Object = map.get("doors") if map != null else null
+	if doors == null or not nav.is_ready():
+		return false
+	var corner := _next_corner(state, at)
+	var tick := int(game.get("_tick"))
+	var specs: Array = doors.get("doors")
+	for index in range(specs.size()):
+		var spec: Dictionary = (specs[index] as Dictionary)["spec"]
+		if not _door_on_level(spec, at) or float(doors.call("fraction", index, tick)) < 0.9:
+			continue
+		var frame: Transform3D = doors.call("panel_transform", index, 0.0)
+		var middle := Vector3(frame.origin.x, at.y, frame.origin.z)
+		if Vector2(middle.x - at.x, middle.z - at.z).length() > 1.2:
+			continue
+		var normal := frame.basis.z
+		normal.y = 0.0
+		if normal.length() < 0.01:
+			continue
+		normal = normal.normalized()
+		var here := normal.dot(at - middle)
+		if signf(here) == signf(normal.dot(corner - middle)):
+			continue
+		var near := signf(here) if here != 0.0 else 1.0
+		var out := PackedVector3Array([middle + normal * near * 0.6, middle - normal * near * 0.8])
+		for i in range(out.size()):
+			var floor_at := nav.closest(out[i])
+			if Vector2(floor_at.x - out[i].x, floor_at.z - out[i].z).length() > 0.45 or absf(floor_at.y - at.y) > HsPlayer.BODY_STEP + 0.3:
+				return false
+			out[i] = floor_at
+		state["detour"] = out
+		state["detour_until"] = t + 3.0
+		state["detour_door"] = -1
+		state["sidestep_until"] = -INF
+		return true
+	return false
+
+
 ## Round and round one spot beside an open door's panel for [constant LINGER_SHUT]: whatever
 ## the walk is trying there is not getting it past (a free edge against a bench, a jamb's corner
 ## it keeps catching). The panel is the thing in the way, so the bot shuts it, as a person
@@ -1292,8 +1447,16 @@ func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> vo
 func _linger_by_door(player: HsPlayer, state: Dictionary, at: Vector3, t: float) -> bool:
 	var anchor: Vector3 = state.get("linger_at", Vector3.INF)
 	var since := float(state.get("linger_since", t))
-	if anchor == Vector3.INF or t - since < LINGER_SHUT or float(state.get("linger_acted", -INF)) == since:
+	if anchor == Vector3.INF or t - since < LINGER_SHUT:
 		return false
+	if float(state.get("linger_acted", -INF)) == since:
+		# Shut it, or stepped back to, and still round the same spot: somewhere else, once.
+		if t - since < LINGER_GIVE_UP or float(state.get("linger_gave", -INF)) == since or _open_door_index_near(anchor, 2.0) < 0:
+			return false
+		state["linger_gave"] = since
+		_give_up_goal(player, state)
+		state["detour"] = PackedVector3Array()
+		return true
 	var index := _open_door_index_near(anchor, 2.0)
 	if index < 0:
 		return false
@@ -1306,9 +1469,22 @@ func _linger_by_door(player: HsPlayer, state: Dictionary, at: Vector3, t: float)
 		state["path"] = PackedVector3Array()
 		state["detour"] = PackedVector3Array()
 		return true
-	if not _plan_shut_from_clear(player, state, index):
+	if _shut_failed(state, index) or not _plan_shut_from_clear(player, state, index):
 		_give_up_goal(player, state)
 	return true
+
+
+## A door this bot tried to shut and could not, for [constant SHUT_FAILED_FOR]: not tried again
+## from here. Forgotten at every give-up, it was planned again at once, and a bot stood facing a
+## door at the top of a flats stair for fifteen seconds, stepping back to shut it every three
+## (`headless_bots` round 44).
+func _note_shut_failed(state: Dictionary, index: int) -> void:
+	state["shut_failed"] = index
+	state["shut_failed_at"] = now()
+
+
+func _shut_failed(state: Dictionary, index: int) -> bool:
+	return int(state.get("shut_failed", -1)) == index and now() - float(state.get("shut_failed_at", -INF)) < SHUT_FAILED_FOR
 
 
 ## Measures, apart from what [method _unstick] does about it, how long a walking bot has been
@@ -1332,9 +1508,9 @@ func _open_door_index_near(at: Vector3, reach: float) -> int:
 		var f: float = doors.call("fraction", index, tick)
 		if f < 0.1:
 			continue
-		var ends: PackedVector3Array = doors.call("panel_ends", index, f)
-		if absf(ends[0].y - at.y) > 2.0:
+		if not _door_on_level((doors.get("doors") as Array)[index]["spec"], at):
 			continue
+		var ends: PackedVector3Array = doors.call("panel_ends", index, f)
 		var p := Geometry2D.get_closest_point_to_segment(Vector2(at.x, at.z), Vector2(ends[0].x, ends[0].z), Vector2(ends[1].x, ends[1].z))
 		var d := p.distance_to(Vector2(at.x, at.z))
 		if d < nearest:
@@ -1343,12 +1519,22 @@ func _open_door_index_near(at: Vector3, reach: float) -> int:
 	return best
 
 
+## Whether a door's panel is on the storey of somebody standing at [param at]: its foot within a
+## step of their feet and its head above a crouched body's. Within a flat
+## 2 m and 2.5 m up, a cabin's door counted for a hider in the crawl space under its floor,
+## which went round a panel in the room over its head for fourteen seconds (`headless_bots`
+## round 30, the camp).
+static func _door_on_level(spec: Dictionary, at: Vector3) -> bool:
+	var c: Array = spec["at"]
+	var half := float((spec["size"] as Array)[1]) * 0.5
+	return float(c[1]) - half - at.y < HsPlayer.BODY_STEP + 0.1 and float(c[1]) + half - at.y > HsPlayer.BODY_CROUCH
+
+
 ## Somewhere else: a seeker's next place, a hider's next spot (not this one).
 func _give_up_goal(player: HsPlayer, state: Dictionary) -> void:
 	var at := player.controller.state.position
 	state["stuck_count"] = 0
 	state["stuck_at"] = Vector3.INF
-	state["shut_failed"] = -1
 	# A seeker's place is the search's own entry: crossed off for now, or the search hands the
 	# same place straight back (`headless_bots` round 22, a seeker at a park door for a minute).
 	var place: Dictionary = state.get("goal_place", {})
