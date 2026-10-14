@@ -43,7 +43,7 @@
 /addons/dot_bot
 
 # The maps are hide-n-seek-maps, a repository and a pack of their own.
-# bootstrap-link: hide-n-seek-maps/maps
+# bootstrap-link: hide-n-seek-maps/maps ci
 /maps
 
 # Exports
