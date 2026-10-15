@@ -57,6 +57,13 @@ const DROP_MAX := 2.0
 ## Metres between two links along one stretch of edge (the annotator's default is 2).
 const LINK_SPACING := 6.0
 
+## The corner a bot was walking to when it gave up its goal is shunned for [constant SHUN_FOR]
+## seconds: a walk that passes within [constant SHUN_RADIUS] of it costs [constant SHUN_COST] metres
+## more (a seeker) or is not a place to go (a hider), so it does not go straight back through the
+## doorway it could not pass.
+const SHUN_COST := 200.0
+const SHUN_FOR := 30.0
+const SHUN_RADIUS := 0.8
 ## The seeker's sweep places beside the annotator's hiding spots: a few random points on the
 ## mesh so the open floor is looked at too, after the tour.
 const SWEEP_POINTS := 120
@@ -715,8 +722,15 @@ func _pick_spot(player: HsPlayer, state: Dictionary, avoid: PackedVector3Array, 
 	# through a wall, reached round a corridor and through a door, was a hider walking in the
 	# open for ten seconds (`headless_bots` round 1).
 	var walk_limit := within * 1.3 if within < INF else INF
+	var shun: Vector3 = state.get("shunned", Vector3.INF)
 	var reachable := func(spot: Vector3) -> bool:
 		var length := nav.path_length(start, spot) if nav.is_ready() else at.distance_to(spot)
+		# Not by the way it just gave up on (see `_give_up_goal`).
+		if nav.is_ready() and length < INF and shun != Vector3.INF and now() < float(state.get("shunned_until", -INF)):
+			var way := nav.path(start, spot)
+			for i in range(way.size()):
+				if Vector2(way[i].x - shun.x, way[i].z - shun.z).length() < SHUN_RADIUS and absf(way[i].y - shun.y) < 2.0:
+					return false
 		return length < maxf(left - 4.0, 8.0) * speed * 0.9 and length < walk_limit
 
 	var stream: DotRandomStream = state["stream"]
@@ -1175,7 +1189,20 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 				var theirs: Dictionary = (_state[id] as Dictionary).get("goal_place", {})
 				if not theirs.is_empty():
 					claimed.append(theirs["at"])
-		var distance := func(a: Vector3, b: Vector3) -> float: return nav.path_length(a, b) if nav.is_ready() else a.distance_to(b)
+		# A walk that went through the spot it last gave up at (a doorway whose panel it could not
+		# pass) is a long way round, whatever its length: the nearest places were all on the far
+		# side of that panel and it gave up at it once a second (`headless_bots`, a camp corridor).
+		var shunned: Vector3 = state.get("shunned", Vector3.INF)
+		var shun := shunned != Vector3.INF and t < float(state.get("shunned_until", -INF))
+		var distance := func(a: Vector3, b: Vector3) -> float:
+			if not nav.is_ready():
+				return a.distance_to(b)
+			if shun:
+				var way := nav.path(a, b)
+				for i in range(way.size()):
+					if Vector2(way[i].x - shunned.x, way[i].z - shunned.z).length() < SHUN_RADIUS and absf(way[i].y - shunned.y) < 2.0:
+						return nav.path_length(a, b) + SHUN_COST
+			return nav.path_length(a, b)
 		place = _tour_next(state, at, claimed, search, t)
 		if place.is_empty():
 			place = search.next(at, t, claimed, stream, distance)
@@ -1844,9 +1871,21 @@ func _give_up_goal(player: HsPlayer, state: Dictionary) -> void:
 	if place.has("seen_at"):
 		place["seen_at"] = now()
 	state["goal_place"] = {}
+	# The tour's remaining stops are as far across the map as the one given up, and the way to
+	# them is the same doorway: the nearest-first sweep takes over (`headless_bots`, a camp
+	# corridor, eleven seconds beside a panel that a stop at a time kept being sent through).
+	state["tour"] = []
+	var ahead_path: PackedVector3Array = state["path"]
+	var ahead_at := int(state.get("corner", 1))
+	state["shunned"] = ahead_path[ahead_at] if ahead_at < ahead_path.size() else at
+	state["shunned_until"] = now() + SHUN_FOR
 	state["path"] = PackedVector3Array()
 	if game.call("team_of", player.player_id) == 1 and state["mode"] != &"hidden":
-		_pick_spot(player, state, PackedVector3Array([(state["spot"] as Dictionary).get("at", at)]))
+		# A hider that was running stays near: the annotator's spots are all over the map, and
+		# one told to give up its goal sent itself across it, through the same doorway, a place
+		# at a time (`headless_bots`, a camp corridor for eleven seconds).
+		var near := 14.0 if state["mode"] == &"fleeing" else INF
+		_pick_spot(player, state, PackedVector3Array([(state["spot"] as Dictionary).get("at", at)]), near)
 
 
 func _note_lingering(state: Dictionary, at: Vector3, t: float) -> void:
