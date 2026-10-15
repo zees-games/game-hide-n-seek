@@ -20,7 +20,7 @@ const HsMapDoc := preload("../game/hs_map_doc.gd")
 ## Adding a map adds a section and CHECKS_PER_MAP checks.
 
 const MAPS := ["hs_practice", "hs_apartments", "hs_warehouse", "hs_manor", "hs_village", "hs_park", "hs_school", "hs_mall", "hs_ship", "hs_castle", "hs_camp", "hs_museum"]
-const CHECKS_PER_MAP := 12
+const CHECKS_PER_MAP := 13
 
 ## The maps actually checked: all of MAPS, or only the practice house where `maps/` is not
 ## linked in (CI, which clones this repository alone). As mg-deathrun's headless_courses
@@ -125,6 +125,8 @@ func _test_map(id: StringName) -> void:
 	var missing: PackedStringArray = game.map.get("_missing")
 	_check(missing.is_empty() and game.map.props.size() == (doc["props"] as Array).size(),
 		"every prop in it is one the catalogue has", ", ".join(missing))
+
+	await _report_colliderless(id, doc)
 
 	var cover := 0
 
@@ -358,7 +360,7 @@ func _rests_on_something(game: HsGame, frame: Transform3D, size: Vector3) -> boo
 	return false
 
 
-func _world(id: StringName) -> HsGame:
+func _world(id: StringName, drawn := false) -> HsGame:
 	var config := HsConfig.new()
 	config.warmup_seconds = 0.0
 	config.minimum_players = 0
@@ -370,12 +372,39 @@ func _world(id: StringName) -> HsGame:
 	game.config = config
 	game.tick_rate = 60
 	game.authoritative = true
+	game.draw_world = drawn
 	game.register_service = false
 	add_child(game)
 	game.set_physics_process(false)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	return game
+
+
+## dot-core's [DotCollisionAudit] over the map as a client draws it: visible geometry with no
+## shape near it, which a player walks through. [b]Report only[/b]: the findings are printed and
+## the check passes when the audit ran, so a known list does not fail the run yet. The audit is
+## the lenient one (a shape anywhere under the map that the mesh touches covers it), because the
+## map keeps its drawing in `Drawn` and its shapes in `Solid`. The exact half is in the document:
+## a visible box that is not solid is drawn and walked through by definition.
+func _report_colliderless(id: StringName, doc: Dictionary) -> void:
+	var drawn := await _world(id, true)
+	var res := DotCollisionAudit.audit(drawn.map, true)
+	var ghosts := 0
+
+	for box: Dictionary in doc["boxes"]:
+		if bool(box.get("visible", true)) and not bool(box.get("solid", true)):
+			ghosts += 1
+
+	if res.ok:
+		var report: DotCollisionAudit = res.value
+		print("  collision audit: %d meshes with no shape near them of %d, %d visible boxes not solid" % [report.count(), report.examined, ghosts])
+
+		for line in report.describe_lines().slice(1, 6):
+			print("  %s" % line)
+
+	_check(res.ok and (res.value as DotCollisionAudit).examined > 0, "the collision audit ran over what is drawn", "" if res.ok else res.error.message)
+	await _dispose(drawn)
 
 
 func _dispose(game: HsGame) -> void:
