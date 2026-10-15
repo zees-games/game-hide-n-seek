@@ -48,6 +48,37 @@ const SURVEY_POINTS := 260
 const SURVEY_PROPS := 160
 const WATCHERS := 80
 
+## Annotator slices stepped each tick while it runs: fixed, so a seeded round starts the hide at
+## the same tick wherever the frames fall.
+const ANNOTATE_STEPS_PER_TICK := 6
+
+const DROP_MAX := 2.0
+
+## Metres between two links along one stretch of edge (the annotator's default is 2).
+const LINK_SPACING := 6.0
+
+## The seeker's sweep places beside the annotator's hiding spots: a few random points on the
+## mesh so the open floor is looked at too, after the tour.
+const SWEEP_POINTS := 120
+
+## What a hider thinks of a spot beyond its exposure: how tucked in it is (the share of sixteen
+## directions blocked within 2 m) is worth this much exposure, and cover from the seekers' start
+## (crouched behind something from every one of them) this much more.
+const ENCLOSED_BONUS := 0.30
+const COVER_BONUS := 0.25
+
+## The seeker's tour before it sweeps: this many of the best hiding spots, at knowledge 1 (and
+## [constant TOUR_MIN] at 0), and every chokepoint up to [constant TOUR_CHOKES], nearest next.
+const TOUR_SPOTS := 12
+const TOUR_MIN := 4
+const TOUR_CHOKES := 4
+
+## A tour stop within this of where another seeker is going is left to that seeker.
+const TOUR_APART := 6.0
+
+## Eye heights the quality measure's watchers stand at come from the player; this many of them.
+const QUALITY_WATCHERS := 120
+
 ## A seeker this near, walking straight at the hider without having seen it, is coming to its
 ## place. Out of the hider's sight line it slips away low; in it, the hider keeps still, because
 ## moving is what the seeker would see. One passing any other way is let pass.
@@ -129,8 +160,36 @@ var game: Node = null
 
 var nav: DotBotNav = DotBotNav.new()
 
-## `[{at, exposure}]` for the map built, or empty.
+## `[{at, exposure, ...}]`, the annotator's hiding spots for the map built (the random survey
+## when the map has no annotations), or empty.
 var spots: Array[Dictionary] = []
+
+## A few random places beside [member spots] that the seekers' sweep looks at too.
+var sweep: Array[Dictionary] = []
+
+## The map's annotations ([DotNpcAiNavAnnotator]): links, spots, chokepoints. Null until made.
+var annotations: DotNpcAiNavAnnotations = null
+
+## How long the annotation took (or was loaded), milliseconds, and whether it came from the cache.
+var annotate_ms: float = 0.0
+var annotate_cached: bool = false
+
+## Drop and jump-up links handed to the mesh.
+var links_used: int = 0
+
+var _annotator: DotNpcAiNavAnnotator = null
+var _cached: DotNpcAiNavAnnotations = null
+var _job: DotJob = null
+var _job_done: bool = false
+var _job_steps: int = 0
+
+## Where each jump-up link starts: a bot near one with its next corner above it hops.
+var _jump_feet: PackedVector3Array = PackedVector3Array()
+
+## Hiders' pool for this round, from [method _hider_pool]; cleared by [method reset].
+var _pool: Array[Dictionary] = []
+var _pool_threats: PackedVector3Array = PackedVector3Array()
+var _watch_eyes: PackedVector3Array = PackedVector3Array()
 
 ## Which map the survey is of, and which the mesh was baked for.
 var _surveyed: String = ""
@@ -184,6 +243,7 @@ func dt() -> float:
 func reset() -> void:
 	_state.clear()
 	_sounds.clear()
+	_pool.clear()
 	doors_shut = 0
 	longest_stuck = 0.0
 
@@ -225,6 +285,11 @@ func _prepare() -> void:
 	if key != _baked:
 		_baked = key
 		spots.clear()
+		sweep.clear()
+		annotations = null
+		_job = null
+		_job_done = false
+		_pool.clear()
 		# The walls, floors and furniture, never the doors: a door baked shut is a doorway the
 		# mesh does not go through.
 		var still: Array = [map.get("_solid"), map.get("_furniture")]
@@ -247,20 +312,56 @@ func _prepare() -> void:
 	if int(game.get("_tick")) < _survey_at or not nav.is_ready():
 		return
 
+	# The annotation is a job: stepped a fixed number of slices each tick (never by the clock, so
+	# a seeded round plays the same), and the hiders wait for it as they waited for the bake.
+	if _job == null and not _job_done:
+		_job = _begin_annotation(map, doc)
+		_job_steps = 0
+	if _job != null:
+		var stepped := Time.get_ticks_usec()
+		for _i in range(ANNOTATE_STEPS_PER_TICK):
+			_job_steps += 1
+			if not _job.step():
+				break
+		annotate_ms += (Time.get_ticks_usec() - stepped) / 1000.0
+		if _job.state == DotJob.State.RUNNING or _job.state == DotJob.State.PENDING:
+			return
+
 	_surveyed = key
 	var started := Time.get_ticks_usec()
-
 	var random: DotRandomManager = game.get("random")
 	var stream := random.stream_for(&"bot_survey", hash(str(doc.get("id", ""))) % 65536)
+
+	annotations = _finish_annotation(doc)
+	if annotations != null and not annotations.hiding.is_empty():
+		spots = annotations.hiding_spots()
+		sweep = _random_survey(map, stream, SWEEP_POINTS, SURVEY_PROPS / 3)
+	else:
+		# Nothing annotated (no mesh, or a map with no walls to hide by): the old random survey.
+		spots = _random_survey(map, stream, SURVEY_POINTS, SURVEY_PROPS)
+		sweep = []
+	survey_ms = (Time.get_ticks_usec() - started) / 1000.0 + nav.bake_ms + annotate_ms
+	DotLog.debug(CHANNEL, "surveyed the map for the bots", {
+		"map": str(doc.get("id", "")), "spots": spots.size(), "nav_ms": snappedf(nav.bake_ms, 0.1), "ms": snappedf(survey_ms, 0.1),
+		"links": links_used, "chokepoints": annotations.chokepoints.size() if annotations != null else 0, "cached": annotate_cached,
+		"steps": _job_steps,
+	})
+
+
+## The old survey: random points over the mesh and points beside props, each scored by the
+## share of random watchers that see it. Kept as the sweep's open-floor places, as the fallback
+## when a map has no annotations, and as the yardstick `headless_bots` measures the new hiding
+## against ([method legacy_picks]).
+func _random_survey(map: Node3D, stream: DotRandomStream, points: int, prop_count: int) -> Array[Dictionary]:
 	var candidates := PackedVector3Array()
 
-	for _i in range(SURVEY_POINTS):
+	for _i in range(points):
 		candidates.append(nav.random_point(stream))
 
 	# Beside furniture, where people hide: a point a little out from a side of the prop, put
 	# on the walkable mesh.
 	var props: Array = map.get("props")
-	var step := maxi(1, props.size() / SURVEY_PROPS)
+	var step := maxi(1, props.size() / maxi(prop_count, 1))
 	for i in range(0, props.size(), step):
 		var prop: Dictionary = props[i]
 		var frame: Transform3D = prop["transform"]
@@ -275,12 +376,87 @@ func _prepare() -> void:
 	for _i in range(WATCHERS):
 		watchers.append(nav.random_point(stream) + Vector3(0.0, HsPlayer.EYE_HEIGHT, 0.0))
 
-	var los := func(a: Vector3, b: Vector3) -> bool: return bool(game.call("_clear_between", a, b, true))
-	spots = DotBotHiding.survey(candidates, watchers, los)
-	survey_ms = (Time.get_ticks_usec() - started) / 1000.0 + nav.bake_ms
-	DotLog.debug(CHANNEL, "surveyed the map for the bots", {
-		"map": str(doc.get("id", "")), "spots": spots.size(), "nav_ms": snappedf(nav.bake_ms, 0.1), "ms": snappedf(survey_ms, 0.1),
-	})
+	return DotBotHiding.survey(candidates, watchers, _los)
+
+
+## What the map means to somebody walking it: [DotNpcAiNavAnnotator] over the baked mesh, seeded
+## with every spawn, the doors left out of its rays (the bake left them out), cached by key under
+## `user://nav`. Returns the job to step, or null when the cache had it (or there is no mesh);
+## [method _finish_annotation] then hands drop and jump-up links to the mesh as ride edges.
+func _begin_annotation(map: Node3D, doc: Dictionary) -> DotJob:
+	annotate_cached = false
+	annotate_ms = 0.0
+	links_used = 0
+	_annotator = null
+	_cached = null
+	_job_done = true
+	if nav.mesh == null or not nav.is_ready():
+		return null
+
+	var annotator := DotNpcAiNavAnnotator.new(nav.mesh, map.get_world_3d())
+	annotator.agent_radius = HsPlayer.BODY_RADIUS
+	annotator.stand_height = HsPlayer.BODY_HEIGHT
+	annotator.crouch_height = HsPlayer.BODY_CROUCH
+	annotator.eye_height = HsPlayer.EYE_HEIGHT
+	annotator.climb = HsPlayer.BODY_STEP
+	annotator.random_seed = hash(str(doc.get("id", ""))) % 65536 + 1
+	annotator.exclude = _door_rids()
+	# Fewer links than the default two metres apart: a camp's cabins on stilts gave four hundred,
+	# and a way down every metre is not a hiding place anybody uses.
+	annotator.link_spacing = LINK_SPACING
+	# A way down of two metres at most: a four-metre drop off a landing was a rail the bot stood
+	# at for twenty seconds (the ray at knee height does not see a rail), and nobody drops that
+	# far to hide.
+	annotator.drop_max = DROP_MAX
+	var physics: Object = game.get("physics")
+	if physics != null:
+		annotator.collision_mask = int(physics.call("layer_mask", &"world")) | int(physics.call("layer_mask", &"prop"))
+	var seeds := PackedVector3Array()
+	for side in ["hiders", "seekers"]:
+		for i in range(((doc.get("spawns", {}) as Dictionary).get(side, []) as Array).size()):
+			seeds.append(nav.closest((map.call("spawn", side, i) as Array)[0]))
+	annotator.seeds = seeds
+	_annotator = annotator
+
+	var loaded := DotNpcAiNavAnnotations.load_file(_cache_path(), annotator.cache_key())
+	if loaded.ok:
+		_cached = loaded.value
+		annotate_cached = true
+		return null
+	return annotator
+
+
+func _cache_path() -> String:
+	return "user://nav/%s.json" % _annotator.cache_key()
+
+
+func _finish_annotation(doc: Dictionary) -> DotNpcAiNavAnnotations:
+	if _annotator == null:
+		return null
+	var found: DotNpcAiNavAnnotations = _cached
+	if found == null:
+		if _annotator.state != DotJob.State.DONE or _annotator.result == null or not _annotator.result.ok:
+			DotLog.warn(CHANNEL, "the map could not be annotated; the bots use a random survey", {"map": str(doc.get("id", ""))})
+			return null
+		found = _annotator.annotations
+		var _saved := found.save(_cache_path())
+
+	# Drops and short jumps up: the mesh does not join a table top to the floor, the bot can.
+	# A gap is a running jump the stand-ins do not make.
+	var ride := 0
+	_jump_feet.clear()
+	for link in found.links:
+		var kind := int(link["kind"])
+		if kind == DotNpcAiNavAnnotations.LINK_DROP or kind == DotNpcAiNavAnnotations.LINK_JUMP_UP:
+			# Both ends on the mesh itself: a link end off it made the engine's path query fail.
+			if nav.closest(link["from"]).distance_to(link["from"]) > 0.3 or nav.closest(link["to"]).distance_to(link["to"]) > 0.3:
+				continue
+			nav.add_ride(link["from"], link["to"], ride, 1.5)
+			ride += 1
+			if kind == DotNpcAiNavAnnotations.LINK_JUMP_UP:
+				_jump_feet.append(link["from"])
+	links_used = ride
+	return found
 
 
 func _los(a: Vector3, b: Vector3) -> bool:
@@ -530,7 +706,7 @@ func _pick_spot(player: HsPlayer, state: Dictionary, avoid: PackedVector3Array, 
 	var phase: int = game.get("phase")
 	var left: float = float(game.call("seconds_left")) if phase == 1 else 30.0
 	var speed := player.controller.tunables.max_speed
-	var pool := spots
+	var pool := _hider_pool(threats)
 	if within < INF:
 		pool = spots.filter(func(s: Dictionary) -> bool: return (s["at"] as Vector3).distance_to(at) < within)
 
@@ -563,6 +739,35 @@ func _pick_spot(player: HsPlayer, state: Dictionary, avoid: PackedVector3Array, 
 	state["came_from"] = at
 	state["mode"] = &"going"
 	state["path"] = PackedVector3Array()
+
+
+## The hiding spots as a hider sees them: out of sight first (the annotator's exposure), then
+## tucked in (its enclosure), and best of all behind cover from where the seekers start (a
+## crouched body behind something from every one of them: [method cover_from]). Folded into
+## `exposure` so [DotBotHiding.choose] spreads and ranks them as before; the measured share stays
+## in `seen_exposure`. Made once a round, the seekers' start being fixed.
+func _hider_pool(threats: PackedVector3Array) -> Array[Dictionary]:
+	if not _pool.is_empty() and _pool_threats == threats:
+		return _pool
+	_pool.clear()
+	_pool_threats = threats
+	var covered := {}
+	if annotations != null and not annotations.hiding.is_empty():
+		var behind := {}
+		for threat in threats:
+			for spot in annotations.cover_from(threat, threat, 1000.0, "low"):
+				behind[spot["at"]] = int(behind.get(spot["at"], 0)) + 1
+		for at: Vector3 in behind:
+			if int(behind[at]) >= threats.size():
+				covered[at] = true
+	for spot in spots:
+		var copy := spot.duplicate()
+		var raw := float(spot["exposure"])
+		copy["seen_exposure"] = raw
+		copy["covered"] = covered.has(spot["at"])
+		copy["exposure"] = clampf(raw - ENCLOSED_BONUS * float(spot.get("enclosure", 0.0)) - (COVER_BONUS if covered.has(spot["at"]) else 0.0), 0.0, 1.0)
+		_pool.append(copy)
+	return _pool
 
 
 ## Seekers it can see or hear: run from one that sees it, creep away from one coming close.
@@ -663,9 +868,18 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 			taken.append((_state[id]["spot"] as Dictionary)["at"])
 	# Running: round a corner and well away, so it has to search again. Slipping away: the
 	# nearest place out of its sight.
-	var away := DotBotHiding.flee_spot(spots, at, threat, threat_eye, _los, taken, FLEE_WITHIN + 5.0, FLEE_CLEAR + 4.0) if marked_chase \
-		else DotBotHiding.flee_spot(spots, at, threat, threat_eye, _los, taken, FLEE_WITHIN, FLEE_CLEAR) if running \
-		else DotBotHiding.flee_spot(spots, at, threat, threat_eye, _los, taken)
+	# Only places it can get to by a short walk: with the annotator's links a place across a drop
+	# or up a stair is near as the crow flies and half a minute off by path, and a hider told to
+	# run there went round a camp's doorway for twelve seconds changing its mind.
+	var runnable: Array[Dictionary] = []
+	var start := nav.closest(at) if nav.is_ready() else at
+	for spot in spots:
+		var there: Vector3 = spot["at"]
+		if there.distance_to(at) <= FLEE_WITHIN + 5.0 and (not nav.is_ready() or nav.path_length(start, there) <= (FLEE_WITHIN + 5.0) * 1.5):
+			runnable.append(spot)
+	var away := DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN + 5.0, FLEE_CLEAR + 4.0) if marked_chase \
+		else DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN, FLEE_CLEAR) if running \
+		else DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken)
 	if away.is_empty():
 		# Nowhere out of its sight: away from it, whatever the place.
 		var dir := Vector3(at.x - threat.x, 0.0, at.z - threat.z).normalized()
@@ -877,8 +1091,12 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 
 	if state["search"] == null:
 		var search := DotBotSearch.new()
-		search.setup(spots, profile.map_knowledge)
+		var places: Array[Dictionary] = []
+		places.append_array(spots)
+		places.append_array(sweep)
+		search.setup(places, profile.map_knowledge)
 		state["search"] = search
+		state["tour"] = _tour(at, profile.map_knowledge)
 	var search: DotBotSearch = state["search"]
 
 	# Who it can see; a hider marked by the game's beacon is known to every seeker.
@@ -958,7 +1176,9 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 				if not theirs.is_empty():
 					claimed.append(theirs["at"])
 		var distance := func(a: Vector3, b: Vector3) -> float: return nav.path_length(a, b) if nav.is_ready() else a.distance_to(b)
-		place = search.next(at, t, claimed, stream, distance)
+		place = _tour_next(state, at, claimed, search, t)
+		if place.is_empty():
+			place = search.next(at, t, claimed, stream, distance)
 		if place.is_empty():
 			# Everything looked at: start over, nearest first.
 			search.recheck = 20.0
@@ -996,6 +1216,59 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 		if dir.length() > 0.1:
 			dir = dir.normalized().rotated(Vector3.UP, deg_to_rad(sweep))
 			_look(player, command, player.eye_position() + dir * 5.0)
+
+
+## The places a seeker goes to before it sweeps: the best hiding spots (as many as its knowledge
+## of the map allows) and the map's chokepoints (the doorways everything walks through, so a
+## hider slipping past is seen), nearest next from where it starts. `[{at}]`.
+func _tour(from: Vector3, knowledge: float) -> Array[Dictionary]:
+	var stops: Array[Dictionary] = []
+	if annotations == null:
+		return stops
+	var count := roundi(lerpf(float(TOUR_MIN), float(TOUR_SPOTS), clampf(knowledge, 0.0, 1.0)))
+	for i in range(mini(count, spots.size())):
+		stops.append({"at": spots[i]["at"]})
+	for i in range(mini(TOUR_CHOKES, annotations.chokepoints.size())):
+		stops.append({"at": annotations.chokepoints[i]["at"]})
+	var ordered: Array[Dictionary] = []
+	var here := from
+	while not stops.is_empty():
+		var best := 0
+		var best_d := INF
+		for i in range(stops.size()):
+			var d := here.distance_to(stops[i]["at"])
+			if d < best_d:
+				best_d = d
+				best = i
+		here = stops[best]["at"]
+		ordered.append(stops[best])
+		stops.remove_at(best)
+	return ordered
+
+
+## The next tour stop this seeker can reach that no other seeker is heading for, or empty when
+## the tour is done: the sweep takes over. A stop it has had in view on the way is dropped.
+func _tour_next(state: Dictionary, at: Vector3, claimed: PackedVector3Array, search: DotBotSearch, t: float) -> Dictionary:
+	var tour: Array = state.get("tour", [])
+	while not tour.is_empty():
+		var stop: Dictionary = tour.pop_front()
+		var there: Vector3 = stop["at"]
+		var taken := false
+		for other in claimed:
+			if other.distance_to(there) < TOUR_APART:
+				taken = true
+				break
+		if taken or (nav.is_ready() and nav.path_length(at, there) == INF):
+			continue
+		var seen := false
+		for place in search.places:
+			if (place["at"] as Vector3).distance_to(there) < 1.5 and t - float(place["seen_at"]) < search.recheck:
+				seen = true
+				break
+		if seen:
+			continue
+		return {"at": there, "tour": true}
+	return {}
 
 
 # --- Moving -------------------------------------------------------------------------
@@ -1123,6 +1396,13 @@ func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal:
 		_look(player, command, Vector3(corner.x, player.eye_position().y + (corner.y - at.y) * 0.5, corner.z))
 	_walk(command, dir)
 	command.set_button(DotFpsCommand.BUTTON_SPRINT, sprint)
+
+	# A jump-up link (the annotator found a ledge within a body's jump): hop at its foot.
+	if corner.y - at.y > HsPlayer.BODY_STEP + 0.05 and player.controller.state.is_grounded():
+		for foot in _jump_feet:
+			if Vector2(foot.x - at.x, foot.z - at.z).length() < 1.2 and absf(foot.y - at.y) < 0.6:
+				command.set_button(DotFpsCommand.BUTTON_JUMP, true)
+				break
 
 	# A ceiling low ahead: crouch under it.
 	if dir.length() > 0.01:
@@ -1582,12 +1862,60 @@ func _note_lingering(state: Dictionary, at: Vector3, t: float) -> void:
 		longest_stuck_who = state.get("who", &"")
 
 
+## How well a body crouched at [param at] is hidden, by one measure for anything: `[exposure,
+## enclosure]`, the share of this map's watchers (random places on the mesh at a standing eye,
+## the same every call) within 30 m that see a crouched head there, and the share of sixteen
+## directions with something within 2 m. `headless_bots` holds the hiders' places to it.
+func quality(at: Vector3) -> Array:
+	if _watch_eyes.is_empty() and nav.is_baked():
+		var stream := DotRandomStream.new(7, &"hs_bot_quality")
+		for _i in range(QUALITY_WATCHERS):
+			_watch_eyes.append(nav.random_point(stream) + Vector3(0.0, HsPlayer.EYE_HEIGHT, 0.0))
+	var head := at + Vector3(0.0, HsPlayer.BODY_CROUCH * 0.85, 0.0)
+	var near := 0
+	var seen := 0
+	for eye in _watch_eyes:
+		var d := eye.distance_to(head)
+		if d > 30.0 or d < 1.0:
+			continue
+		near += 1
+		if _los(eye, head):
+			seen += 1
+	var blocked := 0
+	for k in range(16):
+		var a := float(k) * TAU / 16.0
+		if not bool(game.call("_clear_between", head, head + Vector3(cos(a), 0.0, sin(a)) * 2.0, false)):
+			blocked += 1
+	return [float(seen) / float(near) if near > 0 else 0.5, float(blocked) / 16.0]
+
+
+## Where the old stand-ins' hiders would have gone on this map: [param count] hiders each
+## choosing from the old random survey (dot-bot's own scoring, apart from one another, away from
+## the seekers' start), which is the yardstick the annotator's spots are measured against.
+func legacy_picks(count: int) -> PackedVector3Array:
+	var picks := PackedVector3Array()
+	var map: Node3D = game.get("map")
+	if map == null or not nav.is_baked():
+		return picks
+	var stream := DotRandomStream.new(11, &"hs_bot_legacy")
+	var old := _random_survey(map, stream, SURVEY_POINTS, SURVEY_PROPS)
+	var threats := PackedVector3Array()
+	for i in range(2):
+		threats.append((map.call("spawn", "seekers", i) as Array)[0])
+	for _i in range(count):
+		var chosen := DotBotHiding.choose(old, Vector3.ZERO, threats, picks, stream, settings().profile.map_knowledge)
+		if not chosen.is_empty():
+			picks.append(chosen["at"])
+	return picks
+
+
 func describe() -> Dictionary:
 	return {"spots": spots.size(), "survey_ms": snappedf(survey_ms, 0.1), "nav": nav.describe(), "bots": _state.size()}
 
 
 func describe_lines() -> PackedStringArray:
-	var lines := PackedStringArray(["bots  %d spots surveyed in %.0f ms" % [spots.size(), survey_ms]])
+	var lines := PackedStringArray(["bots  %d hiding spots (%d sweep) in %.0f ms, %d links, %d chokepoints, annotated in %.0f ms%s" % [
+		spots.size(), sweep.size(), survey_ms, links_used, annotations.chokepoints.size() if annotations != null else 0, annotate_ms, " (cached)" if annotate_cached else ""]])
 	lines.append_array(nav.describe_lines())
 	for id: StringName in _state:
 		var s: Dictionary = _state[id]

@@ -73,6 +73,15 @@ const ARMED_ROUNDS := 2
 
 const SECTIONS := 3
 
+## The annotator's hiding spots against the random survey they replaced. Each hider's place when
+## the seek begins is scored `(1 - exposure) * 2 + enclosure * 1.5` (the share of the map's
+## watchers that see a crouched head there, and how tucked in it is, both measured by the same
+## [method HsBots.quality] for every place), and the mean must beat what the old survey's best
+## picks scored on the same map by [constant MIN_QUALITY_GAIN]. The hiders that stood where they
+## spawned (they spawn in a hide room: they would pass) and hiders at random places on the floor must fail it. And every map has a round with a catch: a map on which the seekers never
+## find anybody is unwinnable.
+const MIN_QUALITY_GAIN := 0.15
+
 var _passed := 0
 var _failed := 0
 var _entered := 0
@@ -181,6 +190,25 @@ func _run() -> void:
 		_check(float(unseen) >= MIN_UNSEEN * float(hiders), "hiders hide: %.0f%% are out of every seeker's sight when the seek begins" % [MIN_UNSEEN * 100.0], "%d of %d" % [unseen, hiders])
 		_check(covered / count >= MIN_COVERED, "the seeker sweeps the map: %.0f%% of its surveyed places within %.0f m in %.0f s" % [MIN_COVERED * 100.0, COVER_RADIUS, COVER_SECONDS], "%.0f%%" % (covered / count * 100.0))
 		_check(float(found) >= FIND_SHARE * count, "the seeker finds a hider within %.0f s in %.0f%% of rounds" % [FIND_WITHIN, FIND_SHARE * 100.0], "%d of %d" % [found, results.size()])
+	if difficulty == "medium":
+		var q_new := 0.0
+		var q_old := 0.0
+		var by_map := {}
+		for result in results:
+			q_new += float(result["q_new"])
+			q_old += float(result["q_old"])
+			by_map[result["map"]] = int(by_map.get(result["map"], 0)) + (1 if int(result["caught"]) > 0 else 0)
+			if result["round"] < MAPS.size():
+				print("  %-14s %d links used, %d chokepoints, annotated in %.0f ms" % [result["map"], result["links"], result["chokes"], result["annotate_ms"]])
+		q_new /= float(maxi(results.size(), 1))
+		q_old /= float(maxi(results.size(), 1))
+		print("  a hider's place scores %.2f against %.2f for the old survey's best picks" % [q_new, q_old])
+		_check(q_new >= q_old + MIN_QUALITY_GAIN, "hiders' places beat the old survey's by %.2f" % MIN_QUALITY_GAIN, "%.2f against %.2f" % [q_new, q_old])
+		var unwinnable := PackedStringArray()
+		for m in by_map:
+			if int(by_map[m]) == 0:
+				unwinnable.append(m)
+		_check(unwinnable.is_empty(), "no map is unwinnable: the seekers catch somebody on every map played", ", ".join(unwinnable))
 	_check(float(stuck_worst.get("stuck", 0.0)) <= MAX_STUCK, "no stand-in stays stuck beside an open door's panel more than %.0f s" % MAX_STUCK,
 		"%.1f s, %s at %s on %s" % [float(stuck_worst.get("stuck", 0.0)), stuck_worst.get("stuck_who", ""), str((stuck_worst.get("stuck_at", Vector3.ZERO) as Vector3).snapped(Vector3.ONE * 0.1)), stuck_worst.get("map", "")])
 	_completed += 1
@@ -197,7 +225,11 @@ func _run() -> void:
 	var old_hiders := 0
 	var old_covered := 0.0
 	var old_found := 0
+	var old_q_new := 0.0
+	var old_q_old := 0.0
 	for result in old:
+		old_q_new += float(result["q_rand"])
+		old_q_old += float(result["q_old"])
 		old_moved += int(result["moved"])
 		old_unseen += int(result["unseen"])
 		old_hiders += int(result["hiders"])
@@ -207,6 +239,8 @@ func _run() -> void:
 	_check(float(old_moved) < MIN_MOVED * float(old_hiders), "armed: hiders that stand where they spawn fail the moved-far check", "%d of %d moved" % [old_moved, old_hiders])
 	_check(old_covered / float(old.size()) < MIN_COVERED, "armed: a seeker walking a straight line fails the coverage check", "%.0f%%" % (old_covered / float(old.size()) * 100.0))
 	_check(float(old_found) < FIND_SHARE * float(old.size()), "armed: a seeker walking a straight line fails the find-a-hider check", "%d of %d rounds" % [old_found, old.size()])
+	_check(old_q_new / float(old.size()) < old_q_old / float(old.size()) + MIN_QUALITY_GAIN, "armed: hiders at random places on the floor fail the hiding-quality check",
+		"%.2f against %.2f" % [old_q_new / float(old.size()), old_q_old / float(old.size())])
 	_completed += 1
 
 	print("")
@@ -273,6 +307,9 @@ func _round(map_id: String, index: int, difficulty: String, legacy: bool = false
 	var hiders: Array[StringName] = []
 	var spread := 0.0
 	var close := 0
+	var quality_new := 0.0
+	var quality_old := 0.0
+	var quality_rand := 0.0
 	var limit := int((config.hide_seconds + config.round_seconds + 10.0) * TICK_RATE)
 	for tick in range(limit):
 		game.simulate(TICK)
@@ -298,6 +335,14 @@ func _round(map_id: String, index: int, difficulty: String, legacy: bool = false
 						seen = true
 				if not seen:
 					unseen += 1
+			var picks: PackedVector3Array = game.bots.legacy_picks(hiders.size())
+			for p in game.players_on(HsGame.HIDERS):
+				quality_new += _score(game.bots.quality(p.controller.state.position)) / float(maxi(hiders.size(), 1))
+			for at in picks:
+				quality_old += _score(game.bots.quality(at)) / float(maxi(picks.size(), 1))
+			var scatter := DotRandomStream.new(5, &"hs_bots_random")
+			for _i in range(hiders.size()):
+				quality_rand += _score(game.bots.quality(game.bots.nav.random_point(scatter))) / float(maxi(hiders.size(), 1))
 			var measured := _spread(game.players_on(HsGame.HIDERS))
 			spread = measured[0]
 			close = measured[1]
@@ -338,7 +383,9 @@ func _round(map_id: String, index: int, difficulty: String, legacy: bool = false
 	var result := {
 		"seekers": seekers, "hiders": hiders.size(), "caught": caught, "sum_last": sum_last,
 		"mean_last": sum_last / maxf(float(hiders.size()), 1.0), "first": first,
-		"moved": moved, "unseen": unseen, "covered": _covered(game.bots.spots, visited),
+		"moved": moved, "unseen": unseen, "covered": _covered(game.bots.spots + game.bots.sweep, visited),
+		"q_new": quality_new, "q_old": quality_old, "q_rand": quality_rand,
+		"links": game.bots.links_used, "chokes": game.bots.annotations.chokepoints.size() if game.bots.annotations != null else 0, "annotate_ms": game.bots.annotate_ms,
 		"spread": spread, "close": close, "survey_ms": float((game.get("bots") as Object).get("survey_ms")) if game.get("bots") != null else 0.0,
 	}
 	result["doors_shut"] = int(game.bots.doors_shut)
@@ -346,6 +393,7 @@ func _round(map_id: String, index: int, difficulty: String, legacy: bool = false
 	result["stuck_at"] = game.bots.longest_stuck_at
 	result["stuck_who"] = game.bots.longest_stuck_who
 	result["map"] = map_id
+	result["round"] = index
 	remove_child(game)
 	game.free()
 	await get_tree().process_frame
@@ -406,6 +454,10 @@ func _spread(hiders: Array[HsPlayer]) -> Array:
 		if nearest < 3.0:
 			close += 1
 	return [total / maxf(float(hiders.size()), 1.0), close]
+
+
+func _score(q: Array) -> float:
+	return (1.0 - float(q[0])) * 2.0 + float(q[1]) * 1.5
 
 
 func _section(name: String) -> void:

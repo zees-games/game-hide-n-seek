@@ -41,6 +41,7 @@
 /addons/dot_platform
 /addons/dot_vote
 /addons/dot_bot
+/addons/dot_npc_ai
 
 # The maps are hide-n-seek-maps, a repository and a pack of their own.
 # bootstrap-link: hide-n-seek-maps/maps ci

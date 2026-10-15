@@ -121,6 +121,20 @@ func _run() -> void:
 			var feet := frame.origin + normal * 1.3 - Vector3(0.0, size.y * 0.5, 0.0)
 			local.place_at(feet, rad_to_deg(atan2(normal.x, normal.z)))
 			await _seconds_of(maxf(_seconds, 1.0))
+		"spots":
+			# The annotator's spots, links and chokepoints over the map from above (dot-npc-ai's
+			# DotNpcAiNavDebug): a hiding spot in the middle of a room passes every count.
+			await _seconds_of(1.0)
+			var ann: DotNpcAiNavAnnotations = game.bots.annotations
+			if ann == null:
+				push_error("no annotations: the bake or annotation has not finished")
+			else:
+				var debug := DotNpcAiNavDebug.new()
+				game.map.add_child(debug)
+				debug.show_annotations(ann)
+				var sbox: AABB = game.map.bounds()
+				var sc := sbox.get_center()
+				_free_camera().look_at_from_position(sc + Vector3(0.0, maxf(sbox.size.x, sbox.size.z) * 0.9, 0.5), sc)
 		"bots":
 			# The stand-in hiders where they hid: the hide played out, the seekers let go, and a
 			# camera a few metres from the [member _pick]th best-hidden one (or the best).
