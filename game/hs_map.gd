@@ -223,12 +223,15 @@ func _build_boxes() -> void:
 
 		var tint := HsMapDoc.colour(box.get("tint", [1, 1, 1]))
 		var cell := Vector2i(floori(at.x / CHUNK), floori(at.z / CHUNK))
-		var key := "%s|%s|%d|%d" % [str(box["mat"]), tint.to_html(), cell.x, cell.y]
+		var solid := bool(box.get("solid", true))
+		# Solid and painted boxes are never batched together: a batch of floor paint or water is
+		# opted out of the collision audit as a whole, and must not hide a solid box's mesh.
+		var key := "%s|%s|%d|%d|%s" % [str(box["mat"]), tint.to_html(), cell.x, cell.y, solid]
 
 		if not batches.has(key):
 			var tool := SurfaceTool.new()
 			tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-			batches[key] = {"tool": tool, "mat": str(box["mat"]), "tint": tint}
+			batches[key] = {"tool": tool, "mat": str(box["mat"]), "tint": tint, "solid": solid}
 
 		_add_box((batches[key] as Dictionary)["tool"], frame, size)
 		if not HsMaterials.is_transparent(str(box["mat"])):
@@ -239,6 +242,10 @@ func _build_boxes() -> void:
 		var tool: SurfaceTool = batch["tool"]
 		var mesh := MeshInstance3D.new()
 		mesh.name = "Boxes"
+		if not bool(batch["solid"]):
+			# Floor paint, water, a light fitting, embers in a hearth: drawn on purpose and
+			# walked over or through (dot-core DotCollisionAudit).
+			mesh.set_meta(&"dot_no_collision", true)
 		mesh.mesh = tool.commit()
 		mesh.material_override = HsMaterials.material(batch["mat"], batch["tint"])
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \

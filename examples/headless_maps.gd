@@ -20,7 +20,10 @@ const HsMapDoc := preload("../game/hs_map_doc.gd")
 ## Adding a map adds a section and CHECKS_PER_MAP checks.
 
 const MAPS := ["hs_practice", "hs_apartments", "hs_warehouse", "hs_manor", "hs_village", "hs_park", "hs_school", "hs_mall", "hs_ship", "hs_castle", "hs_camp", "hs_museum"]
-const CHECKS_PER_MAP := 13
+const CHECKS_PER_MAP := 14
+
+## A drawn, non-solid box thicker than this is not floor paint, water or a decal.
+const PAINT_THICKNESS := 0.3
 
 ## The maps actually checked: all of MAPS, or only the practice house where `maps/` is not
 ## linked in (CI, which clones this repository alone). As mg-deathrun's headless_courses
@@ -126,7 +129,7 @@ func _test_map(id: StringName) -> void:
 	_check(missing.is_empty() and game.map.props.size() == (doc["props"] as Array).size(),
 		"every prop in it is one the catalogue has", ", ".join(missing))
 
-	await _report_colliderless(id, doc)
+	await _audit_colliderless(id, doc)
 
 	var cover := 0
 
@@ -382,28 +385,47 @@ func _world(id: StringName, drawn := false) -> HsGame:
 
 
 ## dot-core's [DotCollisionAudit] over the map as a client draws it: visible geometry with no
-## shape near it, which a player walks through. [b]Report only[/b]: the findings are printed and
-## the check passes when the audit ran, so a known list does not fail the run yet. The audit is
-## the lenient one (a shape anywhere under the map that the mesh touches covers it), because the
-## map keeps its drawing in `Drawn` and its shapes in `Solid`. The exact half is in the document:
-## a visible box that is not solid is drawn and walked through by definition.
-func _report_colliderless(id: StringName, doc: Dictionary) -> void:
+## shape near it, which a player walks through. Fails on any finding. The audit is the lenient
+## one (a shape anywhere under the map that the mesh touches covers it), because the map keeps
+## its drawing in `Drawn` and its shapes in `Solid`. The exact half is in the document: a
+## visible box that is not solid is drawn and walked through by definition, and the map opts
+## those batches out, so this also holds that to paint: a non-solid box thicker than
+## PAINT_THICKNESS must sit inside a solid one (embers in a hearth), never be a wall or a crate.
+func _audit_colliderless(id: StringName, doc: Dictionary) -> void:
 	var drawn := await _world(id, true)
 	var res := DotCollisionAudit.audit(drawn.map, true)
+	var found := 0
 	var ghosts := 0
+	var thick: Array[String] = []
+	var solids: Array[AABB] = []
+
+	for box: Dictionary in doc["boxes"]:
+		if bool(box.get("solid", true)):
+			solids.append(AABB(HsMapDoc.v3(box["at"]) - HsMapDoc.v3(box["size"]) * 0.5, HsMapDoc.v3(box["size"])))
 
 	for box: Dictionary in doc["boxes"]:
 		if bool(box.get("visible", true)) and not bool(box.get("solid", true)):
 			ghosts += 1
+			var size := HsMapDoc.v3(box["size"])
+			var area := AABB(HsMapDoc.v3(box["at"]) - size * 0.5, size)
+			var inside := false
+
+			for solid in solids:
+				inside = inside or solid.grow(0.01).encloses(area)
+
+			if size.y > PAINT_THICKNESS and not inside:
+				thick.append("%s at %s" % [box["mat"], box["at"]])
 
 	if res.ok:
 		var report: DotCollisionAudit = res.value
-		print("  collision audit: %d meshes with no shape near them of %d, %d visible boxes not solid" % [report.count(), report.examined, ghosts])
+		found = report.count()
+		print("  collision audit: %d meshes with no shape near them of %d, %d visible boxes not solid" % [found, report.examined, ghosts])
 
-		for line in report.describe_lines().slice(1, 6):
+		for line in report.describe_lines().slice(1, 12):
 			print("  %s" % line)
 
-	_check(res.ok and (res.value as DotCollisionAudit).examined > 0, "the collision audit ran over what is drawn", "" if res.ok else res.error.message)
+	_check(res.ok and found == 0 and (res.value as DotCollisionAudit).examined > 0, "nothing drawn is walked through", "" if res.ok else res.error.message)
+	_check(thick.is_empty(), "every box that is drawn and not solid is paint", ", ".join(thick))
 	await _dispose(drawn)
 
 
