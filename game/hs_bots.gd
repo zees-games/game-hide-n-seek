@@ -158,6 +158,11 @@ var longest_stuck_who: StringName = &""
 ## How long the last survey took, milliseconds.
 var survey_ms: float = 0.0
 
+## The stand-ins as Christian's review saw them (2026-10-15: hiders stood where they spawned, the
+## seeker walked a straight line), kept so `headless_bots` can arm its checks: each must fail with
+## this on, or it measures nothing. Never set by the game itself.
+var legacy: bool = false
+
 
 func _init(p_game: Node = null) -> void:
 	game = p_game
@@ -318,7 +323,9 @@ func drive() -> void:
 
 		var side: int = game.call("team_of", id)
 
-		if phase == 0:
+		if legacy:
+			_legacy(player, command, side, phase)
+		elif phase == 0:
 			pass
 		elif side == 1:
 			_hide(player, command)
@@ -339,6 +346,22 @@ func drive() -> void:
 	for i in range(_sounds.size() - 1, -1, -1):
 		if t - float(_sounds[i]["t"]) > 1.0:
 			_sounds.remove_at(i)
+
+
+## [member legacy]: hiders stand still; a seeker walks in a straight line to the far corner of the
+## map, through whatever is in the way, with no search and no chase.
+func _legacy(player: HsPlayer, command: DotFpsCommand, side: int, phase: int) -> void:
+	if side == 1 or phase != 2:
+		return
+	var box: AABB = (game.get("map") as Node3D).call("bounds")
+	var at := player.controller.state.position
+	var far := box.position + box.size * (Vector3(1.0, 0.0, 1.0) if at.x + at.z < box.get_center().x + box.get_center().z else Vector3.ZERO)
+	var dir := Vector3(far.x - at.x, 0.0, far.z - at.z)
+	if dir.length() < 1.0:
+		return
+	_look(player, command, Vector3(far.x, player.eye_position().y, far.z))
+	_walk(command, dir)
+	command.move = command.move.limit_length(SEARCH_PACE)
 
 
 func _state_of(player: HsPlayer) -> Dictionary:
