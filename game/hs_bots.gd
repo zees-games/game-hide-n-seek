@@ -1144,14 +1144,14 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 			command.yaw = view.x
 			command.pitch = clampf(view.y, -89.0, 89.0)
 			state["sprint"] = true
-			var _arrived := _walk_to(player, command, state, prey.controller.state.position, true, false)
+			var _arrived := _walk_to(player, command, state, prey.controller.state.position, true, false, true)
 			return
 		# Seen, not yet noticed: keep doing what it was, turning that way.
 	elif state["target"] != StringName() and t - float(state["last_seen_at"]) < profile.memory:
 		# Lost: to where it went, then look round there.
 		aim.release()
 		var where: Vector3 = state["last_seen"]
-		if _walk_to(player, command, state, where, true):
+		if _walk_to(player, command, state, where, true, true, true):
 			search.heard(where, t, 9.0)
 			state["target"] = StringName()
 		search.observe(player.eye_position(), player.aim_direction(), profile.fov, profile.sight, _los, t)
@@ -1218,7 +1218,7 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 		state["path"] = PackedVector3Array()
 
 	state["sprint"] = false
-	var _there := _walk_to(player, command, state, place["at"], false)
+	var _there := _walk_to(player, command, state, place["at"], false, true, true)
 	# Searching is done at a walk: somebody running through a house looks at nothing. Crouched
 	# (a crawl space, under a table) at the same pace, not that pace slowed again by the crouch:
 	# a seeker crawling under a camp cabin at 0.8 m/s spent fifteen seconds there beside its door
@@ -1301,7 +1301,7 @@ func _tour_next(state: Dictionary, at: Vector3, claimed: PackedVector3Array, sea
 # --- Moving -------------------------------------------------------------------------
 
 ## Walks [param player] along the mesh to [param goal]. Returns true when there.
-func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal: Vector3, sprint: bool, look: bool = true) -> bool:
+func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal: Vector3, sprint: bool, look: bool = true, seeker: bool = false) -> bool:
 	# Shutting a door that stands open across the way (see the detour below).
 	if _shut_door(player, command, state):
 		return false
@@ -1354,7 +1354,7 @@ func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal:
 	# seek's first three seconds.
 	var detour: PackedVector3Array = state.get("detour", PackedVector3Array())
 	if detour.is_empty() and t >= float(state.get("detour_check", -INF)):
-		var round_door := _door_detour(at, corner)
+		var round_door := _door_detour(at, corner, seeker)
 		detour = round_door[1]
 		if detour.is_empty() and int(round_door[0]) >= 0:
 			# A panel across the way with no floor round it: shut it, as a person would, and the
@@ -1445,7 +1445,7 @@ func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal:
 ## [param at] and [param corner] (one this side of the edge, one past it on the far side), or
 ## `[-1, empty]` when no panel is in the way or there is no floor round its edge. A panel is in
 ## the way when the next stretch of the walk crosses it.
-func _door_detour(at: Vector3, corner: Vector3) -> Array:
+func _door_detour(at: Vector3, corner: Vector3, seeker: bool = false) -> Array:
 	var map: Node3D = game.get("map")
 	var doors: Object = map.get("doors") if map != null else null
 	var none := [-1, PackedVector3Array()]
@@ -1503,6 +1503,14 @@ func _door_detour(at: Vector3, corner: Vector3) -> Array:
 		var edge := Vector3(e.x, at.y, e.y) + waist
 		if not _los(edge, edge + Vector3(along.x, 0.0, along.y) * (k + HsPlayer.BODY_RADIUS)):
 			return [index, PackedVector3Array()]
+		# A seeker only: the gap between the free edge and a wall or fence on the detour's side
+		# must take a body, or the first waypoint wedges it (hs_village's back door, 0.71 m from a
+		# fence). A fleeing hider keeps the old behaviour: a door-only result there left it
+		# wedged against the panel (hs_camp's boathouse door).
+		if seeker:
+			var pinch := edge + Vector3(-along.y, 0.0, along.x) * near * -1.0 * (HsPlayer.BODY_RADIUS * 2.0 + 0.05)
+			if not _los(edge, pinch):
+				return [index, PackedVector3Array()]
 		if nav.is_ready():
 			for i in range(out.size()):
 				var floor_at := nav.closest(out[i])
