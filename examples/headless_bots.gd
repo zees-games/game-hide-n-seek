@@ -50,7 +50,7 @@ const NEVER_FOUND := Vector2(0.15, 0.40)
 ## Bots now step out of a swing to open or shut a door, shut a panel they linger at and go
 ## somewhere else after 8 s, count a door only on their own storey, pass a corner only once the
 ## way on is open, and the maps lost their panels with no way round (small rooms' doors slide).
-const MAX_STUCK := 10.0
+const MAX_STUCK := 9.5
 
 ## What the review found wrong (2026-10-15) and how it is held. Hiders: this share ends the hide at
 ## least [constant MOVED_FAR] metres from where they spawned and out of every seeker's sight.
@@ -209,7 +209,7 @@ func _run() -> void:
 			if int(by_map[m]) == 0:
 				unwinnable.append(m)
 		_check(unwinnable.is_empty(), "no map is unwinnable: the seekers catch somebody on every map played", ", ".join(unwinnable))
-	_check(float(stuck_worst.get("stuck", 0.0)) <= MAX_STUCK, "no stand-in stays stuck beside an open door's panel more than %.0f s" % MAX_STUCK,
+	_check(float(stuck_worst.get("stuck", 0.0)) <= MAX_STUCK, "no stand-in stays stuck beside an open door's panel more than %.1f s" % MAX_STUCK,
 		"%.1f s, %s at %s on %s" % [float(stuck_worst.get("stuck", 0.0)), stuck_worst.get("stuck_who", ""), str((stuck_worst.get("stuck_at", Vector3.ZERO) as Vector3).snapped(Vector3.ONE * 0.1)), stuck_worst.get("map", "")])
 	_completed += 1
 

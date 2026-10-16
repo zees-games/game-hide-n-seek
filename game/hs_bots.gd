@@ -123,7 +123,7 @@ const CORNER_CLOSE := 0.15
 const DOOR_CLEAR := 1.4
 
 ## How long a walking bot stays within [constant STUCK_LEFT] of one spot beside an open door's
-## panel before it shuts that door (`_linger_by_door`). `headless_bots` holds the worst to 10 s.
+## panel before it shuts that door (`_linger_by_door`). `headless_bots` holds the worst to 9.5 s.
 const LINGER_SHUT := 5.0
 
 ## And still there this long after it first came (the door would not shut, or the walk went
