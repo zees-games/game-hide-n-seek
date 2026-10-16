@@ -50,7 +50,7 @@ const NEVER_FOUND := Vector2(0.15, 0.40)
 ## Bots now step out of a swing to open or shut a door, shut a panel they linger at and go
 ## somewhere else after 8 s, count a door only on their own storey, pass a corner only once the
 ## way on is open, and the maps lost their panels with no way round (small rooms' doors slide).
-const MAX_STUCK := 9.5
+const MAX_STUCK := 9.0
 
 ## What the review found wrong (2026-10-15) and how it is held. Hiders: this share ends the hide at
 ## least [constant MOVED_FAR] metres from where they spawned and out of every seeker's sight.

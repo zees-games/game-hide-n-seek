@@ -123,7 +123,7 @@ const CORNER_CLOSE := 0.15
 const DOOR_CLEAR := 1.4
 
 ## How long a walking bot stays within [constant STUCK_LEFT] of one spot beside an open door's
-## panel before it shuts that door (`_linger_by_door`). `headless_bots` holds the worst to 9.5 s.
+## panel before it shuts that door (`_linger_by_door`). `headless_bots` holds the worst to 9.0 s.
 const LINGER_SHUT := 5.0
 
 ## And still there this long after it first came (the door would not shut, or the walk went
@@ -1495,7 +1495,10 @@ func _door_detour(at: Vector3, corner: Vector3, seeker: bool = false) -> Array:
 		var near := signf(side_a) if side_a != 0.0 else 1.0
 		var k := HsPlayer.BODY_RADIUS + 0.35
 		var first := e + along * k + normal * near * 0.3
-		var second := e + along * 0.15 - normal * near * k
+		# Past the tip by more than a body's radius: at 0.15 the line to this point passed 0.3 m from
+		# it for a seeker coming back out of the pocket behind the panel, and clipped it (hs_village's
+		# door 13, nine seconds against its free edge).
+		var second := e + along * (HsPlayer.BODY_RADIUS + 0.12) - normal * near * k
 		var out := PackedVector3Array([Vector3(first.x, at.y, first.y), Vector3(second.x, at.y, second.y)])
 		# Room past the free edge for a body: a gap narrower than a body (the edge near a wall)
 		# is no way round, and a bot tried it for a minute in a flat's corridor.
