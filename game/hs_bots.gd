@@ -1234,12 +1234,19 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 
 	# Looking: at the place once near it, else along the way with a glance from side to side.
 	var target: Vector3 = place["at"]
-	if at.distance_to(target) < search.look_reach:
+	# Only while the walk is heading that way too: staring at a place across a wall while the path
+	# leaves another way (a doorway) is walking backwards or sideways at a fifth of the pace, and
+	# the 0.3 m/s walk reads as stuck, sidesteps, gives up the goal and picks one on the other
+	# side (`headless_bots` round 47, school door 5: thirteen seconds in a doorway).
+	var to_place := Vector2(target.x - at.x, target.z - at.z)
+	var walking: Vector3 = state.get("walk_dir", Vector3.ZERO)
+	var heading := Vector2(walking.x, walking.z)
+	var along := to_place.length() < 2.0 or heading.length() < 0.1 or absf(to_place.angle_to(heading)) < deg_to_rad(90.0)
+	if at.distance_to(target) < search.look_reach and along:
 		_look(player, command, target + Vector3(0.0, 0.6, 0.0))
 	else:
-		var ahead := _next_corner(state, at)
 		var sweep := sin(t * 1.3 + float(player.entity_id % 7)) * 35.0
-		var dir := Vector3(ahead.x - at.x, 0.0, ahead.z - at.z)
+		var dir := Vector3(walking.x, 0.0, walking.z)
 		if dir.length() > 0.1:
 			dir = dir.normalized().rotated(Vector3.UP, deg_to_rad(sweep))
 			_look(player, command, player.eye_position() + dir * 5.0)
@@ -1421,6 +1428,7 @@ func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal:
 
 	if look:
 		_look(player, command, Vector3(corner.x, player.eye_position().y + (corner.y - at.y) * 0.5, corner.z))
+	state["walk_dir"] = dir
 	_walk(command, dir)
 	command.set_button(DotFpsCommand.BUTTON_SPRINT, sprint)
 
