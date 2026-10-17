@@ -1718,7 +1718,12 @@ func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> vo
 		# Nor under a low ceiling (a crawl space): a hop there goes nowhere but into the floor above.
 		var headroom := _los(at + Vector3(0.0, 0.5, 0.0), at + Vector3(0.0, HsPlayer.BODY_HEIGHT + 0.05, 0.0))
 		var low_only := headroom and (ahead.length() < 0.01 or _los(waist, waist + ahead.normalized() * 0.8))
-		if int(state.get("stuck_count", 0)) % 2 == 0 and low_only:
+		# Or the next corner is a step or more up and close: a bot beside a stair's side edge (the
+		# path cuts the flight's corner) pushed at a riser it can hop and sidestepped away from it
+		# (`headless_bots` round 36, the camp cabin's steps, eight seconds).
+		var up := _next_corner(state, at).y - at.y
+		var hop_up := up > 0.3 and up < 0.8 and ahead.length() < 0.8 and headroom
+		if (int(state.get("stuck_count", 0)) % 2 == 0 and low_only) or hop_up:
 			command.set_button(DotFpsCommand.BUTTON_JUMP, true)
 		else:
 			state["sidestep_until"] = t + 0.7
