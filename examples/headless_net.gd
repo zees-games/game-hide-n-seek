@@ -25,7 +25,7 @@ const HsRequest := preload("../game/net/hs_request.gd")
 ## Sections and checks are both counted; mg-smash-copter's notes say why the second matters.
 
 const SECTIONS := 14
-const CHECKS := 62
+const CHECKS := 64
 
 const CLIENT_PEER := 7
 const SESSION := 42
@@ -298,6 +298,22 @@ func _test_a_client_joins() -> void:
 	_check(_client_game.team_of(_me()) == HsGame.SEEKERS and _client_game.team_of(_stand_in.player_id) == HsGame.HIDERS,
 		"the client knows who is seeking and who is hiding")
 	_check(_client_game.phase == HsGame.Phase.HIDE, "and that the hiders are hiding")
+
+	# The online board is dot-server's roster (sessions only); the stand-ins must be added by the
+	# game. Both stand-ins here have is_bot false on the client, as in a browser.
+	var client_script: GDScript = load("res://game/hs_client.gd")
+	var roster := {"players": [{"id": SESSION, "name": "Ada", "ping": 20, "seconds": 5, "bot": false}]}
+	client_script.call("add_bot_rows", roster, _client_game)
+	client_script.call("add_bot_rows", roster, _client_game)
+	var board_ids: Array = []
+	for r in (roster["players"] as Array):
+		board_ids.append(str((r as Dictionary)["id"]))
+	_check((roster["players"] as Array).size() == 3 and board_ids.has(String(_stand_in.player_id))
+		and board_ids.has(String(_second.player_id)),
+		"the online board gains a row for each stand-in the roster lacks, once however often it is built", str(board_ids))
+	_check(_client_game.team_of(_stand_in.player_id) == HsGame.HIDERS and _client_game.team_of(_second.player_id) == HsGame.HIDERS
+		and board_ids.count(String(_stand_in.player_id)) == 1,
+		"and the stand-in rows sit on the hiders' side of the board")
 	_finished()
 
 

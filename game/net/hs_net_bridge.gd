@@ -321,6 +321,12 @@ static func player_key(session_id: int) -> StringName:
 	return StringName("u%d" % session_id)
 
 
+## A stand-in by its id alone: a client's copy of a bot has `is_bot` false (only the server's
+## bridge sets it), so the board tells one by the session range `add_bot` allocates from.
+static func is_bot_key(id: StringName) -> bool:
+	return session_of(id) >= FIRST_BOT_SESSION
+
+
 static func session_of(id: StringName) -> int:
 	return String(id).trim_prefix("u").to_int()
 

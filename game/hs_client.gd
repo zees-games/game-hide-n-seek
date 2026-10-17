@@ -653,6 +653,27 @@ func _prepare_board(snap: Dictionary) -> void:
 		{"id": HsGame.HIDERS, "name": game.side_name(HsGame.HIDERS), "color": game.side_colour(HsGame.HIDERS)},
 		{"id": HsGame.SEEKERS, "name": game.side_name(HsGame.SEEKERS), "color": game.side_colour(HsGame.SEEKERS)},
 	]
+	add_bot_rows(snap, game)
+
+
+## Online the board is dot-server's roster, which lists sessions only, and a stand-in is not
+## one: the HUD counted four hidden while the board said nobody. Adds a row for each bot in
+## the world that the roster does not carry, keyed as `board_snapshot()` keys it so
+## `_decorate_row` finds its team, points and face. Static so a suite can run it on a world.
+static func add_bot_rows(snap: Dictionary, world: HsGame) -> void:
+	var rows: Array = snap.get("players", []) as Array
+	var listed := {}
+	for raw in rows:
+		if raw is Dictionary:
+			listed[str((raw as Dictionary).get("id", ""))] = true
+			listed[String(HsNetBridge.player_key(int((raw as Dictionary).get("id", 0))))] = true
+	for id in world.players:
+		var who: HsPlayer = world.players[id]
+		if not (who.is_bot or HsNetBridge.is_bot_key(id)) or listed.has(String(id)):
+			continue
+		listed[String(id)] = true
+		rows.append({"id": String(id), "name": who.display_name, "seconds": 0, "ping": -1, "bot": true})
+	snap["players"] = rows
 
 
 ## The board offline: every player in the local world. Public so a suite can read it.
