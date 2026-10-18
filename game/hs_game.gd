@@ -244,6 +244,10 @@ func _ready() -> void:
 		# would have named. See [method solo_map_dirs].
 		for root in solo_map_dirs("maps"):
 			var _added := catalogue.add_directory(root)
+		# Subscribed maps (solo) and delivered ones (online) that the content index holds, of the
+		# kind provides.json's `accepts` names. Own ids win; the index shows one session only.
+		catalogue.follow_content(DotContentIndex.shared(),
+			PackedStringArray([HsCatalogue.CONTENT_KIND]))
 		# Laid out now, not on the first round: a warmup on an empty world is
 		# indistinguishable from a map that failed to load.
 		_lay_out_map()
@@ -907,7 +911,10 @@ func map_rows() -> Array:
 	var now := StringName(str(map_doc.get("id", "")))
 	for id in catalogue.playable(config.map_ids):
 		var doc: Dictionary = catalogue.maps.get(id, {})
-		var row := {"id": String(id), "name": str(doc.get("name", id)), "current": id == now,
+		var title := catalogue.pack_title(id) if catalogue.is_content(id) else ""
+		var shown := str(doc.get("name", id))
+		var row := {"id": String(id), "name": shown if title == "" else "%s [%s]" % [shown, title],
+			"current": id == now,
 			"detail": str(doc.get("blurb", ""))}
 		if doc.has("thumbnail"):
 			row["thumbnail"] = str(doc["thumbnail"])

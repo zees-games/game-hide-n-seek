@@ -614,6 +614,10 @@ func _build_vote(world: HsGame) -> void:
 		var out: Array = []
 
 		for id in world.catalogue.playable(world.config.map_ids):
+			# A pack map is dot-vote's to list, with its pack's name.
+			if world.catalogue.is_content(id):
+				continue
+
 			out.append([id, str((world.catalogue.maps.get(id, {}) as Dictionary).get("name", id))])
 
 		return out

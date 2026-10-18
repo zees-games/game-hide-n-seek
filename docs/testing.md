@@ -1,6 +1,6 @@
 # Testing
 
-`./game.sh test` parses every script and runs all six suites; `python3 ../hide-n-seek-maps/tools/build_maps.py --check` confirms the maps are what the builder writes.
+`./game.sh test` parses every script and runs all seven suites; `python3 ../hide-n-seek-maps/tools/build_maps.py --check` confirms the maps are what the builder writes.
 
 | Suite | What it covers |
 | --- | --- |
@@ -10,6 +10,7 @@
 | `examples/headless_climb` | a garden first (no maps needed): somebody walks in under a tree's leaves to its trunk, jumps onto its low branch and crouch-jumps onto the one 1.5 m up and stands there, and a line under a table is clear while one through its top is not. Then somebody at the foot of every stairway that matters, holding forward, a play tube standing and crouched, and a hop into the corner behind every swinging door of the school, which must come down (`hns-door-wedge-1`); its coordinates are the maps repository's, so a map moved there is a climb that fails here. `-- --props` runs the garden alone; `HS_CLIMB_SEARCH=<prop id>` tries every approach at a prop and prints the ones that end up on it, which is how the garden's approaches were found |
 | `examples/headless_net` | over a loopback: the blindfold on the wire (a seeker's copy of a hider does not move during the hide), the sight meter owner-only, the caught hold predicted, doors posed before prediction, the toys (not sent to a seeker during the hide, followed during the seek, a switch's lamp; a client without the map still registers them and reads every snapshot, armed, and pairs them when the map comes) |
 | `examples/dedicated` | a real server: stand-in seekers catch everybody inside a round |
+| `examples/headless_workshop` | a fixture pack in dot-core's shared `DotContentIndex`: its `hideseek` map is offered by the catalogue, the M menu and dot-vote's ballot (labelled "Name [Pack]") in solo and chosen and built; a `surf` entry is in none of them; set the index online and the solo map is in none and cannot be chosen |
 
 ## Rules
 

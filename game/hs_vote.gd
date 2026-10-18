@@ -19,6 +19,8 @@ extends Node
 ## (the client shell's [DotBallotPanel]), and never holds a director: a client that applied a
 ## result would be deciding what it plays.
 
+const HsCatalogue := preload("hs_catalogue.gd")
+
 const CHANNEL := "hideseek.vote"
 
 ## The key in the running game's descriptor metadata an operator's overrides are read from —
@@ -92,6 +94,11 @@ func setup() -> DotResult:
 	source.label = "maps"
 	source.apply_fn = func(id: StringName) -> DotResult:
 		return apply_fn.call(id) if apply_fn.is_valid() else DotResult.success(id)
+	# Pack maps by dot-vote's own merge, so a choice reads "Name [Pack]". The game's list is
+	# handed over as entries_fn as well, so a rebuild before a ballot keeps it; the index is
+	# read on every choices() call, so a solo entry never shows online.
+	source.entries_fn = _own_maps
+	source.follow_content(DotContentIndex.shared(), PackedStringArray([HsCatalogue.CONTENT_KIND]))
 	refresh_maps()
 
 	director = DotVoteDirector.new()
@@ -213,12 +220,23 @@ func refresh_maps() -> void:
 
 	source.entries.clear()
 
+	for choice in _own_maps():
+		var _added := source.add(choice)
+
+
+## The game's own maps as choices, [member maps_fn] minus the pack maps (which dot-vote merges
+## from the index with their pack's name).
+func _own_maps() -> Array:
+	var out: Array = []
+
 	if not maps_fn.is_valid():
-		return
+		return out
 
 	for pair: Variant in maps_fn.call():
 		var row: Array = pair
-		var _added := source.add(DotVoteChoice.of(StringName(str(row[0])), str(row[1])))
+		out.append(DotVoteChoice.of(StringName(str(row[0])), str(row[1])))
+
+	return out
 
 
 ## A map was built: the director starts over on it and the ballot timer restarts.

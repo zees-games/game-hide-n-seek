@@ -1,0 +1,9 @@
+{
+    "schema": 1,
+    "title": "Hide & Seek",
+    "kinds": ["game"],
+    "accepts": {
+        "kinds": ["map"],
+        "map_kinds": ["hideseek"]
+    }
+}

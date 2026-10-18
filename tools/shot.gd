@@ -3,6 +3,7 @@ extends Node
 ## Renders the game and saves a frame. The check no assertion in this repository makes.
 ## See `tools/shot.sh` for the views. Any `--hs-*` is the game's own configuration.
 
+const HsCatalogue := preload("../game/hs_catalogue.gd")
 const HsClient := preload("../game/hs_client.gd")
 const HsGame := preload("../game/hs_game.gd")
 const HsMapDoc := preload("../game/hs_map_doc.gd")
@@ -43,11 +44,35 @@ func _ready() -> void:
 		elif arg.begins_with("--doors="):
 			_doors = arg.trim_prefix("--doors=")
 
+	if "--workshop" in OS.get_cmdline_user_args():
+		_add_workshop_fixture()
+
 	_client = HsClient.new()
 	_client.name = "Client"
 	_client.set("force_offline", true)
 	add_child(_client)
 	_run.call_deferred()
+
+
+## `--workshop`: a solo subscription pack holding one hide-and-seek map, in the shared content
+## index, the way the client shell's Workshop sync leaves it. For `--view=mapmenu`.
+func _add_workshop_fixture() -> void:
+	var root := "user://hs_shot_fixture/"
+	DirAccess.make_dir_recursive_absolute(root + "maps")
+	var doc: Dictionary = HsCatalogue.practice()
+	doc["id"] = "ws_clubhouse"
+	doc["name"] = "Clubhouse"
+	doc["blurb"] = "A map from a subscribed pack."
+	var file := FileAccess.open(root + "maps/ws_clubhouse.json", FileAccess.WRITE)
+	file.store_string(JSON.stringify(doc))
+	file.close()
+	var _added := DotContentIndex.shared().add_pack({
+		"content_id": "tester/clubhouse-maps", "version": "1.0.0", "prefix": root,
+		"session": "solo", "source": "subscription",
+		"provides": {"title": "Clubhouse Pack", "kinds": ["map"], "entries": [
+			{"kind": "map", "id": "ws_clubhouse", "name": "Clubhouse",
+				"scene": "maps/ws_clubhouse.json", "map_kind": HsCatalogue.CONTENT_KIND}]},
+	})
 
 
 static func _v3(text: String) -> Vector3:
@@ -193,6 +218,19 @@ func _run() -> void:
 			var _applied: Variant = game.combat.apply_damage(slay)
 			print("slew %s at %s: %s" % [victim.display_name, feet.snapped(Vector3.ONE * 0.1), victim.death.describe() if victim.death != null else "no fall"])
 			await _seconds_of(_seconds)
+		"mapmenu":
+			game._set_phase(HsGame.Phase.SEEK)
+			await _seconds_of(1.0)
+			var maps: Object = _client.get("settings").menu.maps
+			# The pack map first and a short list, so it is all on one page.
+			var rows: Array = maps.rows_fn.call()
+			for i in range(rows.size()):
+				if str((rows[i] as Dictionary)["id"]) == "ws_clubhouse":
+					rows.insert(0, rows.pop_at(i))
+					break
+			print("map rows: ", rows.map(func(r: Dictionary) -> String: return str(r["name"])))
+			maps.call("open_rows", rows.slice(0, 5), true, "solo")
+			await _seconds_of(0.6)
 		"caught":
 			game._set_phase(HsGame.Phase.SEEK)
 			if _at != Vector3.INF:

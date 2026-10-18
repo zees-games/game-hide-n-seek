@@ -24,6 +24,19 @@ var maps: Dictionary = {}
 var refused: Dictionary = {}
 
 var _order: Array[StringName] = []
+
+## The map kind this game declares in provides.json's `accepts.map_kinds`, and so the only kind
+## of subscribed map it reads. A pack's `map` entry carries a hide-and-seek DOCUMENT in its
+## `scene` field (a map here is a document, not a scene; see hs_map_doc.gd).
+const CONTENT_KIND := "hideseek"
+
+var _index: DotContentIndex = null
+var _kinds := PackedStringArray()
+## Parsed documents by entry key, so a pack's file is read once, not on every menu draw.
+var _content_docs: Dictionary = {}
+## The ids [method sync_content] added last time, so a session change can take them out.
+var _content_ids: Dictionary = {}
+var _content_titles: Dictionary = {}
 var _next: int = 0
 
 
@@ -50,6 +63,105 @@ func add_directory(root: String) -> int:
 	_rebuild_order()
 	DotLog.info(CHANNEL, "maps added", {"from": root, "read": loaded, "maps": maps.size()})
 	return loaded
+
+
+## Follows a [DotContentIndex]: subscribed (solo) and delivered (online) map entries of an
+## accepted kind become maps here, for the index's CURRENT session only. Empty kinds is none and
+## "*" every kind, as for dot-map. The game's own and an operator's maps always win an id.
+func follow_content(index: DotContentIndex, accepted_kinds: PackedStringArray) -> void:
+	_index = index
+	_kinds = accepted_kinds
+	sync_content()
+
+
+## Re-reads the index into [member maps]. Called from [method playable] rather than on a signal:
+## [method DotContentIndex.tag_pack] adds a session without announcing it, and a stale list is
+## worse than a cheap loop over a handful of entries.
+func sync_content() -> void:
+	var wanted: Dictionary = {}
+
+	if _index != null:
+		for entry in _index.entries(&"map"):
+			var kind := str(entry.raw.get("map_kind", ""))
+
+			if kind == "" or not (_kinds.has("*") or _kinds.has(kind)):
+				continue
+
+			var doc := _content_doc(entry)
+
+			if doc.is_empty():
+				continue
+
+			var id := StringName(str(doc["id"]))
+
+			if not wanted.has(id):
+				wanted[id] = doc
+				_content_titles[id] = entry.pack_title
+
+	var changed := false
+
+	# Only a map this follower added is taken out: load_from may since have put the game's own
+	# under the id.
+	for id: StringName in _content_ids:
+		if maps.has(id) and is_same(maps[id], _content_ids[id]) \
+				and not (wanted.has(id) and is_same(wanted[id], _content_ids[id])):
+			maps.erase(id)
+			changed = true
+
+	_content_ids.clear()
+
+	for id: StringName in wanted:
+		if maps.has(id):
+			# Either the game's own (it wins) or the one added on an earlier call.
+			if is_same(maps[id], wanted[id]):
+				_content_ids[id] = wanted[id]
+			continue
+
+		maps[id] = wanted[id]
+		_content_ids[id] = wanted[id]
+		changed = true
+
+	if changed:
+		_rebuild_order()
+
+
+## Whether [param id] is a subscribed or delivered pack map rather than one of the game's own.
+func is_content(id: StringName) -> bool:
+	return _content_ids.has(id)
+
+
+## The pack a subscribed or delivered map came from, "" for the game's own.
+func pack_title(id: StringName) -> String:
+	return str(_content_titles.get(id, ""))
+
+
+func _content_doc(entry: DotContentEntry) -> Dictionary:
+	if _content_docs.has(entry.key):
+		return _content_docs[entry.key]
+
+	var file := entry.path("scene")
+	var doc: Dictionary = {}
+	var text := FileAccess.get_file_as_string(file) if file != "" else ""
+
+	if text.is_empty():
+		refused[entry.key] = "empty or unreadable: %s" % file
+	else:
+		var parsed := HsMapDoc.parse_json(text, file)
+
+		if parsed.ok and str(parsed.value["id"]) != entry.id:
+			# The ballot names the entry's id and the map menu the document's: two names for one
+			# map would offer a choice the catalogue cannot find.
+			refused[entry.key] = "entry id %s but document id %s" % [entry.id, parsed.value["id"]]
+		elif parsed.ok:
+			doc = parsed.value
+		else:
+			refused[entry.key] = parsed.error.message
+			DotLog.warn(CHANNEL, "a subscribed map was refused", {
+				"key": entry.key, "why": parsed.error.message,
+			})
+
+	_content_docs[entry.key] = doc
+	return doc
 
 
 func _read_directory(root: String) -> int:
@@ -114,6 +226,7 @@ func _rebuild_order() -> void:
 ## The ids a server may draw from, after [param allowed] (empty is all). The built-in practice
 ## map drops out once there is anything else.
 func playable(allowed: PackedStringArray) -> Array[StringName]:
+	sync_content()
 	var out: Array[StringName] = []
 
 	for id in _order:
