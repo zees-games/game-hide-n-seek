@@ -25,9 +25,9 @@ const HsSettings := preload("../game/hs_settings.gd")
 ## ([method HsCatalogue.practice]), whose comment lists where everything is: the wall between
 ## the rooms at x 0 with its door at z -1..0.8, the kitchen east of it, the living room west.
 
-const SECTIONS := 23
+const SECTIONS := 24
 
-const CHECKS := 131
+const CHECKS := 135
 
 const TICK_RATE := 64
 const TICK := 1.0 / float(TICK_RATE)
@@ -81,6 +81,7 @@ func _run() -> void:
 	await _test_the_client()
 	await _test_help_and_menu()
 	await _test_the_map_menu()
+	await _test_wheel_jump()
 
 	for world in _worlds.duplicate():
 		await _dispose(world)
@@ -849,6 +850,38 @@ func _test_the_map_menu() -> void:
 		await get_tree().physics_frame
 	_check(wanted != &"" and StringName(str(game.map_doc.get("id", ""))) == wanted, "choosing one changes to it now", "%s, now %s" % [wanted, StringName(str(game.map_doc.get("id", "")))])
 	_check(not settings.menu.picker.is_open(), "and the picker is closed")
+	settings.queue_free()
+	await get_tree().process_frame
+	_finished()
+
+
+## The mouse wheel jumps, rebindably, and a tick (press and release together) is one jump.
+func _test_wheel_jump() -> void:
+	_section("the wheel jumps")
+	var settings := HsSettings.new()
+	add_child(settings)
+	var _built: DotResult = settings.setup(DotSettingsStoreMemory.new())
+	var rows := 0
+	var found := 0
+	for row in settings.bindings.rows:
+		if StringName(row["action"]) == &"dot_fps_jump":
+			rows += 1
+			if str(row["default"]) == "Wheel up" or str(row["default"]) == "Wheel down":
+				found += 1
+	_check(rows >= 3, "jump has Space plus two wheel rows", str(rows))
+	_check(found == 2, "the rows are Wheel up and Wheel down", str(found))
+	var sampler := DotFpsSampler.new(DotFpsTunables.new())
+	var _added := DotFpsSampler.register_default_actions(sampler)
+	var tick := InputEventMouseButton.new()
+	tick.button_index = MOUSE_BUTTON_WHEEL_UP
+	tick.pressed = true
+	sampler.handle_event(tick)
+	var rel := InputEventMouseButton.new()
+	rel.button_index = MOUSE_BUTTON_WHEEL_UP
+	rel.pressed = false
+	sampler.handle_event(rel)
+	_check(sampler.sample(0.016).is_pressed(DotFpsCommand.BUTTON_JUMP), "a wheel-up tick is a jump in the next command")
+	_check(not sampler.sample(0.016).is_pressed(DotFpsCommand.BUTTON_JUMP), "and only that one")
 	settings.queue_free()
 	await get_tree().process_frame
 	_finished()

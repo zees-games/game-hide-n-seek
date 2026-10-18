@@ -34,6 +34,7 @@ static func make() -> DotMenuBindings:
 	# help screen have them; until 2026-10-11 they were only the sampler's defaults.
 	keys.add(&"dot_fps_sprint", &"bind_sprint", "Sprint", "Shift", "Movement")
 	keys.add(&"dot_fps_walk", &"bind_walk", "Walk quietly", "Alt", "Movement")
+	keys.add_wheel_jump("Movement")
 	keys.add(USE, &"bind_use", "Open or shut a door", "E", "General")
 	keys.add(TAUNT, &"bind_taunt", "Taunt", "T", "Hiders")
 	keys.add(TAUNT_MENU, &"bind_taunt_menu", "Pick a taunt", "F3", "Hiders")

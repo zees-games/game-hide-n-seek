@@ -1098,7 +1098,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if player == null:
 		return
 
-	if event is InputEventMouseMotion and _pointer_ours():
+	# EVERY event, not only motion: the sampler latches presses, which is how a wheel tick (press
+	# and release in one pair) reaches a command as one jump. `suspended` gates it for menus.
+	if _pointer_ours():
 		if _offline and player.sampler != null:
 			player.sampler.handle_event(event)
 		elif _sampler != null:
