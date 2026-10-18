@@ -45,6 +45,10 @@ const CHASE_UP := 0.8
 var game: HsGame = null
 var player: HsPlayer = null
 var camera: Camera3D = null
+
+## Keeps the screen covered, and the local body and the input still, until the level, the
+## player and the camera are all in. See [method _build_gate].
+var gate: DotLoadGate = null
 var hud: HsHud = null
 var board: DotMenuScoreboard = null
 var chat: DotGameChatClient = null
@@ -76,6 +80,10 @@ var _beeped: int = -1
 
 
 func _ready() -> void:
+	# First, before anything can be drawn: the map and the player arrive after this node is in
+	# the tree.
+	_build_gate()
+
 	var config := HsConfig.new()
 	var loaded := config.load_layered(config_file)
 
@@ -92,6 +100,8 @@ func _ready() -> void:
 	game.register_service = _offline
 	game.tick_rate = int(ProjectSettings.get_setting("physics/common/physics_ticks_per_second", 64))
 	game.draw_world = true
+	# Before the world is added: a server-less world lays its first map out in its own _ready.
+	_hold_for_maps()
 	add_child(game)
 	_build_ragdolls()
 
@@ -110,6 +120,39 @@ func _ready() -> void:
 
 	if not DotPlatform.is_web():
 		_capture()
+
+
+## The load gate: covered, and the local body and the input still, until the level is built,
+## the local player exists and its camera is current.
+##
+## [b]Without it the first frames showed a half-built world.[/b] Offline the body spawned and
+## fell in the tick the first map landed, a connected client drew a HUD with no player and no
+## camera until JOIN, and a map change tore the level down in front of a body that kept
+## falling. A frozen player is also skipped by [method HsPlayer.simulate], which the world
+## calls by name and `process_mode` does not stop.
+func _build_gate() -> void:
+	gate = DotLoadGate.new()
+	gate.name = "LoadGate"
+	# A headless run draws nothing, so there is nothing to compile; its warm-up would only wait
+	# out its timeout, and every suite that drives a client would wait with it.
+	gate.warm_up_on_open = DisplayServer.get_name() != "headless"
+	add_child(gate)
+	gate.hold(&"map", "Loading the map")
+	gate.require(&"spawned", func() -> bool:
+		return player != null and camera != null and camera.is_inside_tree(), "Joining")
+
+
+## A map is built: held from the moment the old one starts to go, released once the new one
+## stands. [signal HsGame.world_clearing] and [signal HsGame.world_rebuilt] fire for the first
+## map, a map change, and a map a server sent.
+func _hold_for_maps() -> void:
+	game.world_clearing.connect(func() -> void: gate.hold(&"map", "Loading the map"))
+	game.world_rebuilt.connect(func() -> void: gate.release(&"map"))
+
+
+## True while the load gate covers the screen: no input, no prediction sampling.
+func _covered() -> bool:
+	return gate != null and not gate.is_open()
 
 
 # --- Offline ---------------------------------------------------------------
@@ -248,6 +291,7 @@ func _adopt(candidate: HsPlayer) -> void:
 		return
 
 	player = candidate
+	gate.freeze(player)
 	_build_camera()
 
 	if settings != null:
@@ -853,7 +897,7 @@ func _on_taunt_picked(id: StringName) -> void:
 
 func _physics_process(delta: float) -> void:
 	# The use key, held: the game makes the press from the edge, on the server or here.
-	var use := _captured and InputMap.has_action(HsBindings.USE) and Input.is_action_pressed(HsBindings.USE)
+	var use := _captured and not _covered() and InputMap.has_action(HsBindings.USE) and Input.is_action_pressed(HsBindings.USE)
 
 	if _offline:
 		if player != null:
@@ -863,10 +907,15 @@ func _physics_process(delta: float) -> void:
 	if net == null or not net.is_running() or bridge == null:
 		return
 
+	var ticks := net.clock.advance(delta)
+
+	# The clock has advanced; only the sampling waits, so the mouse does not pile up a turn
+	# behind the cover and the server sees an idle body until it lifts.
+	if _covered():
+		return
+
 	var move := _sampler.sample(delta) if _sampler != null else DotFpsCommand.new()
 	move.set_button(HsPlayer.USE_BUTTON, use)
-
-	var ticks := net.clock.advance(delta)
 
 	for i in range(ticks):
 		if not net.clock.is_synced():
@@ -1063,6 +1112,9 @@ static func drawn_position(body: HsPlayer, remote: bool) -> Vector3:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _covered():
+		return
+
 	if event is InputEventMouseButton and event.pressed and not _captured:
 		_capture()
 		return
