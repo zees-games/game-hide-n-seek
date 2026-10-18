@@ -30,8 +30,6 @@ const HsPlayer := preload("hs_player.gd")
 
 const CHANNEL := "hs.client"
 
-const LINK_SERVICE := &"dot_client_link"
-
 ## How far behind a player the camera hangs in third person.
 const CHASE_BACK := 3.0
 const CHASE_UP := 0.8
@@ -47,15 +45,19 @@ var player: HsPlayer = null
 var camera: Camera3D = null
 
 ## Keeps the screen covered, and the local body and the input still, until the level, the
-## player and the camera are all in. See [method _build_gate].
+## player and the camera are all in. It is [member DotGameClient.gate].
 var gate: DotLoadGate = null
+
+## dot-game's client platform: the cover, settings and menu, console, HUD theme, Tab, M, the
+## pointer and the input block. See [DotGameClient].
+var platform: DotGameClient = null
 var hud: HsHud = null
 var board: DotMenuScoreboard = null
 var chat: DotGameChatClient = null
 var audio: HsAudio = null
 var settings: HsSettings = null
 
-## The player's console. See [method DotConsoleKit.build].
+## The player's console (the platform's).
 var console: DotConsoleController = null
 
 var net: DotNetManager = null
@@ -68,7 +70,6 @@ var third_person: bool = false
 var _offline: bool = true
 var _sampler: DotFpsSampler = null
 var _watch_id: int = -1
-var _captured: bool = false
 var _arm: DotCameraBoom = null
 var _fade: DotCameraFade = null
 var _rig_height: float = 0.0
@@ -80,9 +81,15 @@ var _beeped: int = -1
 
 
 func _ready() -> void:
-	# First, before anything can be drawn: the map and the player arrive after this node is in
-	# the tree.
-	_build_gate()
+	# First, before anything can be drawn: the platform puts the loading cover up, held until the
+	# player exists and the camera is current, and finds the link.
+	platform = DotGameClient.new()
+	platform.name = "Platform"
+	platform.force_offline = force_offline
+	platform.spawned_fn = func() -> bool: return player != null and camera != null and camera.is_inside_tree()
+	platform.scoreboard_action = HsBindings.SCOREBOARD
+	add_child(platform)
+	gate = platform.gate
 
 	var config := HsConfig.new()
 	var loaded := config.load_layered(config_file)
@@ -90,8 +97,8 @@ func _ready() -> void:
 	if not loaded.ok:
 		DotLog.warn(CHANNEL, "falling back to defaults", {"why": loaded.error.message})
 
-	link = DotRegistry.get_node_service(LINK_SERVICE)
-	_offline = force_offline or link == null or OS.get_cmdline_user_args().has("--offline")
+	link = platform.link as Node
+	_offline = platform.offline
 
 	game = HsGame.new()
 	game.name = "World"
@@ -118,29 +125,15 @@ func _ready() -> void:
 	else:
 		DotLog.result(CHANNEL, "the netcode", _build_netcode())
 
-	if not DotPlatform.is_web():
-		_capture()
 
-
-## The load gate: covered, and the local body and the input still, until the level is built,
-## the local player exists and its camera is current.
+## The load gate is [member DotGameClient.gate]: covered, and the local body and the input still,
+## until the level is built, the local player exists and its camera is current.
 ##
 ## [b]Without it the first frames showed a half-built world.[/b] Offline the body spawned and
 ## fell in the tick the first map landed, a connected client drew a HUD with no player and no
 ## camera until JOIN, and a map change tore the level down in front of a body that kept
 ## falling. A frozen player is also skipped by [method HsPlayer.simulate], which the world
 ## calls by name and `process_mode` does not stop.
-func _build_gate() -> void:
-	gate = DotLoadGate.new()
-	gate.name = "LoadGate"
-	# A headless run draws nothing, so there is nothing to compile; its warm-up would only wait
-	# out its timeout, and every suite that drives a client would wait with it.
-	gate.warm_up_on_open = DisplayServer.get_name() != "headless"
-	add_child(gate)
-	gate.hold(&"map", "Loading the map")
-	gate.require(&"spawned", func() -> bool:
-		return player != null and camera != null and camera.is_inside_tree(), "Joining")
-
 
 ## A map is built: held from the moment the old one starts to go, released once the new one
 ## stands. [signal HsGame.world_clearing] and [signal HsGame.world_rebuilt] fire for the first
@@ -625,24 +618,10 @@ func _key(action: StringName) -> String:
 
 # --- The Tab board ---------------------------------------------------------
 
-## M: the map list (dot-menu's map menu). Solo a choice changes the map here at once;
-## connected the server decides, by the owner's `sv_map_menu_flag`, and anybody without it
-## gets a vote instead (dot-vote's map menu, wired in [HsModule]). Its choice goes to the map
-## menu, never to the taunt list's `picked` handler. By name, so a client shell older than
-## the map menu still runs the game without it.
-func _wire_maps() -> void:
-	if not settings.has_method(&"use_maps"):
-		return
-	var _maps: Variant = settings.call(&"use_maps",
-		func() -> Array: return game.map_rows() if game != null else [],
-		func(id: StringName) -> DotResult: return game.change_map_now(id))
-
-
-func _wire_board() -> void:
-	if settings == null or settings.menu == null:
+func _dress_board() -> void:
+	if board == null:
 		return
 
-	board = settings.menu.scoreboard
 	board.title_text = "Hide & Seek"
 	board.columns = [
 		{"key": &"avatar", "kind": DotMenuScoreboard.KIND_AVATAR, "width": 0.0},
@@ -655,19 +634,6 @@ func _wire_board() -> void:
 	board.decorate = _decorate_row
 	board.prepare = _prepare_board
 
-	if not _offline and link != null:
-		board.feed_from(link)
-	else:
-		board.source = board_snapshot
-
-
-func _show_board(on: bool) -> void:
-	if board == null:
-		return
-	if on:
-		board.open()
-	else:
-		board.close()
 
 
 func _decorate_row(row: Dictionary) -> void:
@@ -787,10 +753,6 @@ func _build_chat() -> void:
 	chat.voice_config = HsServices.voice_format()
 	add_child(chat)
 
-	# Typing is not moving: the sampler polls the keyboard.
-	chat.typing_changed.connect(func(typing: bool) -> void:
-		_suspend_input(typing or (settings != null and settings.is_open())))
-
 
 func _build_audio() -> void:
 	audio = HsAudio.new()
@@ -808,15 +770,29 @@ func _build_audio() -> void:
 
 func _build_settings() -> void:
 	settings = HsSettings.new()
+	settings.name = "Settings"
 	add_child(settings)
+	platform.settings = settings
+	# Not handed over: HsHud is a CanvasLayer and the platform's hud is a Control, so it follows
+	# the menu's theme itself, below.
+	platform.chat = chat
+	platform.board_snapshot_fn = board_snapshot
+	# M: the map list. Solo a choice changes the map here at once; connected the server decides,
+	# by the owner's `sv_map_menu_flag`, and anybody without it gets a vote instead (dot-vote's
+	# map menu, wired in [HsModule]). Its choice goes to the map menu, never to the taunt
+	# list's `picked` handler.
+	platform.maps_rows_fn = func() -> Array: return game.map_rows() if game != null else []
+	platform.maps_change_fn = func(id: StringName) -> DotResult: return game.change_map_now(id)
+	DotLog.result(CHANNEL, "the platform", platform.setup())
+	# Walking is off while the cover is up, a menu is open or a line is typed: the sampler polls
+	# the keyboard.
+	platform.input_blocked_changed.connect(_suspend_input)
+	_suspend_input(platform.is_input_blocked())
 
-	var built: DotResult = settings.setup()
+	settings = platform.settings as HsSettings
+	console = platform.console as DotConsoleController
 
-	if not built.ok:
-		DotLog.warn(CHANNEL, "no settings; everything is at its default", {"why": built.error.message})
-		remove_child(settings)
-		settings.free()
-		settings = null
+	if settings == null:
 		return
 
 	if _sampler != null:
@@ -827,25 +803,13 @@ func _build_settings() -> void:
 
 	if settings.menu != null:
 		settings.menu.picker_action = HsBindings.TAUNT_MENU
-		settings.menu.scoreboard_action = HsBindings.SCOREBOARD
 		settings.menu.picked.connect(_on_taunt_picked)
-		settings.menu_state_changed.connect(func(any_open: bool) -> void:
-			_suspend_input(any_open or (chat != null and chat.is_typing()))
-			if any_open:
-				_release()
-			elif not DotPlatform.is_web():
-				_capture())
-		settings.menu.busy = func() -> bool: return chat != null and chat.is_typing()
-		# The console (the key under Escape): net_stat and every other setting by name, and
-		# the server's console when one runs in this process. One of the menu's overlays, so
-		# opening it stops the player and frees the pointer exactly as the menu does.
-		console = DotConsoleKit.build(self, settings.settings, settings.menu)
 		# The HUD in the menu's theme and at the player's HUD size, live.
 		if hud != null:
 			hud.follow_menu(settings.menu)
 		_bind_bot_console()
-		_wire_board()
-		_wire_maps()
+		board = platform.board as DotMenuScoreboard
+		_dress_board()
 
 
 func _suspend_input(suspended: bool) -> void:
@@ -856,14 +820,9 @@ func _suspend_input(suspended: bool) -> void:
 		player.sampler.suspended = suspended
 
 
-func _capture() -> void:
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	_captured = true
-
-
-func _release() -> void:
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	_captured = false
+## Whether the pointer is the game's: captured. A menu frees it and the platform takes it back.
+func _pointer_ours() -> bool:
+	return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 
 
 # --- Asking ----------------------------------------------------------------
@@ -897,7 +856,7 @@ func _on_taunt_picked(id: StringName) -> void:
 
 func _physics_process(delta: float) -> void:
 	# The use key, held: the game makes the press from the edge, on the server or here.
-	var use := _captured and not _covered() and InputMap.has_action(HsBindings.USE) and Input.is_action_pressed(HsBindings.USE)
+	var use := _pointer_ours() and not _covered() and InputMap.has_action(HsBindings.USE) and Input.is_action_pressed(HsBindings.USE)
 
 	if _offline:
 		if player != null:
@@ -1115,18 +1074,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _covered():
 		return
 
-	if event is InputEventMouseButton and event.pressed and not _captured:
-		_capture()
-		return
-
+	# Tab, M and a click taking the pointer back are the platform's (DotGameClient).
 	if event.is_action_pressed("ui_cancel"):
-		_release()
 		if settings != null:
 			settings.open()
-		return
-
-	if event.is_action(HsBindings.SCOREBOARD) and not event.is_echo():
-		_show_board(event.is_pressed())
 		return
 
 	if event is InputEventKey and (event as InputEventKey).pressed and not event.is_echo():
@@ -1147,7 +1098,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if player == null:
 		return
 
-	if event is InputEventMouseMotion and _captured:
+	if event is InputEventMouseMotion and _pointer_ours():
 		if _offline and player.sampler != null:
 			player.sampler.handle_event(event)
 		elif _sampler != null:

@@ -27,7 +27,7 @@ const HsSettings := preload("../game/hs_settings.gd")
 
 const SECTIONS := 23
 
-const CHECKS := 129
+const CHECKS := 131
 
 const TICK_RATE := 64
 const TICK := 1.0 / float(TICK_RATE)
@@ -622,10 +622,20 @@ func _test_the_client() -> void:
 	client.set(&"force_offline", true)
 	client.set(&"config_file", "user://cfg/headless-none.json")
 	add_child(client)
-
+	# The map used to be drawn, and steered, while it was still being built.
+	var platform: DotGameClient = client.get("platform")
+	var covered := platform != null and platform.gate != null and not platform.is_shown() \
+		and platform.is_input_blocked()
+	for i in 240:
+		await get_tree().process_frame
+		if platform != null and platform.is_shown():
+			break
 	for i in 8:
 		await get_tree().process_frame
 
+	_check(covered and platform.is_shown() and not platform.is_input_blocked() and platform.console != null,
+		"the loading cover is up at the start and lifts once the player is in, with the console built",
+		str(platform.describe()) if platform != null else "no platform")
 	_check(InputMap.has_action(&"hs_taunt") and InputMap.has_action(&"hs_taunt_menu"),
 		"the game's keys are actions, from the bindings table")
 	_check(client.get("player") != null and client.get("hud") != null and (client.get("hud") as Node).get("game") != null,
@@ -637,6 +647,15 @@ func _test_the_client() -> void:
 		(menu as DotMenu).picker.close()
 	var snapshot: Dictionary = client.call("board_snapshot")
 	_check((snapshot["players"] as Array).size() >= 2, "the board lists the room")
+	var tab := InputEventKey.new()
+	tab.physical_keycode = KEY_TAB
+	tab.pressed = true
+	(menu as DotMenu).handle_event(tab)
+	var board: DotMenuScoreboard = client.get("board")
+	_check(board != null and board.is_open() and board.rows().any(func(r: Dictionary) -> bool: return bool(r.get("you", false))),
+		"Tab holds the scoreboard up, with this player picked out")
+	tab.pressed = false
+	(menu as DotMenu).handle_event(tab)
 
 	var world: HsGame = client.get("game")
 	world.wish_side(&"local", HsGame.SEEKERS)
