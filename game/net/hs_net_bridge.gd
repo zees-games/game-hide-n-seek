@@ -294,6 +294,10 @@ func open_link(parent: Node) -> void:
 		return
 
 	link = HsNetLink.attached_to(parent, self, net != null and net.is_server)
+	# Not parent.add_child: the link has to sit under `Server` (RPCs route by path) but must
+	# die with this bridge. A bare add_child left a second link after every module reload, and
+	# Godot renamed the live one `@Node@n`, so RPCs to real clients were silently lost.
+	DotGameLink.attach(link, parent, self, HsNetLink.NODE_NAME)
 
 
 ## How every dot-net message reaches a peer.

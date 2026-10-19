@@ -70,7 +70,6 @@ static func attached_to(parent: Node, p_bridge: Node, server: bool) -> HsNetLink
 	link.name = NODE_NAME
 	link.bridge = p_bridge
 	link.is_server = server
-	parent.add_child(link)
 	return link
 
 
