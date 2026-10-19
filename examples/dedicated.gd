@@ -13,8 +13,8 @@ const HsPlayer := preload("../game/hs_player.gd")
 ## [DotGameModule]'s order runs, a cvar is typed at a console and a round is played by
 ## nothing but the stand-ins the module seats itself.
 
-const SECTIONS := 10
-const CHECKS := 59
+const SECTIONS := 11
+const CHECKS := 69
 
 const SERVER_DIR := "user://hs_dedicated"
 const PORT := 28931
@@ -56,6 +56,7 @@ func _run() -> void:
 		await _test_a_reload_keeps_delivered_maps()
 		await _test_the_map_vote()
 		_test_finish_round_waits_for_a_live_round()
+		await _test_loading_cover()
 		await _test_it_unloads_cleanly()
 
 	_test_no_message_preloads_itself()
@@ -569,6 +570,142 @@ func _test_a_reload_keeps_delivered_maps() -> void:
 		DirAccess.remove_absolute(path)
 		path = path.get_base_dir()
 	DirAccess.remove_absolute("res://dot_cloud")
+	_finished()
+
+
+## [b]A hider behind its loading cover is not caught, and is once the cover lifts.[/b] A real
+## [DotClientLink] joins over the server's ENet socket and says nothing, as a client still loading
+## its level does. The round is put in its seek by hand with a stand-in seeker on top of it (a
+## joiner during the seek would seek itself): the touch must not catch it, the sight meter must
+## not fill, and it must not be drawn to seek. An operator's `hs_catch` still lands. The client
+## then sends `game.cover` on the real wire and the same touch catches it.
+func _test_loading_cover() -> void:
+	_section("a client behind its loading cover is not caught")
+
+	var module := _module()
+	var roster: DotGameRoster = module.get("roster") if module != null else null
+
+	var known: Dictionary = {}
+	for each in server.playing_sessions():
+		known[each.userid] = true
+
+	var side := Node.new()
+	side.name = "CoverClient"
+	add_child(side)
+	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), side.get_path())
+	# Under a node named like this suite's own, so the RPC path the server sends resolves in the
+	# client's separate multiplayer tree too.
+	var mirror := Node.new()
+	mirror.name = name
+	side.add_child(mirror)
+	var link := DotClientLink.new()
+	link.name = "Server"
+	link.player_name = "Cover"
+	link.transport_preference = "udp"
+	link.udp_address = "127.0.0.1:%d" % PORT
+	mirror.add_child(link)
+	link.connect_to_server("127.0.0.1:%d" % PORT)
+
+	var seat: Array = [null]
+	for _i in 1800:
+		await get_tree().physics_frame
+		for each in server.playing_sessions():
+			if not known.has(each.userid) and game.players.has(StringName("u%d" % each.userid)):
+				seat[0] = each
+		if seat[0] != null:
+			break
+
+	_check(seat[0] != null and roster != null, "a real client joins over the socket", str(link.last_error))
+
+	var seeker: HsPlayer = null
+	for id: StringName in game.players:
+		if (game.players[id] as HsPlayer).is_bot:
+			seeker = game.players[id]
+			break
+
+	if seat[0] == null or roster == null or seeker == null:
+		for what in ["held as loading", "the touch", "the sight meter", "the seeker draw", "an operator's catch",
+				"the cover report", "the touch after", "bots and strangers", "leaving"]:
+			_check(false, "%s (no runner joined)" % what)
+		link.disconnect_from_server("done")
+		side.queue_free()
+		_finished()
+		return
+
+	var userid: int = seat[0].userid
+	var key := StringName("u%d" % userid)
+	var hider: HsPlayer = game.players[key]
+	_check(roster.is_loading(userid), "the server holds the seat as loading from its spawn", str(roster.describe()))
+
+	# The whole of the setup and the attempt is one run with no await, so nothing ticks between.
+	var was_phase: int = game.phase
+	game.phase = HsGame.Phase.SEEK
+	game._set_side(key, HsGame.HIDERS)
+	game._set_side(seeker.player_id, HsGame.SEEKERS)
+	hider.caught = false
+	hider.sight_meter = 0.0
+	seeker.held_until = -1.0
+	seeker.place_at(hider.controller.state.position, 0.0)
+	var was_mode: int = game.config.catch_mode
+	game.config.catch_mode = HsConfig.Catch.TOUCH
+	game._advance_catching(0.05)
+	_check(not hider.caught, "a seeker's touch does not catch it", "caught=%s" % hider.caught)
+
+	game.config.catch_mode = HsConfig.Catch.SIGHT
+	game._advance_catching(0.05)
+	_check(not hider.caught and hider.sight_meter == 0.0, "and the sight meter does not fill", "%s" % hider.sight_meter)
+	game.config.catch_mode = was_mode
+
+	# The draw leaves a covered seat on the hiders' side while somebody else can seek.
+	var drawn_covered := 0
+	for _i in 12:
+		game._round_seed = _i
+		game.seeker_history.clear()
+		game._draw_sides()
+		if game.team_of(key) == HsGame.SEEKERS:
+			drawn_covered += 1
+	_check(drawn_covered == 0, "a covered seat is not drawn to seek", "%d of 12 draws" % drawn_covered)
+
+	game.phase = HsGame.Phase.SEEK
+	game._set_side(key, HsGame.HIDERS)
+	game._set_side(seeker.player_id, HsGame.SEEKERS)
+	hider.caught = false
+	_check(game.catch(key, &"", HsGame.CAUGHT_TAG), "an operator's catch still lands")
+	game.phase = was_phase
+
+	DotGameClient.report_cover(link, false)
+	var lifted := false
+	for _i in 900:
+		await get_tree().physics_frame
+		if not roster.is_loading(userid):
+			lifted = true
+			break
+	_check(lifted, "its cover report crosses the wire and ends the loading state")
+
+	game.phase = HsGame.Phase.SEEK
+	game._set_side(key, HsGame.HIDERS)
+	game._set_side(seeker.player_id, HsGame.SEEKERS)
+	hider.caught = false
+	seeker.held_until = -1.0
+	seeker.place_at(hider.controller.state.position, 0.0)
+	game.config.catch_mode = HsConfig.Catch.TOUCH
+	game._advance_catching(0.05)
+	_check(hider.caught, "and the same touch now catches it", "caught=%s" % hider.caught)
+	game.config.catch_mode = was_mode
+	game.phase = was_phase
+
+	_check(not bool(game.loading_fn.call(&"bot7")) and not bool(game.loading_fn.call(&"u99999")),
+		"a bot, or a seat the roster does not hold, is never loading")
+
+	link.disconnect_from_server("done")
+	var gone := false
+	for _i in 900:
+		await get_tree().physics_frame
+		if not game.players.has(key):
+			gone = true
+			break
+	_check(gone and not roster.is_loading(userid), "it leaves and the roster forgets it")
+	side.queue_free()
 	_finished()
 
 

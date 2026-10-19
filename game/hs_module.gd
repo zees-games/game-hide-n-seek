@@ -144,6 +144,11 @@ func _game_load() -> DotResult:
 	if world == null:
 		return DotResult.fail(DotError.CODE_STATE, "The registered game is not an HsGame.")
 
+	# Nobody is caught or drawn to seek behind a loading cover: the roster is DotGameModule's,
+	# so ask it by userid (a bot's key has none, and the roster holds nobody it did not seat).
+	world.loading_fn = func(key: StringName) -> bool:
+		return is_loading(HsNetBridge.session_of(key))
+
 	add_command("hs_status", _cmd_status, "Show the round, the map and who is caught")
 	add_command("hs_net", _cmd_net, "Show what the netcode is doing")
 	add_command("hs_maps", _cmd_maps, "List the maps, and any refused file")
@@ -480,6 +485,9 @@ func _tunable(
 ## tree before the module loaded, and a server can unload and reload a game module without
 ## the map going away, which is what `module reload` is for.
 func _game_unload() -> void:
+	if game != null and "loading_fn" in game:
+		game.set(&"loading_fn", Callable())
+
 	_bot_ids.clear()
 
 	if vote != null:

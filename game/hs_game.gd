@@ -707,6 +707,17 @@ func players_on(side: int) -> Array[HsPlayer]:
 	return out
 
 
+## Whether a player's client is still behind its loading cover: `func(player_key: StringName) -> bool`.
+## The server module fills it from dot-game's roster; unset (offline, a suite, a bot) nobody is
+## loading, so every offline suite is unchanged. A covered client froze itself and cannot see, so
+## it is neither caught nor drawn to seek nor allowed to catch; it still counts as alive.
+var loading_fn: Callable = Callable()
+
+
+func is_loading(id: StringName) -> bool:
+	return loading_fn.is_valid() and bool(loading_fn.call(id))
+
+
 ## How many of a side are up and in the round.
 func alive_on(side: int) -> int:
 	if not authoritative:
@@ -843,9 +854,18 @@ func _draw_sides() -> void:
 
 	var rest: Array[StringName] = []
 
+	# Nobody behind a loading cover is drawn to seek while there are others to draw: a seeker
+	# that cannot see would be frozen out of the round. If too few are loaded, take them all.
+	var ready: Array[StringName] = []
+
 	for id in keys:
 		if not chosen.has(id):
 			rest.append(id)
+			if not is_loading(id):
+				ready.append(id)
+
+	if ready.size() >= want - chosen.size():
+		rest = ready
 
 	var mode := DotTeamRotation.Mode.RANDOM if config.seeker_pick == HsConfig.Pick.FIRST_CAUGHT \
 		else config.seeker_pick as DotTeamRotation.Mode
@@ -1134,7 +1154,8 @@ func _advance_catching(delta: float) -> void:
 	var hunting: Array[HsPlayer] = []
 
 	for seeker in players_on(SEEKERS):
-		if seeker.is_alive() and not seeker.watching and seeker.held_until < 0.0:
+		if seeker.is_alive() and not seeker.watching and seeker.held_until < 0.0 \
+				and not is_loading(seeker.player_id):
 			hunting.append(seeker)
 
 	for hider in players_on(HIDERS):
@@ -1142,6 +1163,12 @@ func _advance_catching(delta: float) -> void:
 			return
 
 		if not hider.is_alive() or hider.watching or hider.caught:
+			continue
+
+		# Behind its cover a client cannot see or run: no touch, no sight, and the meter rests.
+		# [method catch] itself stays open to an admin's hs_catch and to a fall.
+		if is_loading(hider.player_id):
+			hider.watched_by = &""
 			continue
 
 		if config.catches_by_touch():
