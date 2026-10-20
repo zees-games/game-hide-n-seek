@@ -222,6 +222,13 @@ const CAUGHT_SEEK_START := 1
 ## Where map documents are read from, relative to this game's root.
 @export var map_directory: String = "maps"
 
+## The file that says which maps a server ROTATES: `cfg/maps.yml`, layered over the game's own
+## shipped `res://maps.yml` (dot-map's `DotMapRotationFile`: named rotations, `random` or
+## `cycle`, wildcards, command names). Empty, or no such file, rotates every map. A map the
+## active rotation leaves out stays installed (`hs_map <id>` queues it); it is only never drawn
+## or balloted. `sv_map_rotation_file`.
+@export var map_rotation_file: String = "cfg/maps.yml"
+
 ## Seed every random choice is drawn from: the map, the seekers, the bots.
 @export var seed_value: int = 20261010
 

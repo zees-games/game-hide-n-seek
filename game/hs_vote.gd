@@ -78,6 +78,10 @@ var round_in_progress_fn: Callable = Callable()
 var director: DotVoteDirector = null
 var source: DotVoteListSource = null
 var commands: DotVoteCommands = null
+
+## `() -> Dictionary`: maps.yml's `commands:` block, so an operator renames the vote's commands
+## without this game naming any. The module points it at the game's rotation file.
+var commands_spec_fn: Callable = Callable()
 var feed: DotVoteBallotFeed = null
 
 ## Seconds since the map in play was built.
@@ -327,6 +331,7 @@ func install_commands(host: Object) -> DotResult:
 	commands = DotVoteCommands.new()
 	commands.director = director
 	commands.names = COMMAND_NAMES
+	commands.spec_fn = commands_spec_fn
 	commands.voter_fn = func(ctx: Object) -> StringName:
 		var session: Variant = ctx.get("session")
 

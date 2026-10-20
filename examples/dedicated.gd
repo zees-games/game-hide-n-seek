@@ -14,8 +14,8 @@ const HsNetLink := preload("../game/net/hs_net_link.gd")
 ## [DotGameModule]'s order runs, a cvar is typed at a console and a round is played by
 ## nothing but the stand-ins the module seats itself.
 
-const SECTIONS := 12
-const CHECKS := 75
+const SECTIONS := 13
+const CHECKS := 97
 
 const SERVER_DIR := "user://hs_dedicated"
 const PORT := 28931
@@ -56,6 +56,7 @@ func _run() -> void:
 		await _test_a_round_runs()
 		await _test_a_reload_keeps_delivered_maps()
 		await _test_the_map_vote()
+		_test_map_rotation_file()
 		_test_finish_round_waits_for_a_live_round()
 		await _test_loading_cover()
 		await _test_a_module_reload()
@@ -408,6 +409,116 @@ func _test_the_map_vote() -> void:
 	# The director opens it under MANUAL; this game used to open it from clock.expired too.
 	_check(opened_count[0] == 1, "and opens exactly one rtv ballot, not a second from the game", str(opened_count[0]))
 	director.vote_opened.disconnect(counter)
+	_finished()
+
+
+## maps.yml on the live module: a map outside the active rotation stays installed and loadable
+## by `hs_map`, but is never drawn, balloted or nominated; a rotation switch takes effect; the
+## game's own commands and dot-vote's are renamed from the file's `commands:`; no file changes
+## nothing.
+func _test_map_rotation_file() -> void:
+	_section("maps.yml")
+	var module := _module()
+	var vote: Node = module.get("vote") if module != null else null
+	_check(game != null and game.catalogue != null and vote != null and vote.get("director") != null,
+		"the game has maps and a vote")
+
+	if game == null or game.catalogue == null or vote == null or vote.get("director") == null:
+		return
+
+	var director: DotVoteDirector = vote.get("director")
+	var catalogue := game.catalogue
+	game.config.map_ids = PackedStringArray()
+	var built := DotMapRotationFile.from_trees([{"defaults": {
+		"rotation": "main",
+		"rotations": {
+			"main": {"mode": "cycle", "maps": ["hs_apartments", "hs_manor"]},
+			"alt": {"maps": ["hs_manor"]},
+		},
+		"commands": {"names": {"rtv": "rockthevote", "hs_map": "setnextis", "hs_maps": "maplist"}},
+	}}], "game-hide-n-seek")
+	_check(built.ok, "a maps.yml with two rotations and renamed commands parses",
+		"" if built.ok else built.error.message)
+	if not built.ok:
+		return
+
+	var kept_file: DotMapRotationFile = game.rotation_file
+	var all_ids: Array[StringName] = catalogue.playable(PackedStringArray())
+	_check(all_ids.size() > 2 and catalogue.in_rotation_fn.is_valid() == (kept_file != null and kept_file.has_rotations()),
+		"the catalogue holds more maps than the rotation will", str(all_ids.size()))
+	game.rotation_file = built.value
+	game.apply_rotation()
+	vote.call("refresh_maps")
+
+	_check(game.in_rotation(&"hs_apartments") and game.in_rotation(&"hs_manor"), "the listed maps are in rotation")
+	_check(not game.in_rotation(&"hs_camp") and catalogue.playable(PackedStringArray()).has(&"hs_camp"),
+		"an unlisted map is out of rotation and still installed")
+	_check(not game.shuffles_maps(), "a cycle rotation does not shuffle the draw")
+
+	var drawn: Array = []
+	var previous: StringName = &""
+	for _i in 6:
+		var doc := catalogue.next_map(PackedStringArray(), game.shuffles_maps(), game.random.stream(&"map"), previous)
+		previous = StringName(str(doc["id"]))
+		drawn.append(String(previous))
+	_check(drawn == ["hs_apartments", "hs_manor", "hs_apartments", "hs_manor", "hs_apartments", "hs_manor"],
+		"six draws cycle the written order and never leave it", str(drawn))
+
+	var ids := (vote.get("source") as DotVoteListSource).choices().map(func(c: DotVoteChoice) -> StringName: return c.id)
+	_check(ids.has(&"hs_manor") and ids.has(&"hs_apartments") and not ids.has(&"hs_camp"),
+		"a map outside the rotation is not on the ballot, one inside is", str(ids))
+	var nominated := director.nominate(&"u77", &"hs_camp")
+	_check(not nominated.ok, "nominate refuses a map outside the rotation")
+	_check(not director.nominated_ids().has(&"hs_camp"), "and nothing was recorded")
+
+	var queued := _run_command("hs_map hs_camp")
+	_check(_said(queued, "hs_camp is next") and game.next_map_id == &"hs_camp",
+		"an operator can still queue it with hs_map", str(queued))
+	game.next_map_id = &""
+
+	_check(server.console.find_command("hs_map") != null and server.console.find_command("hs_maps") != null,
+		"with no file at load the game's own commands keep their names")
+	_check(game.command_name("hs_map", "hs_map") == "setnextis" and game.command_name("hs_maps", "hs_maps") == "maplist"
+		and game.command_name("hs_reload", "hs_reload") == "hs_reload",
+		"the game's own command names come from maps.yml's commands, others keep theirs")
+	var rows := game.map_rows().filter(func(r: Dictionary) -> bool: return r["id"] == "hs_camp")
+	_check(rows.size() == 1 and str(rows[0]["detail"]).contains("not in rotation"),
+		"the map menu marks a map that is not in rotation")
+	_check(_said(PackedStringArray(catalogue.describe_lines()), "not in rotation"),
+		"and so does the hs_maps list")
+
+	var rtv := DotVoteCommands.new()
+	rtv.director = director
+	rtv.spec_fn = game.rotation_commands
+	var bound := rtv.bind(server.console)
+	_check(bound.ok and rtv.command_name("rtv") == "rockthevote" and server.console.find_command("rockthevote") != null,
+		"a renamed rtv command is registered from maps.yml's commands")
+	var vote_commands: DotVoteCommands = vote.get("commands")
+	_check(vote_commands != null and vote_commands.spec_fn.is_valid(), "and the game's vote hands its commands the file")
+
+	var switched := game.rotation_file.switch(game._rot, "alt")
+	game.apply_rotation()
+	vote.call("refresh_maps")
+	_check(switched.ok and game.in_rotation(&"hs_manor") and not game.in_rotation(&"hs_apartments"),
+		"switching to the alt rotation takes effect")
+	ids = (vote.get("source") as DotVoteListSource).choices().map(func(c: DotVoteChoice) -> StringName: return c.id)
+	_check(not ids.has(&"hs_apartments") and ids.has(&"hs_manor"), "and the ballot follows it")
+	_check(not game.rotation_file.switch(game._rot, "nope").ok, "an unknown rotation is refused")
+
+	# No file again: everything back in, as before maps.yml.
+	game.rotation_file = null
+	game.apply_rotation()
+	vote.call("refresh_maps")
+	var all_in := true
+	for id in catalogue.playable(PackedStringArray()):
+		all_in = all_in and game.in_rotation(id)
+	_check(all_in and game.shuffles_maps() == game.config.shuffle_maps, "with no file every map is in rotation and the draw is as configured")
+	_check(game.rotation_commands().is_empty() and game.command_name("hs_map", "hs_map") == "hs_map",
+		"and no command is renamed")
+
+	game.rotation_file = kept_file
+	game.apply_rotation()
+	vote.call("refresh_maps")
 	_finished()
 
 
