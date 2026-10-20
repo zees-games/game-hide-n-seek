@@ -19,7 +19,7 @@ const HsMapDoc := preload("../game/hs_map_doc.gd")
 ## Sections and checks are both counted; mg-smash-copter's notes say why the second matters.
 ## Adding a map adds a section and CHECKS_PER_MAP checks.
 
-const MAPS := ["hs_practice", "hs_apartments", "hs_warehouse", "hs_manor", "hs_village", "hs_park", "hs_school", "hs_mall", "hs_ship", "hs_castle", "hs_camp", "hs_museum"]
+const MAPS := ["hs_practice", "hs_apartments", "hs_warehouse", "hs_manor", "hs_village", "hs_park", "hs_school", "hs_mall", "hs_ship", "hs_castle", "hs_camp", "hs_museum", "hs_restaurant"]
 const CHECKS_PER_MAP := 14
 
 ## A drawn, non-solid box thicker than this is not floor paint, water or a decal.

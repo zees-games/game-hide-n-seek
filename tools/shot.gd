@@ -128,6 +128,8 @@ func _run() -> void:
 	match _view:
 		"overview":
 			await _frames(6)
+			# A map of two thousand boxes is still under the loading cover after six frames.
+			await _seconds_of(_seconds)
 			var box: AABB = game.map.bounds()
 			var centre := box.get_center()
 			var reach := maxf(box.size.length() * 0.42, 14.0)
