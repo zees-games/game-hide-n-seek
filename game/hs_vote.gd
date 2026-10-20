@@ -82,6 +82,11 @@ var commands: DotVoteCommands = null
 ## `() -> Dictionary`: maps.yml's `commands:` block, so an operator renames the vote's commands
 ## without this game naming any. The module points it at the game's rotation file.
 var commands_spec_fn: Callable = Callable()
+
+## `(id) -> bool` and `() -> Array`: maps.yml's active rotation, handed to the source so the pack
+## maps dot-vote merges are filtered and ordered like the game's own (dot-vote API level 12).
+var in_rotation_fn: Callable = Callable()
+var rotation_order_fn: Callable = Callable()
 var feed: DotVoteBallotFeed = null
 
 ## Seconds since the map in play was built.
@@ -103,6 +108,10 @@ func setup() -> DotResult:
 	# read on every choices() call, so a solo entry never shows online.
 	source.entries_fn = _own_maps
 	source.follow_content(DotContentIndex.shared(), PackedStringArray([HsCatalogue.CONTENT_KIND]))
+	# By name, only where it exists: a delivered pack may run on an older shell dot-vote.
+	if "in_rotation_fn" in source:
+		source.set(&"in_rotation_fn", in_rotation_fn)
+		source.set(&"rotation_order_fn", rotation_order_fn)
 	refresh_maps()
 
 	director = DotVoteDirector.new()

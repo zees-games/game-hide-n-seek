@@ -636,6 +636,8 @@ func _build_vote(world: HsGame) -> void:
 	vote = HsVote.new()
 	vote.name = "MapVote"
 	vote.commands_spec_fn = world.rotation_commands
+	vote.in_rotation_fn = func(id: StringName) -> bool: return world.catalogue.in_rotation(id)
+	vote.rotation_order_fn = func() -> Array: return world.catalogue.rotation_order
 	vote.maps_fn = func() -> Array:
 		var out: Array = []
 
