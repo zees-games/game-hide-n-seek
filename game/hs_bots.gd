@@ -131,6 +131,8 @@ const LINGER_SHUT := 5.0
 ## dining room stayed in the corner behind its open door for ten seconds after its shut had
 ## failed (`headless_bots` round 13).
 const LINGER_GIVE_UP := 8.0
+## Seconds round one spot before a goal under an open panel is dropped (`_linger_by_door`).
+const LINGER_POCKET := 2.5
 
 ## How long a door that would not shut is left alone.
 const SHUT_FAILED_FOR := 10.0
@@ -1801,7 +1803,19 @@ func _through_doorway(state: Dictionary, at: Vector3, t: float) -> bool:
 func _linger_by_door(player: HsPlayer, state: Dictionary, at: Vector3, t: float) -> bool:
 	var anchor: Vector3 = state.get("linger_at", Vector3.INF)
 	var since := float(state.get("linger_since", t))
-	if anchor == Vector3.INF or t - since < LINGER_SHUT:
+	if anchor == Vector3.INF:
+		return false
+	# A hider's goal lies under the open panel (the mesh is baked without the doors, and the door was
+	# shut when the place was chosen): no shutting or stepping back gets it there, so choose
+	# again at LINGER_POCKET instead of after the shut attempt (`headless_bots` round 22, hs_park
+	# toilet door: 9.5 s against 9).
+	if t - since >= LINGER_POCKET and t - since < LINGER_SHUT and float(state.get("linger_gave", -INF)) != since \
+			and not (state.get("spot", {}) as Dictionary).is_empty() and _open_door_near(state.get("goal", Vector3.INF), HsPlayer.BODY_RADIUS + 0.3):
+		state["linger_gave"] = since
+		_give_up_goal(player, state)
+		state["detour"] = PackedVector3Array()
+		return true
+	if t - since < LINGER_SHUT:
 		return false
 	if float(state.get("linger_acted", -INF)) == since:
 		# Shut it, or stepped back to, and still round the same spot: somewhere else, once.
