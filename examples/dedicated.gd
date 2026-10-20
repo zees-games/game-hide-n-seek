@@ -15,7 +15,7 @@ const HsNetLink := preload("../game/net/hs_net_link.gd")
 ## nothing but the stand-ins the module seats itself.
 
 const SECTIONS := 13
-const CHECKS := 97
+const CHECKS := 98
 
 const SERVER_DIR := "user://hs_dedicated"
 const PORT := 28931
@@ -717,6 +717,14 @@ func _test_loading_cover() -> void:
 	link.transport_preference = "udp"
 	link.udp_address = "127.0.0.1:%d" % PORT
 	mirror.add_child(link)
+	# A real client has its game's link under `Server`; without it every event the server sends
+	# to this stand-in has no node to land on and the engine logs three errors per message.
+	# DotClientLink drops its children as the connection phase changes, so it is re-added then.
+	var attach := func(_a: Variant = null, _b: Variant = null) -> void:
+		if link.get_node_or_null(NodePath(String(HsNetLink.NODE_NAME))) == null:
+			link.add_child(HsNetLink.attached_to(link, null, false))
+	attach.call()
+	link.phase_changed.connect(attach)
 	link.connect_to_server("127.0.0.1:%d" % PORT)
 
 	var seat: Array = [null]
@@ -963,7 +971,7 @@ func _check(ok: bool, what: String, detail: String = "") -> void:
 const EXIT_PROBE_FLAG := "--exit-probe"
 
 ## What the exit probe adds to a run — one section, these checks — and the copy does not.
-const EXIT_PROBE_CHECKS := 3
+const EXIT_PROBE_CHECKS := 4
 
 
 ## How long the copy may run before it is killed and this probe fails. A copy that is still
@@ -1102,6 +1110,16 @@ func _test_exits_clean(probe: Array) -> void:
 		"it was killed before it reached its exit" if hung else _line_with(text, "leaked at exit"))
 	_check(not hung and not text.contains("still in use at exit"), "and no resource",
 		"it was killed before it reached its exit" if hung else _line_with(text, "still in use at exit"))
+	# The engine's RPC routing errors: a message sent to a path the other end does not have.
+	# They leave the suite passing (the message is just lost), so only the log shows them.
+	var rpc_errors := 0
+	for line in text.split("\n"):
+		if line.contains("Node not found:") or line.contains("Failed to get path from RPC") \
+				or line.contains("Invalid packet received") or line.contains("Parameter \"node\" is null"):
+			rpc_errors += 1
+	_check(not hung and rpc_errors == 0, "and logs no RPC routing error",
+		"it was killed before it reached its exit" if hung
+		else "%d lines, first: %s" % [rpc_errors, _line_with(text, "Node not found:")])
 	_finished()
 
 
