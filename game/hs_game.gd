@@ -842,7 +842,7 @@ func _draw_sides() -> void:
 				HIDERS:
 					wishes[id] = -1
 
-	var want := config.seekers_for(keys.size())
+	var want := seekers_for(keys.size())
 	var chosen: Array[StringName] = []
 	var why := ""
 
@@ -1209,6 +1209,18 @@ func rounds_left_on_map() -> int:
 func hide_limit() -> float:
 	var asked := float(map_doc.get("hide_seconds", 0.0))
 	return minf(asked, config.hide_seconds) if asked > 0.0 else config.hide_seconds
+
+
+## How many seekers a round of [param players] starts with: the server's rule, or the map's
+## when it asks for more. A map names the number of players one seeker can search for
+## ([code]players_per_seeker[/code]), because a building on three storeys is more than one seeker
+## clears in a round whatever the lobby (a 50 by 60 m restaurant: the hiders won 24 rounds of 24).
+## It can only ask for more seekers than the server's rule gives, never fewer.
+func seekers_for(players: int) -> int:
+	var asked := float(map_doc.get("players_per_seeker", 0.0))
+	if asked > 0.0 and asked < config.players_per_seeker:
+		return DotTeamRotation.count_for(players, asked, config.min_seekers, config.max_seekers)
+	return config.seekers_for(players)
 
 
 ## How long the seekers get to seek: the map's, under the server's ceiling.

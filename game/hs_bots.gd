@@ -546,7 +546,7 @@ func _legacy(player: HsPlayer, command: DotFpsCommand, side: int, phase: int) ->
 		return
 	_look(player, command, Vector3(far.x, player.eye_position().y, far.z))
 	_walk(command, dir)
-	command.move = command.move.limit_length(SEARCH_PACE)
+	command.move = command.move.limit_length(_search_pace())
 
 
 func _state_of(player: HsPlayer) -> Dictionary:
@@ -725,8 +725,13 @@ func _pick_spot(player: HsPlayer, state: Dictionary, avoid: PackedVector3Array, 
 	# open for ten seconds (`headless_bots` round 1).
 	var walk_limit := within * 1.3 if within < INF else INF
 	var shun: Vector3 = state.get("shunned", Vector3.INF)
+	var seeker_start := nav.closest(threats[0]) if nav.is_ready() and not threats.is_empty() else Vector3.INF
 	var reachable := func(spot: Vector3) -> bool:
 		var length := nav.path_length(start, spot) if nav.is_ready() else at.distance_to(spot)
+		# A place the seekers cannot walk to (a basement the importer left unjoined) is not a
+		# hiding place, it is a round nobody can win.
+		if seeker_start != Vector3.INF and nav.path_length(seeker_start, spot) == INF:
+			return false
 		# Not by the way it just gave up on (see `_give_up_goal`).
 		if nav.is_ready() and length < INF and shun != Vector3.INF and now() < float(state.get("shunned_until", -INF)):
 			var way := nav.path(start, spot)
@@ -741,7 +746,9 @@ func _pick_spot(player: HsPlayer, state: Dictionary, avoid: PackedVector3Array, 
 	# Asked three times and nothing reachable from here (a spawn just off the walkable mesh):
 	# the best spot regardless, and the walk will find its way or hop.
 	if chosen.is_empty() and int(state.get("retries", 0)) >= 3:
-		chosen = DotBotHiding.choose(pool, at, threats, taken, stream, settings().profile.map_knowledge)
+		# Still only where the seekers can walk: a hider shut in a basement is a round nobody wins.
+		chosen = DotBotHiding.choose(pool, at, threats, taken, stream, settings().profile.map_knowledge,
+				func(spot: Vector3) -> bool: return seeker_start == Vector3.INF or nav.path_length(seeker_start, spot) < INF)
 	state["retries"] = int(state.get("retries", 0)) + 1
 
 	if chosen.is_empty():
@@ -1110,6 +1117,12 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 		var places: Array[Dictionary] = []
 		places.append_array(spots)
 		places.append_array(sweep)
+		# Only the places this seeker can walk to: a basement the stair does not reach was a goal
+		# three seekers pressed against the floor over for a whole round (`headless_bots`,
+		# hs_restaurant).
+		if nav.is_ready():
+			var from := nav.closest(at)
+			places = places.filter(func(place: Dictionary) -> bool: return nav.path_length(from, place["at"]) < INF)
 		search.setup(places, profile.map_knowledge)
 		state["search"] = search
 		state["tour"] = _tour(at, profile.map_knowledge)
@@ -1225,9 +1238,9 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 	# (a crawl space, under a table) at the same pace, not that pace slowed again by the crouch:
 	# a seeker crawling under a camp cabin at 0.8 m/s spent fifteen seconds there beside its door
 	# (`headless_bots` round 12).
-	var pace := SEARCH_PACE
+	var pace := _search_pace()
 	if command.is_pressed(DotFpsCommand.BUTTON_CROUCH):
-		pace = minf(1.0, SEARCH_PACE / maxf(player.controller.tunables.crouch_speed_scale, 0.01))
+		pace = minf(1.0, _search_pace() / maxf(player.controller.tunables.crouch_speed_scale, 0.01))
 	command.move = command.move.limit_length(pace)
 	if not (state.get("opening", {}) as Dictionary).is_empty() or not (state.get("shut", {}) as Dictionary).is_empty():
 		# Facing a door to open or shut it: the search's glances would turn it away, and the
@@ -1794,6 +1807,15 @@ func _through_doorway(state: Dictionary, at: Vector3, t: float) -> bool:
 	return false
 
 
+## How fast a seeker searches: [constant SEARCH_PACE], or the map's own `seeker_pace` (0 to 1)
+## where its furniture and floors hide more than a slow search clears in a round (the converted
+## flats and restaurants: a pace of 0.28 found two of four hiders in 240 s).
+func _search_pace() -> float:
+	var doc: Dictionary = game.get("map_doc") if game != null else {}
+	var asked := float(doc.get("seeker_pace", 0.0))
+	return clampf(asked, 0.1, 1.0) if asked > 0.0 else SEARCH_PACE
+
+
 ## Round and round one spot beside an open door's panel for [constant LINGER_SHUT]: whatever
 ## the walk is trying there is not getting it past (a free edge against a bench, a jamb's corner
 ## it keeps catching). The panel is the thing in the way, so the bot shuts it, as a person
@@ -1819,9 +1841,13 @@ func _linger_by_door(player: HsPlayer, state: Dictionary, at: Vector3, t: float)
 		return false
 	if float(state.get("linger_acted", -INF)) == since:
 		# Shut it, or stepped back to, and still round the same spot: somewhere else, once.
-		if t - since < LINGER_GIVE_UP or float(state.get("linger_gave", -INF)) == since or _open_door_index_near(anchor, 2.0) < 0:
+		# Again every LINGER_GIVE_UP seconds more: the new place can lie behind the same pile of
+		# props, and a single try left a hider beside a doorway for 132 s (`headless_bots`, hs_frontyard).
+		var gave := float(state.get("linger_gave_at", -INF))
+		if t - since < LINGER_GIVE_UP or t - gave < LINGER_GIVE_UP * 0.5 or _open_door_index_near(anchor, 2.0) < 0:
 			return false
 		state["linger_gave"] = since
+		state["linger_gave_at"] = t
 		_give_up_goal(player, state)
 		state["detour"] = PackedVector3Array()
 		return true

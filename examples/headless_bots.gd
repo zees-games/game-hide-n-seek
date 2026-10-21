@@ -26,10 +26,10 @@ const HsPlayer := preload("../game/hs_player.gd")
 ## Twenty-four rounds by default, four a map, about four minutes: a band on six rounds was a band
 ## on noise. `-- --rounds N` plays another number, `-- --first N` starts
 ## at the Nth round's map and seed, `-- --difficulty hard` plays another preset, and
-## `HS_BOTS_MAPS=a,b` plays other maps, `HS_BOTS_TRACE=1` prints where everybody is every two seconds and every catch (with what last sent the hider moving), and `HS_BOTS_FOLLOW=u903` one stand-in every half second (every tick with `HS_BOTS_EVERY=1`). `HS_CAUGHT_FROM`, `HS_BEACON_LEFT` and `HS_BEACON_SECONDS` set those rules for a measurement. Without `maps/` linked it plays the practice house.
+## `HS_BOTS_PROBE=1` prints where each survivor ends and whether the seekers can walk to it; `HS_BOTS_MAPS=a,b` plays other maps, `HS_BOTS_TRACE=1` prints where everybody is every two seconds and every catch (with what last sent the hider moving), and `HS_BOTS_FOLLOW=u903` one stand-in every half second (every tick with `HS_BOTS_EVERY=1`). `HS_CAUGHT_FROM`, `HS_BEACON_LEFT` and `HS_BEACON_SECONDS` set those rules for a measurement. Without `maps/` linked it plays the practice house.
 
 ## Maps the rounds rotate through, when `maps/` is there.
-const DEFAULT_MAPS := ["hs_manor", "hs_apartments", "hs_village", "hs_park", "hs_school", "hs_camp"]
+const DEFAULT_MAPS := ["hs_manor", "hs_apartments", "hs_village", "hs_park", "hs_school", "hs_camp", "hs_restaurant"]
 
 ## `HS_BOTS_MAPS=hs_frontyard,hs_hotel` plays those maps instead: the bands for a map added to the
 ## pack (an imported one) without lengthening the default run or moving the six maps' statistics.
@@ -384,6 +384,11 @@ func _round(map_id: String, index: int, difficulty: String, legacy: bool = false
 			first = minf(first, float(caught_at[id]))
 		else:
 			sum_last += round_len
+			if OS.has_environment("HS_BOTS_PROBE"):
+				var pl: HsPlayer = game.players[id]
+				var sp: Vector3 = pl.controller.state.position
+				var sk: Vector3 = (game.map.call("spawn", "seekers", 0) as Array)[0]
+				print("    SURVIVOR %s at %s path from seeker spawn %.1f" % [id, sp, game.bots.nav.path_length(game.bots.nav.closest(sk), sp)])
 	var result := {
 		"seekers": seekers, "hiders": hiders.size(), "caught": caught, "sum_last": sum_last,
 		"mean_last": sum_last / maxf(float(hiders.size()), 1.0), "first": first,
