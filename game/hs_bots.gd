@@ -203,6 +203,9 @@ var _watch_eyes: PackedVector3Array = PackedVector3Array()
 ## Which map the survey is of, and which the mesh was baked for.
 var _surveyed: String = ""
 var _baked: String = ""
+## The agent radius the mesh was baked with; narrowed to one cell when a doorway closes the spawns off from each other.
+var _nav_radius := HsPlayer.BODY_RADIUS
+var _narrowing := false
 var _survey_at: int = 0
 
 ## player id -> the bot's own state.
@@ -293,6 +296,9 @@ func _prepare() -> void:
 
 	if key != _baked:
 		_baked = key
+		if not _narrowing:
+			_nav_radius = HsPlayer.BODY_RADIUS
+		_narrowing = false
 		spots.clear()
 		sweep.clear()
 		annotations = null
@@ -308,7 +314,7 @@ func _prepare() -> void:
 		var toys: Variant = map.get("toys")
 		if toys is DotPropToyBox:
 			still.append_array((toys as DotPropToyBox).nav_bodies())
-		var baked := nav.bake(map, {"radius": HsPlayer.BODY_RADIUS, "height": HsPlayer.BODY_CROUCH, "climb": HsPlayer.BODY_STEP}, 0, still)
+		var baked := nav.bake(map, {"radius": _nav_radius, "height": HsPlayer.BODY_CROUCH, "climb": HsPlayer.BODY_STEP}, 0, still)
 		if not baked.ok:
 			_surveyed = key
 			DotLog.warn(CHANNEL, "no walkable mesh for the bots; they walk straight", {"map": str(doc.get("id", "")), "why": baked.error.message})
@@ -319,6 +325,18 @@ func _prepare() -> void:
 		return
 
 	if int(game.get("_tick")) < _survey_at or not nav.is_ready():
+		return
+
+	# A doorway a body walks through but the mesh does not (the baker rounds the radius up to whole
+	# 0.175 m cells and erodes both jambs, which shuts a 0.9 m door) cuts the hiders' spawn off from
+	# the seekers': nobody has a spot to walk to and all of them stand the round out. Bake once
+	# more with a one-cell radius; the walk's jamb handling copes with the closer paths.
+	if _nav_radius > DotBotNav.CELL and not _spawns_joined(map):
+		_nav_radius = DotBotNav.CELL
+		DotLog.info(CHANNEL, "the spawns are not joined on the mesh; baking narrower", {"map": str(doc.get("id", ""))})
+		_baked = ""
+		_narrowing = true
+		_prepare()
 		return
 
 	# The annotation is a job: stepped a fixed number of slices each tick (never by the clock, so
@@ -343,7 +361,7 @@ func _prepare() -> void:
 
 	annotations = _finish_annotation(doc)
 	if annotations != null and not annotations.hiding.is_empty():
-		spots = annotations.hiding_spots()
+		spots = _walkable_spots(annotations.hiding_spots(), map)
 		sweep = _random_survey(map, stream, SWEEP_POINTS, SURVEY_PROPS / 3)
 	else:
 		# Nothing annotated (no mesh, or a map with no walls to hide by): the old random survey.
@@ -361,6 +379,28 @@ func _prepare() -> void:
 ## share of random watchers that see it. Kept as the sweep's open-floor places, as the fallback
 ## when a map has no annotations, and as the yardstick `headless_bots` measures the new hiding
 ## against ([method legacy_picks]).
+## The spots a seeker can walk to from its spawn. The annotator also finds places the mesh does not
+## join to it (a slab above the roof, a basement), and the best-scored of them filled the hiders'
+## whole shortlist: `DotBotHiding.choose` only looks at a few of the top, so a hider with the
+## doorway shunned found nothing for ninety seconds. All of them when none is joined.
+func _walkable_spots(all: Array[Dictionary], map: Node3D) -> Array[Dictionary]:
+	if not nav.is_ready():
+		return all
+	var from := nav.closest((map.call("spawn", "seekers", 0) as Array)[0])
+	var joined: Array[Dictionary] = []
+	for spot in all:
+		if nav.path_length(from, spot["at"]) < INF:
+			joined.append(spot)
+	return joined if not joined.is_empty() else all
+
+
+## Whether the first hiders' spawn can walk to the first seekers' on the mesh.
+func _spawns_joined(map: Node3D) -> bool:
+	var hider: Vector3 = (map.call("spawn", "hiders", 0) as Array)[0]
+	var seeker: Vector3 = (map.call("spawn", "seekers", 0) as Array)[0]
+	return nav.path_length(nav.closest(hider), nav.closest(seeker)) < INF
+
+
 func _random_survey(map: Node3D, stream: DotRandomStream, points: int, prop_count: int) -> Array[Dictionary]:
 	var candidates := PackedVector3Array()
 
@@ -1746,11 +1786,11 @@ func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> vo
 		# (`headless_bots` round 36, the camp cabin's steps, eight seconds).
 		var up := _next_corner(state, at).y - at.y
 		var hop_up := up > 0.3 and up < 0.8 and ahead.length() < 0.8 and headroom
-		if (int(state.get("stuck_count", 0)) % 2 == 0 and low_only) or hop_up:
+		if int(state.get("stuck_count", 0)) % 2 == 0 and (low_only or hop_up):
 			command.set_button(DotFpsCommand.BUTTON_JUMP, true)
 		else:
 			state["sidestep_until"] = t + 0.7
-			state["sidestep_side"] = 1.0 if stream.next_unit() < 0.5 else -1.0
+			state["sidestep_side"] = _sidestep_side(at, ahead, stream)
 		state["path"] = PackedVector3Array()
 		state["stuck_count"] = int(state.get("stuck_count", 0)) + 1
 		# Stuck three times on the way to one place: somewhere else.
@@ -1760,6 +1800,22 @@ func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> vo
 		state["stuck_count"] = 0
 		state["stuck_at"] = Vector3.INF
 	state["stuck"] = [at, t]
+
+
+## Which way to step aside when caught on something ahead: towards a wall within a body's width
+## when there is one on one side only, else by chance. A stair that runs along a wall (a castle
+## tower's, whose steps are too shallow for the 0.35 m body to stand on three of them) is climbed
+## against the wall; the path runs down the middle of the mesh and the bot stood below the first
+## step for half a minute (`hns-soak-stuck-bots`, hs_castle).
+func _sidestep_side(at: Vector3, ahead: Vector3, stream: DotRandomStream) -> float:
+	if ahead.length() > 0.01:
+		var waist := at + Vector3(0.0, 0.6, 0.0)
+		var heading := ahead.normalized()
+		var left := not _los(waist, waist + heading.rotated(Vector3.UP, deg_to_rad(110.0)) * 0.9)
+		var right := not _los(waist, waist + heading.rotated(Vector3.UP, deg_to_rad(-110.0)) * 0.9)
+		if left != right:
+			return 1.0 if left else -1.0
+	return 1.0 if stream.next_unit() < 0.5 else -1.0
 
 
 ## Stuck within a metre of an open doorway the walk goes through (the next corner is on its

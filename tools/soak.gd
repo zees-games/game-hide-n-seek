@@ -11,6 +11,7 @@ const HsGame := preload("../game/hs_game.gd")
 ## godot --headless --path . res://tools/soak.tscn -- --map hs_manor --bots 7 --minutes 5
 ## [/codeblock]
 ##
+## --probe prints a PROBE line per bot per second (the log has them all; the game.sh filter hides them).
 ## Takes the harness's own flags too (--soak-max-stuck-sec and the rest of DotBotSoakConfig).
 ## Writes .godot/test-logs/soak-<map>.json, prints the SOAK line, exits 1 when the run fails.
 ## A hider settled in its spot, a seeker through the hide and anyone between rounds have no goal.
@@ -22,9 +23,12 @@ const DEFAULT_BOTS := 7
 const TICK_RATE := 32
 
 var _game: HsGame
+var _ticks := 0
+var _probe := false
 
 
 func _ready() -> void:
+	_probe = OS.get_cmdline_user_args().has("--probe")
 	DotLog.set_level(DotLog.Level.ERROR)
 	Engine.physics_ticks_per_second = 1920
 	Engine.max_physics_steps_per_frame = 64
@@ -44,6 +48,10 @@ func _run() -> void:
 	var cfg := DotBotSoakConfig.new()
 	cfg.minutes = DEFAULT_MINUTES
 	cfg.bots = DEFAULT_BOTS
+	# A stand-in may take 20 s to get out of a pit up a stair with a 0.43 m last riser, past a
+	# landing as deep as the body is wide, or round a fenced garden corner it is chased into; a
+	# minute is a deadlock. --soak-max-stuck-sec overrides.
+	cfg.max_stuck_sec = 20.0
 	cfg.apply_cli()
 	cfg.minutes = float(_arg("minutes", str(cfg.minutes)))
 	cfg.bots = int(_arg("bots", str(cfg.bots)))
@@ -106,6 +114,23 @@ func _run() -> void:
 
 func _step(delta: float) -> void:
 	_game.simulate(delta)
+	_ticks += 1
+	if _probe and _ticks % TICK_RATE == 0:
+		_print_probe()
+
+
+## Once a second, one PROBE line per bot (--probe): where it is and what its walk holds.
+func _print_probe() -> void:
+	for id: StringName in _game.players:
+		var player = _game.players[id]
+		if not player.is_bot or player.controller == null:
+			continue
+		var st: Dictionary = _game.bots._state.get(id, {})
+		var path: PackedVector3Array = st.get("path", PackedVector3Array())
+		print("PROBE t=%d %s side=%d phase=%d mode=%s pos=%s goal=%s path=%d corner=%d stuck_count=%d vel=%s" % [
+			_ticks / TICK_RATE, id, _game.team_of(id), _game.phase, st.get("mode", &""),
+			player.controller.state.position.snapped(Vector3.ONE * 0.1), (st.get("goal", Vector3.INF) as Vector3).snapped(Vector3.ONE * 0.1),
+			path.size(), int(st.get("corner", 0)), int(st.get("stuck_count", 0)), player.controller.state.velocity.snapped(Vector3.ONE * 0.1)])
 
 
 func _movers() -> Array:
