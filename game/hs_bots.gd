@@ -96,6 +96,8 @@ const COMING_CONE := 30.0
 ## this far from where it was.
 const FLEE_CLEAR := 12.0
 const FLEE_WITHIN := 30.0
+## A place being run to is kept while it is this much farther from the threat than the runner.
+const FLEE_KEEP := 2.0
 
 ## A seeker that can see a hidden hider from nearer than this is waited out, not run from.
 const FREEZE_WITHIN := 9.0
@@ -950,6 +952,16 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 		# Nowhere out of its sight: away from it, whatever the place.
 		var dir := Vector3(at.x - threat.x, 0.0, at.z - threat.z).normalized()
 		away = {"at": nav.closest(at + dir * 10.0), "exposure": 1.0}
+	# Running to a place that is still away from the threat: a new choice behind the runner is the
+	# other end of a fenced yard, and taking it each settle paced a hider between the two for 17 s.
+	var held: Dictionary = state.get("spot", {})
+	if state["mode"] == &"fleeing" and not held.is_empty() and not away.is_empty():
+		var held_at: Vector3 = held["at"]
+		var ahead := Vector2(held_at.x - at.x, held_at.z - at.z)
+		var turned := Vector2((away["at"] as Vector3).x - at.x, (away["at"] as Vector3).z - at.z)
+		if ahead.length() > 1.5 and ahead.dot(turned) < 0.0 and threat.distance_to(held_at) > threat.distance_to(at) + FLEE_KEEP:
+			state["moved_at"] = t
+			return
 	state["spot"] = away
 	state["came_from"] = threat
 	state["mode"] = &"fleeing"
