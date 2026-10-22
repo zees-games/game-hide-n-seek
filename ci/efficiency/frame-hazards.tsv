@@ -1,0 +1,16 @@
+# frame-hazards
+# Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
+game/hs_client.gd::_key::string_build	1
+game/hs_game.gd::_advance_catching::alloc_array	1
+game/hs_game.gd::_check_round::string_build	1
+game/hs_game.gd::_respawn_the_fallen::duplicate	1
+game/hs_game.gd::_watcher::alloc_array	1
+game/hs_game.gd::players_on::alloc_array	1
+game/hs_game.gd::use_door::string_build	1
+game/hs_hud.gd::_door_words::string_build	2
+game/hs_hud.gd::_draw_hints::string_build	3
+game/hs_hud.gd::_draw_meter::string_build	1
+game/hs_hud.gd::_key::string_build	1
+game/hs_hud.gd::_process::string_build	1
+game/hs_hud.gd::present_blind::string_build	1
+tools/load_probe.gd::_process::string_build	2
