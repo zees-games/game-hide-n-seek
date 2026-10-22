@@ -1786,7 +1786,7 @@ func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> vo
 		# (`headless_bots` round 36, the camp cabin's steps, eight seconds).
 		var up := _next_corner(state, at).y - at.y
 		var hop_up := up > 0.3 and up < 0.8 and ahead.length() < 0.8 and headroom
-		if int(state.get("stuck_count", 0)) % 2 == 0 and (low_only or hop_up):
+		if (int(state.get("stuck_count", 0)) % 2 == 0 and low_only) or hop_up:
 			command.set_button(DotFpsCommand.BUTTON_JUMP, true)
 		else:
 			state["sidestep_until"] = t + 0.7

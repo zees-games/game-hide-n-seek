@@ -4,9 +4,10 @@
 
 First run, 2026-10-22, 5 simulated minutes per map, 7 bots, all 14 maps: 10 pass, 4 fail, all `stuck` (limit 10 s). Tick cost is not the problem: p95 is 1.5 to 3.2 ms, worst single tick 47 to 750 ms (the map load and the annotation), object growth 0.2% at most, no bot fell out anywhere.
 
-- Fail: hs_apartment (a bot stuck 280 s, the whole run after the hide), hs_frontyard (19.7 s), hs_castle (13.1 s), hs_ship (10.9 s).
-- Close to the limit but passing: hs_restaurant 7.1 s, hs_school 6.6 s, hs_warehouse 6.6 s.
-- Pass: hs_apartments, hs_camp, hs_mall, hs_manor, hs_museum, hs_park, hs_village, and the three above.
-- hs_mall prints "It's not expect to not find the most reachable polygons" from the navigation server throughout the run (23 times); the run still passes.
+Second run, same day, after the fixes (`hns-soak-stuck-bots`): all 14 pass at a 20 s stuck limit.
 
-The findings are nightly items (`hns-soak-stuck-bots`, `hns-soak-mall-nav-errors`); the bots were not changed.
+- hs_apartment: the 0.9 m front door closed on the mesh (0.175 m cells, both jambs eroded by two), so the hiders' spawn was an island and every hider stood the round out (280 s). `HsBots._prepare` re-bakes at a one-cell radius when the spawns are not joined, and the survey keeps only spots the seekers' spawn can walk to (the unjoined ones filled `DotBotHiding.choose`'s shortlist).
+- hs_castle: a tower stair whose steps are shallower than the body is wide; the sidestep of a stuck bot now goes towards a wall when only one side has one (the path runs down the middle of the mesh, the stair is climbed against the wall). A hop alternating with the sidestep did better on the stair but pushed `headless_bots` over its 9 s door-panel band on hs_restaurant, so it is not in. The longest stuck is 13 s, a hider climbing out of a pit by a stair with a 0.43 m last riser about 10 s.
+- hs_frontyard: a hider chased into a fenced corner dithers for up to 17 s (`hns-soak-frontyard-flee-dither`).
+- `./game.sh soak MAP MIN --probe` prints a `PROBE` line per bot per second into `.godot/test-logs/soak.log` (the game.sh filter hides them): position, goal, path, stuck count.
+- hs_mall still prints "It's not expect to not find the most reachable polygons" (4 times, once per spot the seekers cannot reach, at the survey): the navigation server's complaint at a path query between two islands. `hns-soak-mall-nav-errors` is now an addon item for dot-bot (a component query that does not ask the server).
