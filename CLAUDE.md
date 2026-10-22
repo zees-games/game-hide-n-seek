@@ -30,7 +30,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 | `maps/` | link to `../hide-n-seek-maps/maps` |
 | `game/hs_bots.gd` | the stand-ins: hiders that pick a covered, enclosed, spread-out spot from dot-npc-ai's nav annotations, seekers that tour the best spots and chokepoints then sweep, on dot-bot (the annotations cache under `user://nav/`; the random survey is the fallback and the test's yardstick) |
 | `examples/` | `headless_run`, `headless_maps`, `headless_climb`, `headless_bots`, `headless_net`, `dedicated` |
-| `tools/` | `shot.sh` (render a view; `--view=cover` the loading cover, `--view=ragdoll --seconds=` a stand-in slain and its fall, `--doors=open`, `--view=door` for the use-key prompt, `--view=bots` the stand-ins hidden, `--view=spots` the annotator's spots and links from above, `--place=` the player stood somewhere), `measure_props.gd`, `climb_trees.py` (Blender: the two climbing trees; re-run, then `measure_props`), `audio_probe` (xvfb only) |
+| `tools/` | `shot.sh` (render a view; `--view=cover` the loading cover, `--view=ragdoll --seconds=` a stand-in slain and its fall, `--doors=open`, `--view=door` for the use-key prompt, `--view=bots` the stand-ins hidden, `--view=spots` the annotator's spots and links from above, `--place=` the player stood somewhere), `soak.gd` (`./game.sh soak [map] [min]`, [docs/soak.md](docs/soak.md)), `measure_props.gd`, `climb_trees.py` (Blender: the two climbing trees; re-run, then `measure_props`), `audio_probe` (xvfb only) |
 
 ## Running and testing
 
