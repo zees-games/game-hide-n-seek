@@ -117,7 +117,10 @@ hs_beacon_seconds_left 0       // beacon every hider with this many seconds left
 hs_beacon_every 10             // seconds between the beacon showing them (0 = the whole time)
 hs_beacon_reveal 2             // seconds it shows them each time
 hs_rounds_per_map 4            // rounds on a map before the next one
-hs_spectate_camera 0           // who somebody who is out may watch: 0 anybody, 1 their own side, 2 nobody
+hs_spectate_camera 0           // deprecated, sets mp_forcecamera
+mp_forcecamera 0               // who somebody who is out may watch: 0 anybody, 1 their own side, 2 nobody (1 and 2 also switch the free camera off)
+mp_freeroam 1                  // 1 lets somebody who is out fly a free camera (G), 0 keeps them on players
+mp_freeroam_speed 12           // the free camera's speed in metres a second (Sprint faster, Walk slower)
 hs_autobhop 0                  // 1 = hold jump to keep hopping
 bot_quota 5                    // players a round is kept at with bots; each person who joins replaces one
 bot_quota_mode fill            // fill (as above), fixed (that many bots), per_player (that many per person) or off

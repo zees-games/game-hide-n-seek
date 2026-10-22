@@ -25,9 +25,9 @@ const HsSettings := preload("../game/hs_settings.gd")
 ## ([method HsCatalogue.practice]), whose comment lists where everything is: the wall between
 ## the rooms at x 0 with its door at z -1..0.8, the kitchen east of it, the living room west.
 
-const SECTIONS := 24
+const SECTIONS := 25
 
-const CHECKS := 135
+const CHECKS := 146
 
 const TICK_RATE := 64
 const TICK := 1.0 / float(TICK_RATE)
@@ -68,6 +68,7 @@ func _run() -> void:
 	await _test_tag()
 	await _test_sight()
 	await _test_out()
+	await _test_free_roam()
 	await _test_taunts()
 	await _test_the_round()
 	await _test_falls()
@@ -411,6 +412,44 @@ func _test_out() -> void:
 	_check(game.team_of(hider.player_id) == HsGame.HIDERS and hider.watching, "they stay a hider, and sit the round out")
 	_check(game.alive_on(HsGame.HIDERS) == 1, "and are not counted as hidden")
 	_check(not game.catch(hider.player_id, seeker.player_id, HsGame.CAUGHT_TAG), "nobody is caught twice")
+	_finished()
+
+
+func _test_free_roam() -> void:
+	_section("whoever is out may free-roam by default, unless an operator says otherwise")
+	_check(HsConfig.new().spectate_camera == 0, "the config lets anybody be watched, so a free camera is not ruled out")
+	var game := await _seek_round(func(c: HsConfig) -> void:
+		c.caught_become_seekers = false)
+	var seeker: HsPlayer = game.players_on(HsGame.SEEKERS)[0]
+	var hider: HsPlayer = game.players_on(HsGame.HIDERS)[0]
+	var id := hider.player_id
+	_check(game.spectate_rules.roaming_permitted() and game.spectate.manager.rules == game.spectate_rules,
+		"the game's rules allow roaming and are the manager's own")
+	_check(game.catch(id, seeker.player_id, HsGame.CAUGHT_TAG), "a hider is caught and sits out")
+	game.spectate.manager.set_mode(String(id), DotSpectatorView.Mode.CHASE)
+	_check(game.spectate.can_roam(id), "and may roam")
+	_check(game.spectate.toggle_roam(id).ok and game.spectate.is_roaming(id), "the key enters the free camera")
+	var cam := DotSpectatorFreeCam.new()
+	cam.rules = game.spectate_rules
+	cam.seed_from(Transform3D(Basis.IDENTITY, Vector3(0, 2, 0)))
+	var pose := cam.step(Vector3(0, 0, 1), false, false, 0.5)
+	_check(pose.origin.distance_to(Vector3(0, 2, 0)) > 0.5, "and flying moves it", str(pose.origin))
+	_check(game.spectate.manager.move_free(String(id), pose.origin, pose.basis).ok
+		and game.spectate.camera_for(id).origin.is_equal_approx(pose.origin), "the manager keeps where it is")
+	_check(game.spectate.toggle_roam(id).ok and not game.spectate.is_roaming(id), "the key again goes back to a player")
+
+	var _off := game.spectate_rules.set_cvar("mp_freeroam", "0")
+	var refused := game.spectate.toggle_roam(id)
+	_check(not refused.ok and refused.error.code == DotError.CODE_FORBIDDEN and not game.spectate.is_roaming(id),
+		"mp_freeroam 0 refuses it")
+	var _on := game.spectate_rules.set_cvar("mp_freeroam", "1")
+	var _own := game.spectate_rules.set_cvar("mp_forcecamera", "1")
+	_check(not game.spectate.toggle_roam(id).ok and not game.spectate.is_roaming(id), "mp_forcecamera 1 refuses it")
+
+	var restricted := await _world(func(c: HsConfig) -> void:
+		c.spectate_camera = 1)
+	_check(restricted.spectate_rules.force_camera == 1 and not restricted.spectate_rules.roaming_permitted(),
+		"a config that restricts the camera turns roaming off")
 	_finished()
 
 

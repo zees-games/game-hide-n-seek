@@ -24,8 +24,8 @@ const HsRequest := preload("../game/net/hs_request.gd")
 ##
 ## Sections and checks are both counted; mg-smash-copter's notes say why the second matters.
 
-const SECTIONS := 14
-const CHECKS := 64
+const SECTIONS := 15
+const CHECKS := 72
 
 const CLIENT_PEER := 7
 const SESSION := 42
@@ -81,6 +81,7 @@ func _run() -> void:
 		await _test_the_sight_meter_is_the_owners()
 		await _test_a_catch_crosses()
 		await _test_taunting()
+		await _test_free_roam_crosses()
 		await _test_the_round_ends()
 		await _test_the_toys_cross()
 		await _test_a_client_without_the_map()
@@ -590,6 +591,60 @@ func _test_taunting() -> void:
 		"a taunt is played, and everybody is told who and which", str(_heard.get("taunt")))
 	_check(server_me.points - points == _server_game.config.taunt_points, "and is paid for",
 		"+%d" % (server_me.points - points))
+	_finished()
+
+
+func _test_free_roam_crosses() -> void:
+	_section("free roam is asked for, the server decides, and the mode crosses the wire")
+	await _hide_with(HsGame.HIDERS)
+	var spectate := _server_game.spectate
+	var key := String(_me())
+	# Out for real: a caught hider on a server where the caught sit the round out.
+	_server_game.config.caught_become_seekers = false
+	_server_game._set_phase(HsGame.Phase.SEEK)
+	await _steps(4)
+	var _caught := _server_game.catch(_me(), _stand_in.player_id, HsGame.CAUGHT_TAG)
+	await _steps(SERVER_TICK_RATE * 4)
+	_check(spectate.is_spectating(_me()) and not spectate.is_roaming(_me()),
+		"a watcher starts on a player, not in a free camera",
+		str(spectate.mode_of(_me())))
+	_check(_client_game.spectate.is_spectating(_me()), "and the client's mirror is watching too")
+
+	_client_bridge.ask_roam()
+	await _steps(6)
+	_check(spectate.is_roaming(_me()), "the server puts a watcher who asks into the free camera")
+	_check(_client_game.spectate.is_roaming(_me()), "and the client's mirror is told ROAMING")
+
+	_client_bridge.ask_roam()
+	await _steps(6)
+	_check(not spectate.is_roaming(_me()) and not _client_game.spectate.is_roaming(_me()),
+		"the same key hands the camera back to a player on both ends")
+
+	_server_game.spectate_rules.allow_roaming = false
+	_client_bridge.ask_roam()
+	await _steps(6)
+	_check(not spectate.is_roaming(_me()) and not _client_game.spectate.is_roaming(_me()),
+		"mp_freeroam 0 refuses the request")
+	_server_game.spectate_rules.allow_roaming = true
+
+	_server_game.spectate_rules.force_camera = 1
+	_client_bridge.ask_roam()
+	await _steps(6)
+	_check(not spectate.is_roaming(_me()), "mp_forcecamera 1 refuses it too")
+	_server_game.spectate_rules.force_camera = 0
+
+	_client_bridge.ask_roam()
+	await _steps(6)
+	_server_game.spectate_rules.allow_roaming = false
+	await _steps(6)
+	_check(not spectate.is_roaming(_me()) and not _client_game.spectate.is_roaming(_me()),
+		"switching mp_freeroam off mid-roam puts the roamer back on a player on both ends")
+	_server_game.spectate_rules.allow_roaming = true
+	_server_game.config.caught_become_seekers = true
+	# Back in the state the next section expects: a hider in the seek, as the taunt left it.
+	await _hide_with(HsGame.HIDERS)
+	_server_game._set_phase(HsGame.Phase.SEEK)
+	await _steps(4)
 	_finished()
 
 
