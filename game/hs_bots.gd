@@ -389,7 +389,7 @@ func _walkable_spots(all: Array[Dictionary], map: Node3D) -> Array[Dictionary]:
 	var from := nav.closest((map.call("spawn", "seekers", 0) as Array)[0])
 	var joined: Array[Dictionary] = []
 	for spot in all:
-		if nav.path_length(from, spot["at"]) < INF:
+		if nav.joined(from, spot["at"]):
 			joined.append(spot)
 	return joined if not joined.is_empty() else all
 
@@ -398,7 +398,7 @@ func _walkable_spots(all: Array[Dictionary], map: Node3D) -> Array[Dictionary]:
 func _spawns_joined(map: Node3D) -> bool:
 	var hider: Vector3 = (map.call("spawn", "hiders", 0) as Array)[0]
 	var seeker: Vector3 = (map.call("spawn", "seekers", 0) as Array)[0]
-	return nav.path_length(nav.closest(hider), nav.closest(seeker)) < INF
+	return nav.joined(hider, seeker)
 
 
 func _random_survey(map: Node3D, stream: DotRandomStream, points: int, prop_count: int) -> Array[Dictionary]:
@@ -767,10 +767,13 @@ func _pick_spot(player: HsPlayer, state: Dictionary, avoid: PackedVector3Array, 
 	var shun: Vector3 = state.get("shunned", Vector3.INF)
 	var seeker_start := nav.closest(threats[0]) if nav.is_ready() and not threats.is_empty() else Vector3.INF
 	var reachable := func(spot: Vector3) -> bool:
+		# Joined first: a path query between islands is a navigation server error.
+		if nav.is_ready() and not nav.joined(start, spot):
+			return false
 		var length := nav.path_length(start, spot) if nav.is_ready() else at.distance_to(spot)
 		# A place the seekers cannot walk to (a basement the importer left unjoined) is not a
 		# hiding place, it is a round nobody can win.
-		if seeker_start != Vector3.INF and nav.path_length(seeker_start, spot) == INF:
+		if seeker_start != Vector3.INF and not nav.joined(seeker_start, spot):
 			return false
 		# Not by the way it just gave up on (see `_give_up_goal`).
 		if nav.is_ready() and length < INF and shun != Vector3.INF and now() < float(state.get("shunned_until", -INF)):
@@ -788,7 +791,7 @@ func _pick_spot(player: HsPlayer, state: Dictionary, avoid: PackedVector3Array, 
 	if chosen.is_empty() and int(state.get("retries", 0)) >= 3:
 		# Still only where the seekers can walk: a hider shut in a basement is a round nobody wins.
 		chosen = DotBotHiding.choose(pool, at, threats, taken, stream, settings().profile.map_knowledge,
-				func(spot: Vector3) -> bool: return seeker_start == Vector3.INF or nav.path_length(seeker_start, spot) < INF)
+				func(spot: Vector3) -> bool: return seeker_start == Vector3.INF or nav.joined(seeker_start, spot))
 	state["retries"] = int(state.get("retries", 0)) + 1
 
 	if chosen.is_empty():
@@ -938,7 +941,7 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 	var start := nav.closest(at) if nav.is_ready() else at
 	for spot in spots:
 		var there: Vector3 = spot["at"]
-		if there.distance_to(at) <= FLEE_WITHIN + 5.0 and (not nav.is_ready() or nav.path_length(start, there) <= (FLEE_WITHIN + 5.0) * 1.5):
+		if there.distance_to(at) <= FLEE_WITHIN + 5.0 and (not nav.is_ready() or (nav.joined(start, there) and nav.path_length(start, there) <= (FLEE_WITHIN + 5.0) * 1.5)):
 			runnable.append(spot)
 	var away := DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN + 5.0, FLEE_CLEAR + 4.0) if marked_chase \
 		else DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN, FLEE_CLEAR) if running \
@@ -1162,7 +1165,7 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 		# hs_restaurant).
 		if nav.is_ready():
 			var from := nav.closest(at)
-			places = places.filter(func(place: Dictionary) -> bool: return nav.path_length(from, place["at"]) < INF)
+			places = places.filter(func(place: Dictionary) -> bool: return nav.joined(from, place["at"]))
 		search.setup(places, profile.map_knowledge)
 		state["search"] = search
 		state["tour"] = _tour(at, profile.map_knowledge)
@@ -1252,6 +1255,8 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 		var distance := func(a: Vector3, b: Vector3) -> float:
 			if not nav.is_ready():
 				return a.distance_to(b)
+			if not nav.joined(a, b):
+				return INF
 			if shun:
 				var way := nav.path(a, b)
 				for i in range(way.size()):
@@ -1347,7 +1352,7 @@ func _tour_next(state: Dictionary, at: Vector3, claimed: PackedVector3Array, sea
 			if other.distance_to(there) < TOUR_APART:
 				taken = true
 				break
-		if taken or (nav.is_ready() and nav.path_length(at, there) == INF):
+		if taken or (nav.is_ready() and not nav.joined(at, there)):
 			continue
 		var seen := false
 		for place in search.places:
