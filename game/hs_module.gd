@@ -2,6 +2,7 @@ extends DotGameModule
 
 const HsNetBridge := preload("net/hs_net_bridge.gd")
 const HsServices := preload("hs_services.gd")
+const HsMapConfig := preload("hs_map_config.gd")
 
 const HsGame := preload("hs_game.gd")
 const HsPlayer := preload("hs_player.gd")
@@ -67,6 +68,14 @@ var vote: HsVote = null
 
 ## The drawn ballot's notice topic. The client shell draws one menu per topic.
 const MAP_BALLOT_TOPIC := &"map_ballot"
+
+
+func _map_config_keys() -> Dictionary:
+	return HsMapConfig.KEYS
+
+
+func _map_config_game() -> String:
+	return HsMapConfig.GAME_ID
 
 
 func _module_name() -> String:

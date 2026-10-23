@@ -8,6 +8,7 @@ const HsServices := preload("hs_services.gd")
 const HsNetBridge := preload("net/hs_net_bridge.gd")
 
 const HsConfig := preload("hs_config.gd")
+const HsMapConfig := preload("hs_map_config.gd")
 const HsGame := preload("hs_game.gd")
 const HsHud := preload("hs_hud.gd")
 const HsPaths := preload("hs_paths.gd")
@@ -304,10 +305,29 @@ func _adopt(candidate: HsPlayer) -> void:
 
 # --- What the world, or the server, says --------------------------------------
 
+## The map's own gravity and auto-hop, on this end's copy of the config, because it is what predicts the body.
+func _wire_map_config() -> void:
+	platform.map_config_keys = HsMapConfig.CLIENT_KEYS
+	platform.map_config_game = HsMapConfig.GAME_ID
+	platform.map_config_get_fn = func(key: String) -> Variant:
+		match key:
+			"hs_gravity": return str(game.config.gravity)
+			"hs_autobhop": return "1" if game.config.auto_bunny_hop else "0"
+		return null
+	platform.map_config_set_fn = func(key: String, value: Variant) -> bool:
+		match key:
+			"hs_gravity": game.config.gravity = float(value)
+			"hs_autobhop": game.config.auto_bunny_hop = float(value) >= 0.5
+			_: return false
+		return true
+	game.world_rebuilt.connect(func() -> void: platform.map_changed(String(game.map.id())))
+
+
 ## Offline: the world is the authority, so its own signals are what happened. A connected
 ## client hears the same from the bridge and calls the same functions with the same arguments,
 ## so the two can only differ in where a fact came from.
 func _hear_the_world() -> void:
+	_wire_map_config()
 	game.world_rebuilt.connect(func() -> void: _on_map(game.map.id()))
 	game.phase_changed.connect(_on_phase)
 	game.round_began.connect(func(n: int, _map: StringName) -> void: _on_round(n, true, 0))

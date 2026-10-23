@@ -1,0 +1,6 @@
+# Every shipped map: nothing set, so each keeps the server's own values. Uncomment a line to
+# change it on every hs_ map, or add <map id>.yml for one map; an operator overrides in
+# cfg/server/game/game-hide-n-seek/dot_map/map/. Allowed keys: game/hs_map_config.gd.
+# hs_hide_seconds: 30
+# hs_round_seconds: 240
+# hs_gravity: 20
