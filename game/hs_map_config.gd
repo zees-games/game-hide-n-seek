@@ -2,7 +2,7 @@ extends RefCounted
 
 ## Hide and seek's per-map settings: the rules a map may change, for dot-game's [DotGameMapConfig].
 ##
-## `cfg/game/game-hide-n-seek/dot_map/map/<name>.yml` (a glob such as `hs_*.yml` covers a class of maps), overridable from `cfg/server/...`. Only the keys in [constant KEYS] are accepted; the rest are logged and ignored.
+## `cfg/game/game-hide-n-seek/dot_map/map/<name>.yml` (a glob such as `hs_%.yml` covers a class of maps), overridable from `cfg/server/...`. Only the keys in [constant KEYS] are accepted; the rest are logged and ignored.
 
 const GAME_ID := "game-hide-n-seek"
 
