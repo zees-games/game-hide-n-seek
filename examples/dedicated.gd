@@ -399,6 +399,10 @@ func _test_the_map_vote() -> void:
 	_check(director.current_id() == laid and not director.is_voting(),
 		"the new map starts the vote over", "%s / %s" % [director.current_id(), laid])
 	vote.set("voters_fn", func() -> Array: return [&"console"])
+	director.rules.rtv_delay_sec = 0.0
+	director.rules.min_players_to_vote = 1
+	director.rules.rtv_min_players = 1
+	director.rules.allow_single_voter_auto = true
 	director.advance(director.rules.vote_cooldown_sec + 0.1)
 	var opened_count := [0]
 	var counter := func(_options: Array, _seconds: float) -> void: opened_count[0] += 1
