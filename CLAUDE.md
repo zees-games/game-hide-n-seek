@@ -44,6 +44,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 
 ## Rules
 
+- **No blood or gore setting, on purpose**: nothing is shot or wounded here (no weapons, hitboxes or damage; a catch is a touch or a sight meter, a fall is a catch), so `DotFxBlood` and `DotMenuStock.add_gore_row` do not belong; a slain stand-in's ragdoll is an admin action only.
 - **Sound follows the map document**: each box's `mat` is its collision shape's `surface` meta (footsteps by surface, dot-audio's `DotAudioFootsteps`; under 1.4 m/s a step is silent, so creeping is quiet), every `ceiling`/`roof` box is an indoor ambience zone, and the outdoor bed and ground come from `HsAudio.MAP_SOUND` or the document's `ambience`/`surface`. Levels are measured with `addons/dot_audio/tools/loudness.sh` (−17 LUFS band, `loudness_trim_db`).
 - **A catch is the server's measurement**: touch (`tag_range`, feet close, no wall between) or sight (cone, range, nothing solid between, a meter). A client sends movement and the use key, nothing a catch could come from. [design](docs/design.md#a-catch-is-a-measurement-and-only-the-server-makes-one)
 - People do not collide with people.
