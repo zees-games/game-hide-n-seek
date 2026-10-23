@@ -782,6 +782,7 @@ func _build_settings() -> void:
 	# Not handed over: HsHud is a CanvasLayer and the platform's hud is a Control, so it follows
 	# the menu's theme itself, below.
 	platform.chat = chat
+	platform.look_position_fn = _look_position
 	platform.board_snapshot_fn = board_snapshot
 	# M: the map list. Solo a choice changes the map here at once; connected the server decides,
 	# by the owner's `sv_map_menu_flag`, and anybody without it gets a vote instead (dot-vote's
@@ -1239,3 +1240,13 @@ func describe() -> Dictionary:
 		out["world"] = game.describe()
 
 	return out
+
+
+## Where a roster row's player stands, for dot-game's look-to-gag key (G, K).
+func _look_position(row: Dictionary) -> Variant:
+	if game == null:
+		return null
+	for who: HsPlayer in game.players.values():
+		if who != player and who.display_name == row["name"]:
+			return who.global_position + Vector3.UP * 1.5
+	return null
