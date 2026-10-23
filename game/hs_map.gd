@@ -72,6 +72,8 @@ var authoritative: bool = true
 var toy_rules: DotPropToyRules = null
 var gravity: float = 20.0
 
+## The converted map's displacement ground (the document's `terrain`), or null.
+var terrain: DotMapTerrain = null
 var _solid: StaticBody3D = null
 var _furniture: StaticBody3D = null
 var _drawn: Node3D = null
@@ -108,6 +110,7 @@ func build(p_doc: Dictionary) -> DotResult:
 		add_child(_drawn)
 
 	_build_boxes()
+	_build_terrain()
 	_build_props()
 	_add_contact_shade(_shade_boxes)
 	_shade_boxes = []
@@ -146,6 +149,7 @@ func clear() -> void:
 	props.clear()
 	_missing.clear()
 	_bounds = AABB()
+	terrain = null
 	_solid = null
 	_furniture = null
 	doors = null
@@ -193,6 +197,31 @@ func _put_on(body: CollisionObject3D, layer: StringName) -> void:
 
 
 # --- Building --------------------------------------------------------------
+
+## The displacement ground: one triangle shape in the world body, and a mesh when drawing.
+func _build_terrain() -> void:
+	if not doc.has("terrain"):
+		return
+	var res := DotMapTerrain.from_dict(doc["terrain"])
+	if not res.ok:
+		DotLog.warn(CHANNEL, "a map's terrain would not read; it has no ground there", {"map": String(id()), "error": str(res)})
+		return
+	terrain = res.value
+	var shape := CollisionShape3D.new()
+	shape.name = "Terrain"
+	shape.shape = terrain.build_shape()
+	shape.set_meta(&"surface", terrain.mat)
+	_solid.add_child(shape)
+	var box := terrain.bounds()
+	_bounds = box if _bounds == AABB() else _bounds.merge(box)
+	if not draw_world:
+		return
+	var mesh := MeshInstance3D.new()
+	mesh.name = "Boxes_terrain"
+	mesh.mesh = terrain.build_mesh()
+	mesh.material_override = HsMaterials.material(terrain.mat if terrain.mat != "" else "grass", HsMapDoc.colour((doc["terrain"] as Dictionary).get("tint", [1, 1, 1])))
+	_drawn.add_child(mesh)
+
 
 func _build_boxes() -> void:
 	var batches := {}

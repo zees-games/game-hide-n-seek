@@ -309,6 +309,36 @@ func _doorway_fault(game: HsGame, index: int) -> String:
 	return ""
 
 
+## Why a converted map's heightfield does not collide where it says, or "": a ray down onto
+## a sample from just above must find ground at the sample's height.
+func _terrain_fault(game: HsGame) -> String:
+	var ground := game.map.terrain
+	if ground == null:
+		return "its terrain would not read"
+
+	var space := game.get_world_3d().direct_space_state
+	var mask := game.physics.layer_mask(&"world")
+	var tried := 0
+	var found := 0
+
+	for j in range(0, ground.nz, 3):
+		for i in range(0, ground.nx, 3):
+			var y := ground.sample(i, j)
+			if is_nan(y):
+				continue
+			var x := ground.origin_x + i * ground.cell
+			var z := ground.origin_z + j * ground.cell
+			tried += 1
+			var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(x, y + 0.3, z), Vector3(x, y - 0.5, z), mask))
+			# A solid standing on the ground (a floor, a step) is hit first and is not a fault.
+			if not hit.is_empty() and (hit["position"] as Vector3).y > y - 0.06:
+				found += 1
+
+	if tried == 0 or found * 10 < tried * 9:
+		return "a ray finds its terrain at the height it has at %d of %d samples" % [found, tried]
+	return ""
+
+
 ## Why a person could not stand at [param at], or "" when they can.
 func _spawn_fault(game: HsGame, at: Vector3) -> String:
 	var space := game.get_world_3d().direct_space_state
@@ -424,7 +454,9 @@ func _audit_colliderless(id: StringName, doc: Dictionary) -> void:
 		for line in report.describe_lines().slice(1, 12):
 			print("  %s" % line)
 
-	_check(res.ok and found == 0 and (res.value as DotCollisionAudit).examined > 0, "nothing drawn is walked through", "" if res.ok else res.error.message)
+	var terrain_fault := _terrain_fault(drawn) if doc.has("terrain") else ""
+	_check(res.ok and found == 0 and (res.value as DotCollisionAudit).examined > 0 and terrain_fault == "",
+		"nothing drawn is walked through, and a map's terrain is ground", terrain_fault if res.ok else res.error.message)
 	_check(thick.is_empty(), "every box that is drawn and not solid is paint", ", ".join(thick))
 	await _dispose(drawn)
 

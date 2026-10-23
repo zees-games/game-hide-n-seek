@@ -13,7 +13,8 @@ const HsMaterials := preload("hs_materials.gd")
 ## and it travelled.
 ##
 ## [b]What is in one:[/b] boxes (the building: floors, walls, ceilings, glass, a pool), props
-## (the furniture a player hides among, by catalogue id), lights, doors (see HsDoors), the
+## (the furniture a player hides among, by catalogue id), lights, doors (see HsDoors), optionally `terrain` (a converted map's
+## displacement ground as dot-map's heightfield, which the boxes cannot be), the
 ## two sides' spawns, and how the sky and the sun look. Every length is metres, every angle degrees. A box's `at`
 ## is its CENTRE; a prop's `at` is the middle of its footprint ON the floor, so a mapper places
 ## a chair by where it stands.
@@ -128,6 +129,18 @@ static func validate(source: Dictionary) -> DotResult:
 		return _refuse("%d boxes; the most is %d" % [boxes.size(), MAX_BOXES], source)
 
 	doc["boxes"] = boxes
+
+	# A converted map's displacement ground (dot-map's heightfield), which the boxes cannot be: a
+	# stepped field stops a walker at the first hill. `tint` is the colour it is drawn in.
+	if source.has("terrain"):
+		if not (source["terrain"] is Dictionary):
+			return _refuse("terrain is not a dictionary", source)
+		var ground := DotMapTerrain.from_dict(source["terrain"])
+		if not ground.ok:
+			return _refuse("terrain: %s" % str(ground), source)
+		var raw_ground: Dictionary = (source["terrain"] as Dictionary).duplicate()
+		raw_ground["tint"] = _floats(raw_ground.get("tint", [1.0, 1.0, 1.0]), 3)
+		doc["terrain"] = raw_ground
 
 	var props: Array = []
 	for raw: Variant in source.get("props", []):
