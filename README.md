@@ -88,7 +88,7 @@ The maps come from the hide-n-seek-maps checkout, which bootstrap links into `ma
 `online` and `server` use [dot-server-deploy](https://github.com/modcommunity/dot-server-deploy), which bootstrap clones next to this one. Run its `./setup.sh` once first.
 
 ## Running a server
-Settings are cvars. Set them in the server's config, on the command line, or live from the console. Most of them take effect from the next round.
+Settings are cvars: every field of the game's configuration is an `hs_<field>` cvar, a key in `cfg/game/game-hide-n-seek/config/game.yml` and a setting in the workbench (F9 in a debug build). Set them in the server's config, on the command line, or live from the console. Most of them take effect from the next round. Players pass through each other unless `mp_solidplayers 1`; then `mp_teamblock` (0) and `mp_enemyblock` (1) decide who stops whom, and `!block` / `!noblock` ask for it per player.
 
 ```
 hs_hide_seconds 40             // how long the hiders have to hide (a map may ask for less)

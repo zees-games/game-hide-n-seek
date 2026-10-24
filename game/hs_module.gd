@@ -8,6 +8,19 @@ const HsGame := preload("hs_game.gd")
 const HsPlayer := preload("hs_player.gd")
 const HsAvatars := preload("hs_avatars.gd")
 const HsVote := preload("hs_vote.gd")
+const HsWorkbenchAuth := preload("hs_workbench_auth.gd")
+
+## Older cvar names kept for shipped server configs and map files: alias -> HsConfig field.
+const ALIASES := {
+	"hs_caught_seek": "caught_become_seekers",
+	"hs_caught_from": "caught_seek_from",
+	"hs_caught_freeze": "caught_freeze_seconds",
+	"hs_side_choice": "allow_side_choice",
+	"hs_doors": "doors_enabled",
+	"hs_autobhop": "auto_bunny_hop",
+	"hs_min_players": "minimum_players",
+	"sv_map_rotation_file": "map_rotation_file",
+}
 
 ## This game, as a module a dedicated server loads.
 ##
@@ -65,6 +78,9 @@ var _bot_ids: Array[StringName] = []
 
 ## The players' vote for the next map; null when it could not be built.
 var vote: HsVote = null
+
+## dot-workbench over the config and the block rules; null before the module loads.
+var workbench: DotGameWorkbench = null
 
 ## The drawn ballot's notice topic. The client shell draws one menu per topic.
 const MAP_BALLOT_TOPIC := &"map_ballot"
@@ -166,17 +182,6 @@ func _game_load() -> DotResult:
 	# maps.yml, before the commands: its `commands: names:` block renames hs_maps / hs_map (roles
 	# of those names) as it does dot-vote's, and the ballot reads the marks it sets.
 	var _rotation := world.load_rotation()
-	add_cvar(
-		"sv_map_rotation_file", world.config.map_rotation_file,
-		"maps.yml: the maps that rotate, in named rotations. Unlisted maps stay installed."
-	).changed.connect(
-		func(_old: String, new_value: String) -> void:
-			world.config.map_rotation_file = new_value.strip_edges()
-			var _read := world.load_rotation()
-			if vote != null:
-				vote.refresh_maps()
-	)
-
 	add_command(world.command_name("hs_maps", "hs_maps"), _cmd_maps, "List the maps, and any refused file")
 	add_command("hs_reload", _cmd_reload, "Read the map directory again (from the next map)")
 	add_command("hs_taunts", _cmd_taunts, "List the taunts")
@@ -353,122 +358,129 @@ func _add_tunables(world: HsGame) -> void:
 	# (easy, medium, hard, nightmare; medium by default) and every `bot_*` setting it bundles,
 	# the names every game in the family uses. On the game as metadata, never the registry.
 	var _bot_cvars := DotBotSettings.of(world).bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY, add_command)
-	_tunable("hs_hide_seconds", config.hide_seconds,
-		"Seconds the hiders have to hide while the seekers are blindfolded",
-		func(value: float) -> void: config.hide_seconds = clampf(value, 0.0, 180.0))
-	_tunable("hs_round_seconds", config.round_seconds,
-		"Seconds the seekers have to catch everybody (a map may ask for less)",
-		func(value: float) -> void: config.round_seconds = clampf(value, 30.0, 1800.0))
-	_tunable("hs_timeout_winner", float(config.timeout_winner),
-		"Who wins when the clock runs out: 0 nobody, 1 the hiders, 2 the seekers",
-		func(value: float) -> void: config.timeout_winner = clampi(int(value), 0, 2))
-	_tunable("hs_catch_mode", float(config.catch_mode),
-		"How a hider is caught: 0 a touch, 1 being watched, 2 either",
-		func(value: float) -> void: config.catch_mode = clampi(int(value), 0, 2))
-	_tunable("hs_tag_range", config.tag_range,
-		"Metres between two bodies' middles that count as a touch",
-		func(value: float) -> void: config.tag_range = clampf(value, 0.5, 4.0))
-	_tunable("hs_sight_seconds", config.sight_seconds,
-		"Seconds in a seeker's sight that catch a hider (catch mode 1 or 2)",
-		func(value: float) -> void: config.sight_seconds = clampf(value, 0.1, 30.0))
-	_tunable("hs_sight_range", config.sight_range,
-		"Metres a seeker can see a hider from (catch mode 1 or 2)",
-		func(value: float) -> void: config.sight_range = clampf(value, 2.0, 200.0))
-	_tunable("hs_sight_fov", config.sight_fov,
-		"Degrees across a seeker's view cone (catch mode 1 or 2)",
-		func(value: float) -> void: config.sight_fov = clampf(value, 10.0, 180.0))
-	_tunable("hs_caught_seek", 1.0 if config.caught_become_seekers else 0.0,
-		"Whether a caught hider becomes a seeker (1) or is out for the round (0)",
-		func(value: float) -> void: config.caught_become_seekers = value > 0.5)
-	_tunable("hs_caught_from", float(config.caught_seek_from),
-		"Where a caught hider starts seeking: 0 where caught, 1 at the seekers' start",
-		func(value: float) -> void: config.caught_seek_from = clampi(roundi(value), 0, 1))
-	_tunable("hs_caught_freeze", config.caught_freeze_seconds,
-		"Seconds a newly caught hider is held still before they seek",
-		func(value: float) -> void: config.caught_freeze_seconds = clampf(value, 0.0, 15.0))
-	_tunable("hs_players_per_seeker", config.players_per_seeker,
-		"One seeker for every this many players, from the next round",
-		func(value: float) -> void: config.players_per_seeker = clampf(value, 1.0, 64.0))
-	_tunable("hs_min_seekers", float(config.min_seekers),
-		"The fewest seekers a round starts with, from the next round",
-		func(value: float) -> void: config.min_seekers = clampi(int(value), 1, config.max_seekers))
-	_tunable("hs_max_seekers", float(config.max_seekers),
-		"The most seekers a round starts with, from the next round",
-		func(value: float) -> void: config.max_seekers = clampi(int(value), config.min_seekers, 32))
-	_tunable("hs_seeker_pick", float(config.seeker_pick),
-		"How the first seekers are chosen: 0 random, 1 an equal share, 2 swap, 3 the first caught",
-		func(value: float) -> void: config.seeker_pick = clampi(int(value), 0, 3))
-	_tunable("hs_side_choice", 1.0 if config.allow_side_choice else 0.0,
-		"Whether !seek and !hide count in the draw",
-		func(value: float) -> void: config.allow_side_choice = value > 0.5)
-	_tunable("hs_auto_taunt_seconds", config.auto_taunt_seconds,
-		"Seconds a hider may stand still before a taunt is forced (0 never)",
-		func(value: float) -> void:
-			config.auto_taunt_seconds = clampf(value, 0.0, 600.0)
+	_bind_config(world)
+
+
+## Every [HsConfig] field as an `hs_<field>` cvar, a cfg/ yml key and a workbench set. The cvars shipped server configs and map files already use under other names stay, as aliases of the field.
+func _bind_config(world: HsGame) -> void:
+	var binder := world.config_binder
+	if binder == null:
+		return
+	binder.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
+	binder.bind_commands(add_command)
+	for alias: String in ALIASES:
+		_alias(world, alias, ALIASES[alias])
+	binder.field_changed.connect(_on_config_field)
+	_start_workbench(world)
+
+
+## An older cvar name for a config field: it reports the field and writes through the field's own cvar.
+func _alias(world: HsGame, alias: String, key: String) -> void:
+	var binder := world.config_binder
+	var target := binder.cvar_for(key)
+	var cvar := add_cvar(alias, _field_text(world.config.get(key)), "Same as hs_%s" % key)
+	if cvar == null or target == null:
+		return
+	cvar.changed.connect(func(_old: String, new_value: String) -> void:
+		var value: Variant = world.config.get(key)
+		var text := new_value
+		if value is bool:
+			text = "1" if new_value.to_float() >= 0.5 else "0"
+		elif value is int:
+			text = str(roundi(new_value.to_float()))
+		var _set: Variant = target.set_value(text))
+
+
+static func _field_text(value: Variant) -> String:
+	if value is bool:
+		return "1" if value else "0"
+	return str(value)
+
+
+## A field changed from a cvar, the workbench or a file: the alias follows, and whatever the world cached is told.
+func _on_config_field(key: String, _value: Variant, _source: String) -> void:
+	var world := game as HsGame
+	if world == null:
+		return
+	var config := world.config
+	for alias: String in ALIASES:
+		if ALIASES[alias] == key and console != null:
+			var _set: Variant = console.set_cvar(alias, _field_text(config.get(key)))
+	match key:
+		"auto_taunt_seconds":
 			if world.taunts != null:
-				world.taunts.auto_after = config.auto_taunt_seconds)
-	_tunable("hs_auto_taunt_radius", config.auto_taunt_radius,
-		"Metres a hider must move for that to count as moving",
-		func(value: float) -> void:
-			config.auto_taunt_radius = clampf(value, 0.1, 20.0)
+				world.taunts.auto_after = config.auto_taunt_seconds
+		"auto_taunt_radius":
 			if world.taunts != null:
-				world.taunts.auto_radius = config.auto_taunt_radius)
-	_tunable("hs_taunt_points", float(config.taunt_points),
-		"Points for a taunt a hider chose",
-		func(value: float) -> void:
-			config.taunt_points = clampi(int(value), 0, 100)
+				world.taunts.auto_radius = config.auto_taunt_radius
+		"taunt_points":
 			if world.taunts != null:
-				world.taunts.points_voluntary = config.taunt_points)
-	_tunable("hs_forced_taunt_points", float(config.forced_taunt_points),
-		"Points for a taunt forced on a hider that stood still",
-		func(value: float) -> void:
-			config.forced_taunt_points = clampi(int(value), 0, 100)
+				world.taunts.points_voluntary = config.taunt_points
+		"forced_taunt_points":
 			if world.taunts != null:
-				world.taunts.points_forced = config.forced_taunt_points)
-	_tunable("hs_doors", 1.0 if config.doors_enabled else 0.0,
-		"1 = the use key opens and shuts doors, 0 = every door stays as the map has it",
-		func(value: float) -> void: config.doors_enabled = value >= 0.5)
-	_tunable("hs_beacon_hiders_left", float(config.beacon_hiders_left),
-		"Beacon every hider still hidden once this few are left (0 never)",
-		func(value: float) -> void: config.beacon_hiders_left = clampi(int(value), 0, 32))
-	_tunable("hs_beacon_seconds_left", config.beacon_seconds_left,
-		"Beacon every hider still hidden once this few seconds are left (0 never)",
-		func(value: float) -> void: config.beacon_seconds_left = clampf(value, 0.0, 600.0))
-	_tunable("hs_beacon_every", config.beacon_every,
-		"Seconds between the beacon showing the last hiders (0 shows them the whole time)",
-		func(value: float) -> void: config.beacon_every = clampf(value, 0.0, 120.0))
-	_tunable("hs_beacon_reveal", config.beacon_reveal,
-		"Seconds the beacon shows them each time",
-		func(value: float) -> void: config.beacon_reveal = clampf(value, 0.25, 30.0))
-	_tunable("hs_rounds_per_map", float(config.rounds_per_map),
-		"Rounds on a map before the next one",
-		func(value: float) -> void: config.rounds_per_map = clampi(int(value), 1, 50))
-	_tunable("hs_gravity", config.gravity, "Metres per second squared, for everything",
-		func(value: float) -> void: config.gravity = value)
-	_tunable("hs_autobhop", 1.0 if config.auto_bunny_hop else 0.0,
-		"Whether holding jump hops again on landing, from the next round",
-		func(value: float) -> void:
-			config.auto_bunny_hop = value > 0.5
+				world.taunts.points_forced = config.forced_taunt_points
+		"auto_bunny_hop":
 			for id: StringName in world.players:
-				(world.players[id] as HsPlayer).retune())
-	_tunable("hs_spectate_camera", float(config.spectate_camera),
-		"Deprecated, sets mp_forcecamera. Who somebody who is out may watch: 0 anybody, 1 their own side, 2 nobody",
-		func(value: float) -> void:
-			config.spectate_camera = clampi(int(value), 0, 2)
+				(world.players[id] as HsPlayer).retune()
+		"spectate_camera":
 			# Through the cvar, so what `mp_forcecamera` reports is what is in force.
 			if _force_camera_cvar != null:
 				var _set: Variant = _force_camera_cvar.set_value(str(config.spectate_camera))
 			elif world.spectate != null:
-				world.spectate.set_force_camera(config.spectate_camera))
-	# [b]Deprecated: the count is `bot_quota` now[/b], and this forwards to it. Kept rather than
-	# removed because every shipped server config sets it; left as its own number it would be
-	# a second cvar deciding the same count, and whichever was read last would win.
-	_tunable("hs_min_players", float(config.minimum_players),
-		"Deprecated, sets bot_quota. How many players the server keeps in a round with stand-ins",
-		func(value: float) -> void:
-			config.minimum_players = clampi(int(value), 0, 24)
+				world.spectate.set_force_camera(config.spectate_camera)
+		"minimum_players":
 			if _quota != null and _quota.quota_cvar != null:
-				var _set := _quota.quota_cvar.set_value(str(config.minimum_players)))
+				var _set: Variant = _quota.quota_cvar.set_value(str(config.minimum_players))
+		"map_rotation_file":
+			config.map_rotation_file = config.map_rotation_file.strip_edges()
+			var _read := world.load_rotation()
+			if vote != null:
+				vote.refresh_maps()
+
+
+## dot-workbench over the config and the block rules: the F9 panel off a dedicated server, the HTTP page only with `workbench.enabled` in cfg/server.yml. Edits are admitted for dot-auth tickets of the listed admins.
+func _start_workbench(world: HsGame) -> void:
+	workbench = DotGameWorkbench.new()
+	workbench.name = "Workbench"
+	workbench.dedicated = DisplayServer.get_name() == "headless"
+	workbench.listen_host_fn = func() -> bool: return DisplayServer.get_name() != "headless"
+	var admin_permit := Callable()
+	if server != null and server.admins != null:
+		admin_permit = server.admins.uid_has_permission
+	workbench.permit_fn = func(actor: Variant, flag: String) -> bool:
+		return admin_permit.is_valid() and actor is String and bool(admin_permit.call(actor, flag))
+	workbench.add_set(world.config_binder.profile_set(), "Game settings")
+	add_child(workbench)
+	var started := workbench.start()
+	if not started.ok:
+		DotLog.result(CHANNEL, "the workbench", started)
+		return
+	if workbench.api != null:
+		var rt := workbench.api.runtime as DotProfileRuntime
+		if rt != null:
+			world.config_binder.attach(rt)
+	var auth := DotRegistry.get_node_service(DotAuthServer.SERVICE) as DotAuthServer
+	var _gate := HsWorkbenchAuth.attach(workbench, HsWorkbenchAuth.ticket_resolver(auth), admin_permit)
+	add_command("workbench", func(ctx: DotCmdContext) -> void: ctx.reply_lines(_workbench_lines()),
+		"Show the admin workbench's state", DotAdminFlags.CVAR)
+
+
+## The workbench's runtime, so the `noblock` kind is listed beside the game settings.
+func _noblock_runtime() -> Object:
+	return workbench.api.runtime if workbench != null and workbench.api != null else null
+
+
+## Hiders pass hiders and seekers pass seekers under `mp_teamblock 0`; the world's sides, not a numeric userid.
+func _noblock_side(id: Variant) -> Variant:
+	return (game as HsGame).team_of_side(id)
+
+
+func _workbench_lines() -> PackedStringArray:
+	if workbench == null:
+		return PackedStringArray(["workbench    off"])
+	if workbench.running_http:
+		return PackedStringArray(["workbench    http " + JSON.stringify(workbench.http.call("describe"))])
+	return PackedStringArray(["workbench    off (workbench.enabled in cfg/server.yml)"])
 
 
 ## An operator's catch: `hs_catch <userid>`, as if a seeker had touched them. For a stuck
@@ -500,12 +512,6 @@ static func _number(value: float) -> String:
 
 
 ## One cvar, its default taken from the configuration rather than written twice.
-##
-## [b]The default is the value the world was built with, and that is the whole point.[/b] A
-## cvar declared with a literal default is a second copy of a number that
-## `defaults < JSON < environment < argv` has already decided — so an operator who set
-## `HS_ROUND_SECONDS=240` would see `hs_round_seconds` report 300 and, worse, would reset
-## their own setting the moment anything wrote the value back.
 func _tunable(
 	cvar_name: String, current: float, description: String, apply: Callable
 ) -> void:
@@ -527,6 +533,11 @@ func _tunable(
 ## tree before the module loaded, and a server can unload and reload a game module without
 ## the map going away, which is what `module reload` is for.
 func _game_unload() -> void:
+	if workbench != null:
+		workbench.queue_free()
+		workbench = null
+	if game != null and "block_rules" in game:
+		game.set(&"block_rules", null)
 	if game != null and "loading_fn" in game:
 		game.set(&"loading_fn", Callable())
 

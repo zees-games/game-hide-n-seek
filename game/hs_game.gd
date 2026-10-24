@@ -154,6 +154,18 @@ var view_rules: DotPlayerViewRules = DotPlayerViewRules.new()
 var spectate_rules: DotSpectatorRules = DotSpectatorRules.new()
 var body_rules: DotPlayerBodyRules = DotPlayerBodyRules.new()
 
+## Binds [member config] to cvars, the cfg/ yml layers and the workbench; made by the server scene or the client.
+var config_binder: DotGameConfigBinder = null
+
+## dot-team's block rules (`!block`, `!noblock`, `mp_teamblock`), set by the server module or `DotGameClient.add_noblock`. They feed [member body_rules]'s `pair_fn`.
+var block_rules: Object = null:
+	set(value):
+		if block_rules != null and block_rules.is_connected(&"changed", body_rules.refresh):
+			block_rules.disconnect(&"changed", body_rules.refresh)
+		block_rules = value
+		if block_rules != null and block_rules.has_signal(&"changed"):
+			block_rules.connect(&"changed", body_rules.refresh)
+
 
 func _init() -> void:
 	# This game's pick: people pass through people (see `_build_physics`). Measured, not
@@ -298,6 +310,7 @@ func _apply_body_mask(player: HsPlayer) -> void:
 func _on_body_rules_changed() -> void:
 	for id in players:
 		_apply_body_mask(players[id] as HsPlayer)
+	apply_pass_through()
 
 
 ## Three layers: the building, the people, and the furniture.
@@ -621,6 +634,7 @@ func add_player(
 			DotLog.error(CHANNEL, "dot-match refused a player", {"id": String(player_id), "why": seated.error.message})
 
 	place_one(player)
+	apply_pass_through()
 	DotLog.debug(CHANNEL, "player joined", {"id": String(player_id), "side": side})
 	player_added.emit(player_id)
 	return player
@@ -676,6 +690,9 @@ func remove_player(player_id: StringName) -> void:
 		taunts.forget(player_id)
 
 	player.queue_free()
+	if block_rules != null:
+		block_rules.call(&"forget", player_id)
+	apply_pass_through()
 
 	if spectate != null:
 		spectate.on_left(player_id)
@@ -688,6 +705,25 @@ func remove_player(player_id: StringName) -> void:
 
 func team_of(player_id: StringName) -> int:
 	return int(sides.get(player_id, 0))
+
+
+## The side id dot-team's block rules compare ("" for none): hiders pass hiders and seekers pass seekers under `mp_teamblock 0`.
+func team_of_side(player_id: Variant) -> Variant:
+	var key := StringName(str(player_id))
+	var side := team_of(key)
+	if side == 0 and players.has(key):
+		side = int((players[key] as HsPlayer).team)
+	return str(side) if side > 0 else ""
+
+
+## Hands every controller the bodies it passes through under `block_rules`; the same call on every machine, or a client predicts a wall.
+func apply_pass_through() -> void:
+	var entries := {}
+	for id: Variant in players:
+		var who := players[id] as HsPlayer
+		if who != null and who.controller != null:
+			entries[id] = {"body": who, "controller": who.controller}
+	body_rules.apply_exceptions(entries)
 
 
 func side_name(side: int) -> String:
@@ -912,6 +948,9 @@ func _set_side(id: StringName, side: int) -> void:
 	var was := int(sides.get(id, 0))
 	sides[id] = side
 	player.team = side
+
+	if was != side:
+		apply_pass_through()
 
 	if match_node != null and was != side:
 		var _moved := match_node.switch_team(String(id), side, _tick)

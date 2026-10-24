@@ -14,8 +14,8 @@ const HsNetLink := preload("../game/net/hs_net_link.gd")
 ## [DotGameModule]'s order runs, a cvar is typed at a console and a round is played by
 ## nothing but the stand-ins the module seats itself.
 
-const SECTIONS := 13
-const CHECKS := 98
+const SECTIONS := 14
+const CHECKS := 109
 
 const SERVER_DIR := "user://hs_dedicated"
 const PORT := 28931
@@ -57,6 +57,7 @@ func _run() -> void:
 		await _test_a_reload_keeps_delivered_maps()
 		await _test_the_map_vote()
 		_test_map_rotation_file()
+		_test_config_and_noblock()
 		_test_finish_round_waits_for_a_live_round()
 		await _test_loading_cover()
 		await _test_a_module_reload()
@@ -170,6 +171,8 @@ func _test_the_module_loads() -> void:
 	# The world is built after the server (whose tick rate it reads) and before the module
 	# (which refuses to load without a world to run; it cannot build one).
 	var config := HsConfig.new()
+	var binder := DotGameConfigBinder.create(config, "game-hide-n-seek", "hs")
+	_check(binder.load_layers().ok, "the config layers load")
 	config.warmup_seconds = 0.0
 	config.intermission_seconds = 0.0
 	config.hide_seconds = 3.0
@@ -180,6 +183,7 @@ func _test_the_module_loads() -> void:
 	game = HsGame.new()
 	game.name = "World"
 	game.config = config
+	game.config_binder = binder
 	game.tick_rate = Engine.physics_ticks_per_second
 	add_child(game)
 	await get_tree().process_frame
@@ -413,6 +417,37 @@ func _test_the_map_vote() -> void:
 	# The director opens it under MANUAL; this game used to open it from clock.expired too.
 	_check(opened_count[0] == 1, "and opens exactly one rtv ballot, not a second from the game", str(opened_count[0]))
 	director.vote_opened.disconnect(counter)
+	_finished()
+
+
+## The config as cvars and a workbench set, the old cvar names as aliases, and dot-team's block rules through dot-game.
+func _test_config_and_noblock() -> void:
+	_section("config and noblock")
+	var console := server.console
+	var binder := game.config_binder
+	_check(binder != null and console.has_name("hs_hide_seconds") and console.has_name("hs_config_diff"), "the config is bound to cvars and commands")
+	var _set := _run_command("hs_tag_range 2.0")
+	_check(is_equal_approx(game.config.tag_range, 2.0) and binder.source_of("tag_range") == "cvar", "an hs_<field> cvar writes the field")
+	var _doors := _run_command("hs_doors 0")
+	_check(not game.config.doors_enabled and console.get_string("hs_doors_enabled", "") == "0", "the old hs_doors alias writes the field and its cvar")
+	var _back := _run_command("hs_doors_enabled 1")
+	_check(game.config.doors_enabled and console.get_string("hs_doors", "") == "1", "and the field's cvar moves the alias")
+	var module := _module()
+	var wb: DotGameWorkbench = module.get("workbench") if module != null else null
+	_check(wb != null and wb.api != null, "the module hosts a workbench")
+	if wb == null or wb.api == null:
+		return
+	var rel: String = binder.profile_set().rel_path
+	var res: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": rel, "id": binder.profile_id, "key": "auto_taunt_seconds", "value": 33.0})
+	_check(res.ok and is_equal_approx(game.config.auto_taunt_seconds, 33.0) and console.get_float("hs_auto_taunt_seconds") == 33.0,
+		"a workbench edit changes the field and the live cvar", "" if res.ok else res.error.message)
+	_check(game.taunts != null and is_equal_approx(game.taunts.auto_after, 33.0), "and the taunt timer the world cached")
+	var teamblock := console.find_cvar("mp_teamblock")
+	var enemyblock := console.find_cvar("mp_enemyblock")
+	_check(teamblock != null and teamblock.get_string() == "0" and enemyblock != null and enemyblock.get_string() == "1", "mp_teamblock is 0 and mp_enemyblock is 1 by default")
+	_check(game.block_rules != null and not game.body_rules.solid, "block rules are wired and players stay non-solid")
+	_check(game.team_of_side(&"nobody") == "", "a player with no side has no block side")
+	var _reset := _run_command("hs_tag_range 1.2")
 	_finished()
 
 
