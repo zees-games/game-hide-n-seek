@@ -8,7 +8,6 @@ const HsGame := preload("hs_game.gd")
 const HsPlayer := preload("hs_player.gd")
 const HsAvatars := preload("hs_avatars.gd")
 const HsVote := preload("hs_vote.gd")
-const HsWorkbenchAuth := preload("hs_workbench_auth.gd")
 
 ## Older cvar names kept for shipped server configs and map files: alias -> HsConfig field.
 const ALIASES := {
@@ -459,8 +458,6 @@ func _start_workbench(world: HsGame) -> void:
 		var rt := workbench.api.runtime as DotProfileRuntime
 		if rt != null:
 			world.config_binder.attach(rt)
-	var auth := DotRegistry.get_node_service(DotAuthServer.SERVICE) as DotAuthServer
-	var _gate := HsWorkbenchAuth.attach(workbench, HsWorkbenchAuth.ticket_resolver(auth), admin_permit)
 	add_command("workbench", func(ctx: DotCmdContext) -> void: ctx.reply_lines(_workbench_lines()),
 		"Show the admin workbench's state", DotAdminFlags.CVAR)
 
