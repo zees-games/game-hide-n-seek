@@ -236,6 +236,7 @@ func _run() -> void:
 			print("slew %s at %s: %s" % [victim.display_name, feet.snapped(Vector3.ONE * 0.1), victim.death.describe() if victim.death != null else "no fall"])
 			await _seconds_of(_seconds)
 		"action":
+			await _until_uncovered()
 			# A stand-in playing an avatar action, from the front, early in the clip.
 			game._set_phase(HsGame.Phase.SEEK)
 			await _seconds_of(0.6)
@@ -249,14 +250,18 @@ func _run() -> void:
 				print("nobody drawn to act")
 				get_tree().quit(1)
 				return
+			await _settle(actor)
 			var parts := _action.split(":")
 			var entry: Dictionary = DotAvatarActions.defaults().find(StringName(parts[0]), parts[1])
 			var ok: bool = actor.figure.body_node().play_action(StringName(parts[1]), bool(entry.get("loop", false)), 0.0)
 			print("action %s: played=%s" % [_action, ok])
 			var feet: Vector3 = actor.controller.state.position
-			var front := Vector3(sin(deg_to_rad(actor.controller.state.yaw)), 0.0, cos(deg_to_rad(actor.controller.state.yaw)))
+			var front := Vector3(-sin(deg_to_rad(actor.controller.state.yaw)), 0.0, -cos(deg_to_rad(actor.controller.state.yaw)))
 			_free_camera().look_at_from_position(feet + front * 3.0 + Vector3(0.0, 1.5, 0.0), feet + Vector3(0.0, 1.0, 0.0))
-			await _seconds_of(_seconds)
+			# Early and late frames of the clip: <out>_a.png now, the usual frame at the end.
+			await _pin_for(actor, 0.4)
+			await _save_extra("_a")
+			await _pin_for(actor, maxf(_seconds - 0.4, 0.1))
 		"mapmenu":
 			game._set_phase(HsGame.Phase.SEEK)
 			await _seconds_of(1.0)
@@ -324,3 +329,33 @@ func _seconds_of(seconds: float) -> void:
 	var until := Time.get_ticks_msec() + int(seconds * 1000.0)
 	while Time.get_ticks_msec() < until:
 		await get_tree().process_frame
+
+
+func _save_extra(suffix: String) -> void:
+	await RenderingServer.frame_post_draw
+	var path := ProjectSettings.globalize_path(_out.trim_suffix(".png") + suffix + ".png")
+	print("wrote ", path, ": ", error_string(get_viewport().get_texture().get_image().save_png(path)))
+
+
+## The clip must start after the loading cover lifts, or it is spent unseen.
+func _until_uncovered() -> void:
+	var gate: DotLoadGate = _client.get("gate")
+	for _i in range(1200):
+		if gate == null or gate.is_open():
+			break
+		await get_tree().process_frame
+
+
+## Stops a stand-in's bot, sets it down once and lets it settle, so the clip is not cancelled by a
+## walking or falling pose (a full-body action ends the moment its figure moves).
+func _settle(actor: Object) -> void:
+	actor.set("is_bot", false)
+	actor.place_at(actor.controller.state.position, actor.controller.state.yaw)
+	await _seconds_of(0.6)
+
+
+## Waits [param seconds], printing the figure's state at the end of it.
+func _pin_for(actor: Object, seconds: float) -> void:
+	await _seconds_of(seconds)
+	var body: Object = actor.figure.body_node()
+	print("actor action=", body.get("action"), " state=", body.get("state"))
