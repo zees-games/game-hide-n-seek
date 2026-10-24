@@ -16,6 +16,8 @@ var _out := "res://screenshots/shot.png"
 var _at := Vector3.INF
 var _look := Vector3.INF
 var _third := false
+## `--action=emote:dance` (`pose:sit`): the avatar action `--view=action` plays on a stand-in.
+var _action := ""
 ## "open" or "shut": every door one way, to see a door's other pose; empty leaves the map's.
 var _doors := ""
 var _client: Node = null
@@ -39,6 +41,8 @@ func _ready() -> void:
 			_place = _v3(arg.trim_prefix("--place="))
 		elif arg.begins_with("--pick="):
 			_pick = arg.trim_prefix("--pick=").to_int()
+		elif arg.begins_with("--action="):
+			_action = arg.trim_prefix("--action=")
 		elif arg == "--third":
 			_third = true
 		elif arg.begins_with("--doors="):
@@ -230,6 +234,28 @@ func _run() -> void:
 			slay.direction = (feet - camera.global_position) * Vector3(1, 0, 1)
 			var _applied: Variant = game.combat.apply_damage(slay)
 			print("slew %s at %s: %s" % [victim.display_name, feet.snapped(Vector3.ONE * 0.1), victim.death.describe() if victim.death != null else "no fall"])
+			await _seconds_of(_seconds)
+		"action":
+			# A stand-in playing an avatar action, from the front, early in the clip.
+			game._set_phase(HsGame.Phase.SEEK)
+			await _seconds_of(0.6)
+			var actor: HsPlayer = null
+			for id: StringName in game.players:
+				var p: HsPlayer = game.players[id]
+				if p != local and p.figure != null and p.figure.visible:
+					actor = p
+					break
+			if actor == null:
+				print("nobody drawn to act")
+				get_tree().quit(1)
+				return
+			var parts := _action.split(":")
+			var entry: Dictionary = DotAvatarActions.defaults().find(StringName(parts[0]), parts[1])
+			var ok: bool = actor.figure.body_node().play_action(StringName(parts[1]), bool(entry.get("loop", false)), 0.0)
+			print("action %s: played=%s" % [_action, ok])
+			var feet: Vector3 = actor.controller.state.position
+			var front := Vector3(sin(deg_to_rad(actor.controller.state.yaw)), 0.0, cos(deg_to_rad(actor.controller.state.yaw)))
+			_free_camera().look_at_from_position(feet + front * 3.0 + Vector3(0.0, 1.5, 0.0), feet + Vector3(0.0, 1.0, 0.0))
 			await _seconds_of(_seconds)
 		"mapmenu":
 			game._set_phase(HsGame.Phase.SEEK)

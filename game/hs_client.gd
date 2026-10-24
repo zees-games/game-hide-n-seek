@@ -262,6 +262,8 @@ func _build_netcode() -> DotResult:
 	var _toys := game.toy_rules.follow_cvars(link)
 	# And mp_forcecamera / mp_freeroam*: this end flies the spectator's free camera.
 	var _spectate := game.spectate_rules.follow_cvars(link)
+	# Before the seal and in the server's order (after the bridge), or the actions stay local.
+	DotLog.result(CHANNEL, "avatar action message", DotGameAvatarActionMessage.register(net))
 	net.messages.seal()
 
 	bridge.hello_received.connect(_on_hello)
@@ -367,6 +369,16 @@ func _hear_the_world() -> void:
 ## The local world's ids are `local` for this keyboard and `u<session>` for everybody else.
 func _session(id: StringName) -> int:
 	return _watch_id if id == &"local" else HsNetBridge.session_of(id)
+
+
+## The figure an avatar action plays on (the drawn person, a DotHumanoidFigure): that peer's player, or the local one offline.
+func _avatar_figure(peer_id: int) -> Object:
+	var who: HsPlayer = null
+	if bridge != null and peer_id != 0:
+		who = _player_of(bridge.player_for_peer(peer_id))
+	if who == null and player != null and (net == null or peer_id == net.local_peer_id):
+		who = player
+	return who.figure.body_node() if who != null and who.figure != null else null
 
 
 func _player_of(session_id: int) -> HsPlayer:
@@ -832,6 +844,8 @@ func _build_settings() -> void:
 	platform.maps_rows_fn = func() -> Array: return game.map_rows() if game != null else []
 	platform.maps_change_fn = func(id: StringName) -> DotResult: return game.change_map_now(id)
 	DotLog.result(CHANNEL, "the platform", platform.setup())
+	# The starter set: the equipped list needs a credential the client does not hold (the server reads it).
+	DotLog.result(CHANNEL, "avatar actions", platform.add_avatar_actions(net, _avatar_figure))
 	_add_noblock_and_workbench()
 	# Walking is off while the cover is up, a menu is open or a line is typed: the sampler polls
 	# the keyboard.

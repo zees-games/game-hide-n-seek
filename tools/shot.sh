@@ -10,6 +10,7 @@
 #   tools/shot.sh --view=bots --pick=0 --hs-map-ids=hs_manor       # the stand-ins hidden; the best-hidden one
 #   tools/shot.sh --view=room --place=x,y,z --at=... --look=...     # the player stood somewhere (a branch), seen
 #   tools/shot.sh --view=mapmenu --workshop                       # the M map list with a subscribed pack map in it
+#   tools/shot.sh --view=action --action=emote:dance --seconds=0.5   # a stand-in playing an avatar action (pose:sit)
 #   tools/shot.sh --view=door                                     # a hider at a door: the use-key prompt
 #   tools/shot.sh --view=cover                                    # the loading cover, before it lifts
 #   tools/shot.sh --view=blind                                    # a seeker while the hiders hide
@@ -35,7 +36,7 @@ for arg in "$@"; do
         --seconds=*) seconds="${arg#*=}" ;;
         --out=*)     out="${arg#*=}" ;;
         --hs-*)      config+=("$arg") ;;
-        --at=*|--look=*|--third|--board|--name=*|--doors=*|--pick=*|--place=*|--workshop) extra+=("$arg") ;;
+        --at=*|--look=*|--third|--board|--name=*|--doors=*|--pick=*|--place=*|--action=*|--workshop) extra+=("$arg") ;;
         *)           echo "unknown argument: $arg" >&2; exit 2 ;;
     esac
 done
