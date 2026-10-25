@@ -1,5 +1,6 @@
 extends Node
 
+const HsAmbience := preload("hs_ambience.gd")
 const HsPaths := preload("hs_paths.gd")
 
 ## What this game makes a noise about, and the noise, on the client.
@@ -47,6 +48,9 @@ var manager: DotAudioManager = null
 ## stock (Kenney's footsteps, generated beds, all CC0; the addon's stock/CREDITS.md).
 var steps: DotAudioFootsteps = null
 var ambience: DotAudioAmbience = null
+
+## Quiet moods under the map (dot-audio's stock set); the old bed plays only when none loaded.
+var ambient: DotAmbienceDirector = null
 
 ## path -> AudioStream, the taunts loaded so far.
 var _taunts: Dictionary = {}
@@ -196,7 +200,17 @@ func setup() -> DotResult:
 	ambience.fallback_bed = &"amb_outdoor"
 	ambience.level = 0.6
 	add_child(ambience)
-	ambience.set_map_bed(&"amb_outdoor")
+	ambient = DotAmbienceDirector.new()
+	ambient.name = "Ambient"
+	ambient.manager = manager
+	ambient.default_mood = HsAmbience.DEFAULT_MOOD
+	ambient.prefix_moods = HsAmbience.PREFIX_MOODS
+	ambient.rules = HsAmbience.make_rules()
+	add_child(ambient)
+	var _moods := ambient.setup()
+	ambient.follow_settings(null)
+	if not ambient.has_moods():
+		ambience.set_map_bed(&"amb_outdoor")
 
 	var godot_sink := manager.sink as DotAudioSinkGodot
 
@@ -232,8 +246,10 @@ const MAP_SOUND := {
 ## no map has to list its rooms twice.
 func on_map_doc(id: StringName, doc: Dictionary) -> void:
 	var row: Array = MAP_SOUND.get(id, [&"amb_outdoor", &"concrete"])
+	if ambient != null and ambient.has_moods():
+		ambient.on_map(id, doc)
 	on_map(StringName(str(doc.get("ambience", row[0]))), StringName(str(doc.get("surface", row[1]))))
-	if ambience == null:
+	if ambience == null or (ambient != null and ambient.has_moods()):
 		return
 	ambience.clear_zones()
 	for box: Variant in doc.get("boxes", []):
@@ -255,7 +271,7 @@ func keep_walkers(bodies: Array) -> void:
 
 ## A map arrived: its bed and its ground. Empty keeps what is playing.
 func on_map(bed: StringName, surface: StringName = &"") -> void:
-	if ambience != null and bed != &"":
+	if ambience != null and bed != &"" and (ambient == null or not ambient.has_moods()):
 		ambience.set_map_bed(bed)
 	if steps != null and surface != &"":
 		steps.default_surface = surface

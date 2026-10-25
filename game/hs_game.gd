@@ -1,5 +1,6 @@
 extends Node3D
 
+const HsAmbience := preload("hs_ambience.gd")
 const HsCatalogue := preload("hs_catalogue.gd")
 const HsConfig := preload("hs_config.gd")
 const HsMap := preload("hs_map.gd")
@@ -153,6 +154,8 @@ var view_rules: DotPlayerViewRules = DotPlayerViewRules.new()
 ## by the module (REPLICATED) and followed by a client, which is the end that flies the camera.
 var spectate_rules: DotSpectatorRules = DotSpectatorRules.new()
 var body_rules: DotPlayerBodyRules = DotPlayerBodyRules.new()
+## The ambience cvars (`hs_ambient*`): bound by the module (REPLICATED), followed by a client through its link.
+var ambient_rules: DotAmbienceRules = HsAmbience.make_rules()
 
 ## Binds [member config] to cvars, the cfg/ yml layers and the workbench; made by the server scene or the client.
 var config_binder: DotGameConfigBinder = null
