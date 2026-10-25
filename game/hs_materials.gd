@@ -126,6 +126,9 @@ const PBR_KINDS := {
 ## The brightest a photographic surface may average once lit, so interiors do not burn out.
 const PBR_TARGET := 0.58
 
+## Specular strength of a non-metal photographic kind (Godot's default is 0.5).
+const PBR_SPECULAR := 0.2
+
 ## The game's vendored kinds when it carries them (a delivered pack), else dot-map's own.
 const SURFACES_ROOT := "res://assets/surfaces"
 
@@ -147,7 +150,13 @@ static func material_in(id: String, tint: Color, look: String) -> StandardMateri
 	var mean: Array = (DotMapSurfaces.KINDS.get(kind, {}) as Dictionary).get("mean", [0.5, 0.5, 0.5])
 	var lum := 0.2126 * float(mean[0]) + 0.7152 * float(mean[1]) + 0.0722 * float(mean[2])
 	var got := _surfaces.try_material(kind, Color(pale.r, pale.g, pale.b).darkened(1.0 - minf(1.0, PBR_TARGET / maxf(lum, 0.01))))
-	return got.value if got.ok else material(id, tint)
+	if not got.ok:
+		return material(id, tint)
+	# Our own DotMapSurfaces cache, so this does not reach another game's: a low sun on a photographed lawn glared white in a render.
+	var m: StandardMaterial3D = got.value
+	if kind != &"metal":
+		m.metallic_specular = PBR_SPECULAR
+	return m
 
 
 static func ids() -> Array:
