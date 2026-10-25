@@ -118,13 +118,13 @@ const SURFACES := {
 const PBR_KINDS := {
 	"wood_floor": &"wood_floor", "parquet": &"wood_floor", "gym": &"wood_planks", "tile": &"tile_white",
 	"tile_check": &"tile_checker", "tile_small": &"tile_white", "carpet": &"carpet_grey",
-	"concrete": &"concrete_clean", "sidewalk": &"concrete_clean", "asphalt": &"asphalt", "grass": &"grass",
+	"concrete": &"concrete", "sidewalk": &"concrete_clean", "asphalt": &"asphalt", "grass": &"grass",
 	"dirt": &"ground", "sand": &"sand", "paint": &"plaster", "plaster": &"plaster", "ceiling": &"ceiling_tile",
 	"brick": &"brick", "stone": &"stone_block", "roof": &"roof_clay", "wood": &"wood_planks", "metal": &"metal",
 }
 
 ## The brightest a photographic surface may average once lit, so interiors do not burn out.
-const PBR_TARGET := 0.66
+const PBR_TARGET := 0.58
 
 ## The game's vendored kinds when it carries them (a delivered pack), else dot-map's own.
 const SURFACES_ROOT := "res://assets/surfaces"
