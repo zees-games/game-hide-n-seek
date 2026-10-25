@@ -114,8 +114,33 @@ const SURFACES := {
 	"flat": {"pattern": "flat", "a": Color(0.8, 0.8, 0.8), "b": Color(0.8, 0.8, 0.8), "metres": 2.0, "rough": 0.8},
 }
 
+## surface id -> dot-map's [DotMapSurfaces] kind, for a map whose `look` is "pbr". A surface not here (glass, water, lines, boards, lockers, fabric) keeps its own look.
+const PBR_KINDS := {
+	"wood_floor": &"wood_floor", "parquet": &"wood_floor", "gym": &"wood_planks", "tile": &"tile_white",
+	"tile_check": &"tile_checker", "tile_small": &"tile_white", "carpet": &"carpet_grey",
+	"concrete": &"concrete_clean", "sidewalk": &"concrete_clean", "asphalt": &"asphalt", "grass": &"grass",
+	"dirt": &"ground", "sand": &"sand", "paint": &"plaster", "plaster": &"plaster", "ceiling": &"ceiling_tile",
+	"brick": &"brick", "stone": &"stone_block", "roof": &"roof_clay", "wood": &"wood_planks", "metal": &"metal",
+}
+
+## The game's vendored kinds when it carries them (a delivered pack), else dot-map's own.
+const SURFACES_ROOT := "res://assets/surfaces"
+
 static var _textures: Dictionary = {}
 static var _materials: Dictionary = {}
+static var _surfaces: DotMapSurfaces = null
+
+
+## The material for [param id] in a map's [param look]: "pbr" draws a building surface photographic, tinted paled halfway as the grid is; anything else, or a kind whose textures are missing, is [method material].
+static func material_in(id: String, tint: Color, look: String) -> StandardMaterial3D:
+	if look != "pbr" or not PBR_KINDS.has(id):
+		return material(id, tint)
+	if _surfaces == null:
+		var root := HsPaths.rebase(SURFACES_ROOT)
+		_surfaces = DotMapSurfaces.new(root if DirAccess.dir_exists_absolute(root) else DotMapSurfaces.DEFAULT_ROOT)
+	var pale := Color(minf(tint.r, 1.1), minf(tint.g, 1.1), minf(tint.b, 1.1)).lerp(Color.WHITE, 0.5)
+	var got := _surfaces.try_material(PBR_KINDS[id], pale)
+	return got.value if got.ok else material(id, tint)
 
 
 static func ids() -> Array:

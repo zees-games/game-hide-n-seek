@@ -148,7 +148,15 @@ func _ready() -> void:
 ## map, a map change, and a map a server sent.
 func _hold_for_maps() -> void:
 	game.world_clearing.connect(func() -> void: gate.hold(&"map", "Loading the map"))
-	game.world_rebuilt.connect(func() -> void: gate.release(&"map"))
+	game.world_rebuilt.connect(_draw_world_then_release)
+
+
+## The map's converted world pack is drawn under the cover when it has one ([method HsMap.load_world]); the boxes otherwise.
+func _draw_world_then_release() -> void:
+	var wanted := game.map.id()
+	await game.map.load_world()
+	if game.map.id() == wanted:
+		gate.release(&"map")
 
 
 ## True while the load gate covers the screen: no input, no prediction sampling.
@@ -720,6 +728,8 @@ func _prepare_board(snap: Dictionary) -> void:
 	if game == null:
 		return
 	snap["header"] = {"Map": str(game.map_doc.get("name", "")), "Round": str(game.round_number)}
+	if game.map != null and game.map.world_credits != "":
+		snap["header"]["Credits"] = game.map.world_credits
 	snap["teams"] = [
 		{"id": HsGame.HIDERS, "name": game.side_name(HsGame.HIDERS), "color": game.side_colour(HsGame.HIDERS)},
 		{"id": HsGame.SEEKERS, "name": game.side_name(HsGame.SEEKERS), "color": game.side_colour(HsGame.SEEKERS)},

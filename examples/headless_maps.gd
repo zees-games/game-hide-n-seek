@@ -21,6 +21,8 @@ const HsMapDoc := preload("../game/hs_map_doc.gd")
 
 const MAPS := ["hs_practice", "hs_apartments", "hs_warehouse", "hs_manor", "hs_village", "hs_park", "hs_school", "hs_mall", "hs_ship", "hs_castle", "hs_camp", "hs_museum", "hs_restaurant", "hs_apartment", "hs_frontyard", "hs_hotel"]
 const CHECKS_PER_MAP := 14
+## Per map whose document names a world pack that is here (hide-n-seek-maps/world, linked; local only).
+const CHECKS_PER_WORLD := 3
 
 ## A drawn, non-solid box thicker than this is not floor paint, water or a decal.
 const PAINT_THICKNESS := 0.3
@@ -66,6 +68,10 @@ func _run() -> void:
 	for id: String in _maps:
 		await _test_map(StringName(id))
 
+	var worlds := _drawn_worlds()
+	if not worlds.is_empty():
+		await _test_drawn_worlds(worlds)
+
 	print("")
 	print("%d sections entered, %d finished" % [_sections_entered, _sections_finished])
 	print("%d passed, %d failed" % [_passed, _failed])
@@ -75,8 +81,8 @@ func _run() -> void:
 
 	var code := 1 if _failed > 0 else 0
 
-	var sections := 1 + _maps.size()
-	var checks := 1 + CHECKS_PER_MAP * _maps.size()
+	var sections := 1 + _maps.size() + (0 if worlds.is_empty() else 1)
+	var checks := 1 + CHECKS_PER_MAP * _maps.size() + CHECKS_PER_WORLD * worlds.size()
 
 	if _sections_entered != _sections_finished or _sections_entered != sections:
 		print("ERROR: %d of %d sections finished, %d expected." % [_sections_finished, _sections_entered, sections])
@@ -459,6 +465,63 @@ func _audit_colliderless(id: StringName, doc: Dictionary) -> void:
 		"nothing drawn is walked through, and a map's terrain is ground", terrain_fault if res.ok else res.error.message)
 	_check(thick.is_empty(), "every box that is drawn and not solid is paint", ", ".join(thick))
 	await _dispose(drawn)
+
+
+## The maps checked whose document names a converted world pack present under `res://world`.
+func _drawn_worlds() -> Array:
+	var out := []
+	for id: String in _maps:
+		var text := FileAccess.get_file_as_string("res://maps/%s.json" % id)
+		var parsed: Variant = JSON.parse_string(text) if text != "" else null
+		if parsed is Dictionary and (parsed as Dictionary).has("world"):
+			var pack := str(((parsed as Dictionary)["world"] as Dictionary).get("pack", ""))
+			if FileAccess.file_exists("res://world/%s/%s.json" % [pack, id]):
+				out.append(id)
+	return out
+
+
+## A world pack drawn over the boxes: it replaces their meshes, lines up with them, and draws nothing the boxes do not collide with.
+func _test_drawn_worlds(ids: Array) -> void:
+	_section("drawn worlds: %s" % ", ".join(ids))
+	for id: String in ids:
+		var game := await _world(StringName(id), true)
+		var batches_before := 0
+		for child in game.map.get_node("Drawn").get_children():
+			batches_before += 1 if child.has_meta(&"hs_box_batch") else 0
+		var got: DotResult = await game.map.load_world()
+		var drawn: Node3D = game.map.drawn_world.root if game.map.drawn_world != null else null
+		var boxes_left := 0
+		for child in game.map.get_node("Drawn").get_children():
+			if child.has_meta(&"hs_box_batch") and not child.is_queued_for_deletion():
+				boxes_left += 1
+		_check(got.ok and got.value == true and drawn != null and batches_before > 0 and boxes_left == 0, "%s: the pack is drawn in place of the boxes" % id,
+			"%s, %d of %d box meshes left" % [str(got.value) if got.ok else got.error.message, boxes_left, batches_before])
+		var world_box := AABB()
+		var first := true
+		if drawn != null:
+			for mi: Node in drawn.find_children("*", "MeshInstance3D", true, false):
+				var b := (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).get_aabb()
+				world_box = b if first else world_box.merge(b)
+				first = false
+		var solid := AABB()
+		first = true
+		for box: Dictionary in game.map.doc["boxes"]:
+			if bool(box.get("solid", true)) and bool(box.get("visible", true)):
+				var b := AABB(HsMapDoc.v3(box["at"]) - HsMapDoc.v3(box["size"]) * 0.5, HsMapDoc.v3(box["size"]))
+				solid = b if first else solid.merge(b)
+				first = false
+		var off := world_box.get_center() - solid.get_center()
+		_check(drawn != null and off.length() < 0.5 and (world_box.size - solid.size).length() < 1.0,
+			"%s: the pack lines up with the boxes" % id, "centres %.3f m apart, sizes %s and %s" % [off.length(), world_box.size, solid.size])
+		await get_tree().process_frame
+		var res := DotCollisionAudit.audit(game.map, true)
+		var found := (res.value as DotCollisionAudit).count() if res.ok else -1
+		if res.ok:
+			for line in (res.value as DotCollisionAudit).describe_lines().slice(1, 8):
+				print("  %s" % line)
+		_check(res.ok and found == 0, "%s: nothing the pack draws is walked through" % id, "%d meshes with no shape near them" % found)
+		await _dispose(game)
+	_finished()
 
 
 func _dispose(game: HsGame) -> void:

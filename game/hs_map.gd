@@ -4,6 +4,7 @@ const HsMapDoc := preload("hs_map_doc.gd")
 const HsMaterials := preload("hs_materials.gd")
 const HsProps := preload("hs_props.gd")
 const HsDoors := preload("hs_doors.gd")
+const HsPaths := preload("hs_paths.gd")
 
 ## A map document, built: the building, the furniture, the lights and the sky.
 ##
@@ -33,6 +34,14 @@ const CHANNEL := "hs.map"
 
 ## dot-lighting's contact shade, loaded by path (API 4): see [method _add_contact_shade].
 const CONTACT_SHADE_SCRIPT := "res://addons/dot_lighting/runtime/dot_contact_shade.gd"
+
+## Where a document's converted world pack is: hide-n-seek-maps/world, linked; rebased.
+const WORLD_ROOT := "res://world"
+
+## The surface kinds a drawn world's generic faces use, when the game vendors them (dot-map's tools/sync-surfaces.sh); else the addon's.
+const SURFACES_ROOT := "res://assets/surfaces"
+## Meta on every drawn box batch; by name they were "@Boxes@N" after the first, which a prefix test missed.
+const BOX_BATCH := &"hs_box_batch"
 
 ## Metres of world one batched mesh covers. See the class notes.
 const CHUNK := 12.0
@@ -71,6 +80,15 @@ var toys: DotPropToyBox = null
 var authoritative: bool = true
 var toy_rules: DotPropToyRules = null
 var gravity: float = 20.0
+
+## Whether a client draws a document's `world` pack in place of its boxes ([method load_world]).
+var use_worlds: bool = true
+
+## The drawn world pack, or null while the boxes are what is seen.
+var drawn_world: DotMapDrawnWorld = null
+
+## The drawn world's credit line (its author, and the art whose licence asks for a name); empty without one.
+var world_credits: String = ""
 
 ## The converted map's displacement ground (the document's `terrain`), or null.
 var terrain: DotMapTerrain = null
@@ -157,6 +175,54 @@ func clear() -> void:
 	_drawn = null
 	_environment = null
 	_sun = null
+	drawn_world = null
+	world_credits = ""
+
+
+## Draws the document's converted `world` pack (dot-map's [DotMapDrawnWorld]) in place of the box meshes, on a client. The boxes,
+## props, doors and toys still collide and the bots' mesh is baked from them; the pack is only what is seen. A pack that is not
+## here, will not read or was made at another scale leaves the boxes drawn. Succeeds with true when the world is drawn.
+func load_world() -> DotResult:
+	var spec: Dictionary = doc.get("world", {})
+	if not draw_world or not use_worlds or spec.is_empty() or _drawn == null:
+		return DotResult.success(false)
+	var wanted := id()
+	var prefix := HsPaths.rebase(WORLD_ROOT).path_join(str(spec["pack"])).path_join(String(wanted))
+	if not FileAccess.file_exists(prefix + ".json"):
+		return DotResult.success(false)
+	var read: DotResult = await DotMapDrawnWorld.read(prefix, DotRegistry.get_service(&"dot_cloud_client"))
+	if id() != wanted or _drawn == null:
+		return DotResult.success(false)
+	if not read.ok:
+		DotLog.warn(CHANNEL, "a map's world would not read; its boxes are drawn", {"map": String(wanted), "at": prefix, "why": read.error.message})
+		return read
+	var world: DotMapBspMesh = read.value
+	var mpu := float((world.manifest.get("units", {}) as Dictionary).get("metres_per_unit", 0.0))
+	if absf(mpu - float(spec["metres_per_unit"])) > 1e-5:
+		DotLog.warn(CHANNEL, "a map's world was made at another scale; its boxes are drawn", {"map": String(wanted), "pack": mpu, "doc": spec["metres_per_unit"]})
+		return DotResult.fail(DotError.CODE_INVALID, "world pack scale differs", prefix)
+	attach_world(world, HsMapDoc.v3(spec["offset"]))
+	return DotResult.success(true)
+
+
+## Lays [param world] over the map at [param offset] (the importer's shift, undone): the box meshes and their contact shade
+## out, the document's lamps freed when the bake holds them. Props, doors and toys stay drawn: they are this game's, not the pack's.
+func attach_world(world: DotMapBspMesh, offset: Vector3) -> void:
+	for child in _drawn.get_children():
+		if child.has_meta(BOX_BATCH) or String(child.name) == "ContactShade":
+			_drawn.remove_child(child)
+			child.queue_free()
+	var lamps := _drawn.get_children().filter(func(n: Node) -> bool: return n is OmniLight3D)
+	var surfaces := HsPaths.rebase(SURFACES_ROOT)
+	drawn_world = DotMapDrawnWorld.attach(_drawn, world, {
+		"transform": Transform3D(Basis.IDENTITY, offset),
+		"surfaces_root": surfaces if DirAccess.dir_exists_absolute(surfaces) else DotMapSurfaces.DEFAULT_ROOT,
+		"environment": _environment.environment if _environment != null else null,
+		"lamps": lamps,
+		"cloud": DotRegistry.get_service(&"dot_cloud_client"),
+	})
+	world_credits = drawn_world.credits
+	DotLog.info(CHANNEL, "the map is drawn from its world pack", {"map": String(id()), "lit": drawn_world.lit != null, "credits": world_credits})
 
 
 ## The toys, on their own layers: a loose one (a ball, a barrel) on `toy`, which people walk
@@ -218,12 +284,14 @@ func _build_terrain() -> void:
 		return
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Boxes_terrain"
+	mesh.set_meta(BOX_BATCH, true)
 	mesh.mesh = terrain.build_mesh()
-	mesh.material_override = HsMaterials.material(terrain.mat if terrain.mat != "" else "grass", HsMapDoc.colour((doc["terrain"] as Dictionary).get("tint", [1, 1, 1])))
+	mesh.material_override = HsMaterials.material_in(terrain.mat if terrain.mat != "" else "grass", HsMapDoc.colour((doc["terrain"] as Dictionary).get("tint", [1, 1, 1])), str(doc.get("look", "pastel")))
 	_drawn.add_child(mesh)
 
 
 func _build_boxes() -> void:
+	var look := str(doc.get("look", "pastel"))
 	var batches := {}
 	var any := false
 
@@ -271,12 +339,13 @@ func _build_boxes() -> void:
 		var tool: SurfaceTool = batch["tool"]
 		var mesh := MeshInstance3D.new()
 		mesh.name = "Boxes"
+		mesh.set_meta(BOX_BATCH, true)
 		if not bool(batch["solid"]):
 			# Floor paint, water, a light fitting, embers in a hearth: drawn on purpose and
 			# walked over or through (dot-core DotCollisionAudit).
 			mesh.set_meta(&"dot_no_collision", true)
 		mesh.mesh = tool.commit()
-		mesh.material_override = HsMaterials.material(batch["mat"], batch["tint"])
+		mesh.material_override = HsMaterials.material_in(batch["mat"], batch["tint"], look)
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
 			if HsMaterials.is_transparent(batch["mat"]) else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		_drawn.add_child(mesh)

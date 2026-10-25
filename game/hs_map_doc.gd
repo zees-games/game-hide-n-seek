@@ -44,6 +44,8 @@ const MAX_LIGHTS := 128
 const MAX_SPAWNS := 64
 const MAX_DOORS := 256
 const MAX_TOYS := 48
+## What a map's building surfaces are drawn as: the pastel grid (the default) or photographic PBR.
+const LOOKS := ["pastel", "pbr"]
 
 ## How a door moves: about a hinge at one edge, sideways into the wall, or up like a shutter.
 const DOOR_MOTIONS := ["swing", "slide", "lift"]
@@ -141,6 +143,24 @@ static func validate(source: Dictionary) -> DotResult:
 		var raw_ground: Dictionary = (source["terrain"] as Dictionary).duplicate()
 		raw_ground["tint"] = _floats(raw_ground.get("tint", [1.0, 1.0, 1.0]), 3)
 		doc["terrain"] = raw_ground
+
+	# "pbr" draws the building surfaces with dot-map's photographic kinds (HsMaterials.PBR_KINDS) instead of the pastel grid.
+	if source.has("look"):
+		if not (str(source["look"]) in LOOKS):
+			return _refuse("look is not one of %s" % [LOOKS], source)
+		doc["look"] = str(source["look"])
+
+	# The converted world pack a client may draw in place of the boxes (HsMap.load_world): never collision, so a server ignores it.
+	if source.has("world"):
+		var w: Variant = source["world"]
+		if not (w is Dictionary) or not _is_id(str((w as Dictionary).get("pack", ""))) \
+				or float((w as Dictionary).get("metres_per_unit", 0.0)) <= 0.0:
+			return _refuse("world is not {pack, metres_per_unit, offset}", source)
+		doc["world"] = {
+			"pack": str(w["pack"]),
+			"metres_per_unit": float(w["metres_per_unit"]),
+			"offset": _floats((w as Dictionary).get("offset", [0, 0, 0]), 3),
+		}
 
 	var props: Array = []
 	for raw: Variant in source.get("props", []):

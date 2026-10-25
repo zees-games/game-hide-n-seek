@@ -50,6 +50,9 @@
 # The maps are hide-n-seek-maps, a repository and a pack of their own.
 # bootstrap-link: hide-n-seek-maps/maps ci
 /maps
+# The converted world packs a client draws over the boxes (local only, see hide-n-seek-maps' README).
+# bootstrap-link: hide-n-seek-maps/world
+/world
 
 # Exports
 build/
