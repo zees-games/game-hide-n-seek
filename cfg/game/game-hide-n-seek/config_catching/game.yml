@@ -1,0 +1,54 @@
+# game-hide-n-seek: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/game-hide-n-seek/config_catching/game.yml. Layers: defaults < this < env < argv.
+
+# --- Catching
+# How a hider is caught: 0 a touch, 1 being watched, 2 either. See Catch.
+# catch_mode: 0
+# How close a seeker's body must come to a hider's to tag them, centre to centre, in metres. Two bodies touch... [0.5..4.0]
+# tag_range: 1.2
+# Whether a caught hider becomes a seeker where they stand. Off, a caught hider is out and watches the rest o...
+# caught_become_seekers: true
+# Seconds a newly made seeker is held still before they may chase, so a hider caught beside another one does ... [0.0..15.0]
+# caught_freeze_seconds: 3.0
+# Where a caught hider starts seeking: 0 where they were caught, 1 at the seekers' start. 0 hands the catch o... [0..1]
+# caught_seek_from: 0
+# How far a seeker can see a hider for the sight rule, in metres. [2.0..200.0]
+# sight_range: 25.0
+# How wide a seeker's sight is for the sight rule: the whole angle of the cone, in degrees. [10.0..180.0]
+# sight_fov: 70.0
+# Seconds of being watched that fill a hider's meter. [0.1..30.0]
+# sight_seconds: 2.0
+# How fast the meter drains when nobody is watching, in meters a second (1 empties a full one in one second). [0.0..10.0]
+# sight_decay: 0.35
+
+# --- Taunts
+# Where the taunt list is read from, relative to this game's root. A list of `{"id", "title", "seconds", "sou...
+# taunt_file: "taunts/taunts.json"
+# Seconds a hider may stand within auto_taunt_radius before a taunt is forced. 0 never. [0.0..600.0]
+# auto_taunt_seconds: 60.0
+#  [0.1..20.0]
+# auto_taunt_radius: 1.5
+# Whether a hider sees the meter filling toward a forced taunt.
+# show_taunt_meter: true
+# Whether the use key opens and shuts a map's doors. Off, every door stays as the map has it: a server that w...
+# doors_enabled: true
+# Seconds between taunts, on top of the last one's length. [0.0..60.0]
+# taunt_cooldown: 2.0
+# Points for a taunt a hider chose, and for one forced on them. [0..100]
+# taunt_points: 2
+#  [0..100]
+# forced_taunt_points: 0
+# Metres a taunt carries. [5.0..300.0]
+# taunt_range: 60.0
+
+# --- The beacon
+# Every hider still hidden is beaconed once this few are left. 0 never. [0..32]
+# beacon_hiders_left: 1
+# Every hider still hidden is beaconed once this few seconds are left. 0 never, the default: with it at 30 th... [0.0..600.0]
+# beacon_seconds_left: 0.0
+# Seconds between a beacon's pings. [0.25..10.0]
+# beacon_period: 2.0
+# Seconds between the beacon showing the last hiders, and for how long each time. 0 shows them the whole time. [0.0..120.0]
+# beacon_every: 10.0
+#  [0.25..30.0]
+# beacon_reveal: 2.0

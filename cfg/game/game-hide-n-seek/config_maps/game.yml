@@ -1,0 +1,20 @@
+# game-hide-n-seek: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/game-hide-n-seek/config_maps/game.yml. Layers: defaults < this < env < argv.
+
+# --- The maps
+# Which maps this server may play, by id. Empty means every one it has.
+# map_ids: []
+# Whether the next map is drawn at random (seeded) rather than taken in order.
+# shuffle_maps: true
+# Rounds played on a map before the next one, unless the players vote first. [1..50]
+# rounds_per_map: 4
+# Where map documents are read from, relative to this game's root.
+# map_directory: "maps"
+# The file that says which maps a server ROTATES: `cfg/maps.yml`, layered over the game's own shipped `res://...
+# map_rotation_file: "cfg/maps.yml"
+# Seed every random choice is drawn from: the map, the seekers, the bots.
+# seed_value: 20261010
+
+# --- Bots
+# How many players the server keeps in the round by adding stand-ins. [0..24]
+# minimum_players: 5

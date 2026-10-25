@@ -1,0 +1,34 @@
+# game-hide-n-seek: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/game-hide-n-seek/config_round/game.yml. Layers: defaults < this < env < argv.
+
+# --- The round
+# Seconds the hiders have to hide while the seekers are blindfolded and held still. [0.0..180.0]
+# hide_seconds: 40.0
+# Seconds the seekers have to catch everybody once they are let go. A map may ask for less. [30.0..1800.0]
+# round_seconds: 240.0
+# Seconds between rounds. [0.0..60.0]
+# intermission_seconds: 8.0
+# Seconds of warmup before the first round. 0 starts immediately. [0.0..300.0]
+# warmup_seconds: 8.0
+# Who wins a round the clock ends: 1 the hiders, 2 the seekers, 0 nobody.
+# timeout_winner: 1
+
+# --- The sides
+# One seeker for every this many players, rounded up, at least min_seekers and at most max_seekers — and neve... [1.0..64.0]
+# players_per_seeker: 8.0
+#  [1..16]
+# min_seekers: 1
+#  [1..32]
+# max_seekers: 3
+# How the first seekers are chosen each round: Pick.
+# seeker_pick: 3
+# Whether a player's own wish (`!seek`, `!hide`, `!any`) counts in the draw.
+# allow_side_choice: true
+
+# --- Points
+# Points to everybody on the winning side. [0..100]
+# winner_points: 10
+# Points to a seeker for each hider they catch. [0..100]
+# catch_points: 5
+# Points to every hider still hidden when the round ends. [0..100]
+# survive_points: 5

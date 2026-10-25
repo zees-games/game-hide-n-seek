@@ -259,6 +259,23 @@ const CAUGHT_SEEK_START := 1
 @export var report_progress: bool = false
 
 
+## `@export_group` -> the cfg file it lives in: `cfg/game/game-hide-n-seek/config_<file>/game.yml`.
+const CFG_FILES := {
+	"The round": "round", "The sides": "round", "Points": "round",
+	"Catching": "catching", "Taunts": "catching", "The beacon": "catching",
+	"The players": "players", "The maps": "maps", "Bots": "maps",
+	"Watching": "watching", "Progress": "watching",
+}
+
+
+## The binder every entry point uses: [param config] layered, one cfg file per [constant CFG_FILES] entry.
+static func make_binder(config: DotConfig, json_path := "") -> DotGameConfigBinder:
+	var b := DotGameConfigBinder.create(config, "game-hide-n-seek", "hs", json_path)
+	b.grouped = true
+	b.group_files = CFG_FILES
+	return b
+
+
 func env_prefix() -> String:
 	return "HS_"
 

@@ -32,7 +32,7 @@ func _ready() -> void:
 	# an operator sets `HS_HIDE_SECONDS` or `--hs-round-seconds` without editing anything, and
 	# the cvars the module adds are the live half of the same numbers.
 	# Through DotGameConfigBinder: cfg/game and cfg/server yml too, strict on a dedicated server.
-	var binder := DotGameConfigBinder.create(config, "game-hide-n-seek", "hs", "user://cfg/hideseek.json")
+	var binder := HsConfig.make_binder(config, "user://cfg/hideseek.json")
 	var loaded := binder.load_layers()
 
 	if not loaded.ok:

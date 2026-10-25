@@ -1,0 +1,11 @@
+# game-hide-n-seek: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/game-hide-n-seek/config_watching/game.yml. Layers: defaults < this < env < argv.
+
+# --- Watching
+# Who somebody who is out may watch: 0 anybody, 1 their own side, 2 nobody.
+# spectate_camera: 0
+
+# --- Progress
+# keep_progress: true
+# progress_directory: ""
+# report_progress: false

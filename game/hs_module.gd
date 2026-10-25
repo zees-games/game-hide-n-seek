@@ -8,6 +8,9 @@ const HsGame := preload("hs_game.gd")
 const HsPlayer := preload("hs_player.gd")
 const HsAvatars := preload("hs_avatars.gd")
 const HsVote := preload("hs_vote.gd")
+const HsAmbience := preload("hs_ambience.gd")
+## The workbench kind of the ambience cvar set (saved to cfg/.../ambience/server.yml).
+const AMBIENT_KIND := "ambience"
 
 ## Older cvar names kept for shipped server configs and map files: alias -> HsConfig field.
 const ALIASES := {
@@ -235,6 +238,8 @@ func _game_load() -> DotResult:
 		if str(made.get(&"name")) == DotSpectatorRules.CVAR_FORCE_CAMERA:
 			_force_camera_cvar = made
 
+	_bind_config(world)
+
 	_bots = add_cvar(
 		"hs_bots", "1",
 		"Automatic stand-ins: 1 keeps as many as bot_quota and bot_quota_mode say, 0 none at all."
@@ -362,7 +367,6 @@ func _add_tunables(world: HsGame) -> void:
 	# (easy, medium, hard, nightmare; medium by default) and every `bot_*` setting it bundles,
 	# the names every game in the family uses. On the game as metadata, never the registry.
 	var _bot_cvars := DotBotSettings.of(world).bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY, add_command)
-	_bind_config(world)
 
 
 ## Every [HsConfig] field as an `hs_<field>` cvar, a cfg/ yml key and a workbench set. The cvars shipped server configs and map files already use under other names stay, as aliases of the field.
@@ -453,7 +457,11 @@ func _start_workbench(world: HsGame) -> void:
 		admin_permit = server.admins.uid_has_permission
 	workbench.permit_fn = func(actor: Variant, flag: String) -> bool:
 		return admin_permit.is_valid() and actor is String and bool(admin_permit.call(actor, flag))
-	workbench.add_set(world.config_binder.profile_set(), "Game settings")
+	for set: DotProfileSet in world.config_binder.profile_sets():
+		workbench.add_set(set, "Game settings: %s" % set.rel_path.trim_prefix("config_"))
+	var ambient_set := DotGameWorkbench.cvar_set(console, HsAmbience.cvar_types(), AMBIENT_KIND)
+	if ambient_set != null:
+		workbench.add_set(ambient_set, "Ambience (hs_ambient*)")
 	add_child(workbench)
 	var started := workbench.start()
 	if not started.ok:
@@ -463,6 +471,8 @@ func _start_workbench(world: HsGame) -> void:
 		var rt := workbench.api.runtime as DotProfileRuntime
 		if rt != null:
 			world.config_binder.attach(rt)
+			if ambient_set != null:
+				DotGameWorkbench.bind_cvar_set(ambient_set, rt, console)
 	add_command("workbench", func(ctx: DotCmdContext) -> void: ctx.reply_lines(_workbench_lines()),
 		"Show the admin workbench's state", DotAdminFlags.CVAR)
 

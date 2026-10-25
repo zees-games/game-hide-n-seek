@@ -1,13 +1,13 @@
 extends Node
 
-## HsConfig through DotGameConfigBinder: fields, cvars, strict refusal, the diff and the workbench round trip.
+## HsConfig through DotGameConfigBinder: fields, cvars, strict refusal, the diff, a shipped yml loading back, and the workbench round trip.
 ##
 ## [codeblock]
 ## godot --headless --path . res://examples/headless_config.tscn
 ## [/codeblock]
 
 const HsConfig := preload("../game/hs_config.gd")
-const CHECKS := 19
+const CHECKS := 30
 
 var _passed := 0
 var _failed := 0
@@ -27,25 +27,33 @@ func _check(ok: bool, what: String, _detail := "") -> void:
 		_failures.append(what)
 
 
+const ROOT := "user://hs_cfgtest"
+const GAME := "game-hide-n-seek"
+
+
 func _run() -> void:
+	if OS.get_cmdline_user_args().has("--probe"):
+		_probe()
+		return
 	print("game-hide-n-seek: config binder")
 	var config := HsConfig.new()
-	var binder := DotGameConfigBinder.create(config, "game-hide-n-seek", "hs")
+	var binder := HsConfig.make_binder(config)
 	binder.strict = true
 	_check(binder.load_layers().ok, "defaults load")
 	_check(binder.diff().is_empty(), "no diff at the code defaults")
 	var keys := PackedStringArray()
 	for e: Dictionary in binder.schema():
 		keys.append(e["key"])
-	for k in ["hide_seconds", "round_seconds", "catch_mode", "tag_range", "beacon_every", "taunt_points", "gravity", "map_rotation_file", "doors_enabled"]:
+	for k in ["round_seconds", "players_per_seeker", "hide_seconds", "tag_range", "sight_range", "beacon_every",
+			"taunt_points", "gravity", "map_rotation_file", "doors_enabled", "run_speed"]:
 		_check(keys.has(k), "%s is exposed" % k)
 
 	var console := DotConsole.new()
 	add_child(console)
 	binder.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
-	console.set_cvar("hs_rounds_per_map", "7")
-	_check(config.rounds_per_map == 7 and binder.source_of("rounds_per_map") == "cvar", "a cvar writes the field")
-	_check(binder.diff_yaml().contains("rounds_per_map: 7"), "the diff names the edit")
+	console.set_cvar("hs_tag_range", "0.6")
+	_check(is_equal_approx(config.tag_range, 0.6) and binder.source_of("tag_range") == "cvar", "a cvar writes the field")
+	_check(binder.diff_yaml().contains("tag_range: 0.6"), "the diff names the edit")
 	var schema_path := "user://hs_config_schema.json"
 	_check(binder.write_schema(schema_path).ok and FileAccess.file_exists(schema_path), "write_schema writes the schema")
 	DirAccess.remove_absolute(schema_path)
@@ -53,38 +61,37 @@ func _run() -> void:
 	var bad := FileAccess.open("user://hs_config_bad.json", FileAccess.WRITE)
 	bad.store_string('{"no_such_field": 1}')
 	bad.close()
-	var strict := DotGameConfigBinder.create(HsConfig.new(), "game-hide-n-seek", "hs", "user://hs_config_bad.json")
+	var strict := HsConfig.make_binder(HsConfig.new(), "user://hs_config_bad.json")
 	strict.strict = true
 	_check(not strict.load_layers().ok, "strict: an unknown key is refused")
 	DirAccess.remove_absolute("user://hs_config_bad.json")
 
-	var shipped := "res://cfg/game/game-hide-n-seek/config/game.yml"
-	DirAccess.make_dir_recursive_absolute("res://cfg/game/game-hide-n-seek/config")
-	var yml := FileAccess.open(shipped, FileAccess.WRITE)
-	yml.store_string("hide_seconds: 25.0\ndoors_enabled: false\n")
-	yml.close()
-	var loaded := HsConfig.new()
-	var from_yml := DotGameConfigBinder.create(loaded, "game-hide-n-seek", "hs")
-	from_yml.strict = true
-	var got := from_yml.load_layers()
-	_check(got.ok and loaded.hide_seconds == 25.0 and not loaded.doors_enabled and from_yml.source_of("hide_seconds") != "default",
-		"an exported cfg/game/<game>/config/game.yml loads back as defaults", "" if got.ok else got.error.message)
-	DirAccess.remove_absolute(shipped)
-	DirAccess.remove_absolute("res://cfg/game/game-hide-n-seek/config")
+	_layers()
+	_templates(binder)
 
 	var wb := DotGameWorkbench.new()
 	wb.panel_mode = 1
 	wb.config = {"enabled": false}
-	wb.add_set(binder.profile_set(), "Game settings")
+	for set: DotProfileSet in binder.profile_sets():
+		wb.add_set(set, set.rel_path)
 	add_child(wb)
 	_check(wb.start().ok, "the workbench starts")
 	binder.attach(wb.api.runtime)
-	var set: DotProfileSet = binder.profile_set()
-	var res: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": set.rel_path, "id": binder.profile_id, "key": "hide_seconds", "value": 90.0})
-	_check(res.ok and config.hide_seconds == 90.0, "a workbench edit reaches the live config")
+	var listed := PackedStringArray()
+	for kind: String in wb.api.kinds():
+		var got: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "get", "kind": kind, "id": binder.profile_id})
+		if got.ok:
+			listed.append_array(PackedStringArray((got.value as Dictionary).get("values", {}).keys()))
+	var missing := PackedStringArray()
+	for k in keys:
+		if not listed.has(k):
+			missing.append(k)
+	_check(missing.is_empty() and binder.profile_sets().size() == 5, "the workbench lists all %d keys over %d files" % [keys.size(), binder.profile_sets().size()], ",".join(missing))
+	var res: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "config_players", "id": binder.profile_id, "key": "player_health", "value": 150.0})
+	_check(res.ok and is_equal_approx(config.player_health, 150.0), "a workbench edit reaches the live config")
 	var files: Dictionary = wb.exporter.call("collect")
-	var text: String = files.get("cfg/game/game-hide-n-seek/config/game.yml", "")
-	_check(text.contains("hide_seconds: 90"), "the export holds the edit in the cfg layout")
+	var text: String = files.get("cfg/game/game-hide-n-seek/config_players/game.yml", "")
+	_check(text.contains("player_health: 150.0"), "the export holds the edit in the cfg layout")
 
 	wb.free()
 	console.free()
@@ -97,3 +104,66 @@ func _run() -> void:
 		get_tree().quit(1)
 		return
 	get_tree().quit(1 if _failed > 0 else 0)
+
+
+## Child process: loads the layers strictly over the test root and prints what the live config holds.
+func _probe() -> void:
+	var config := HsConfig.new()
+	var binder := HsConfig.make_binder(config)
+	binder.strict = true
+	binder.roots = PackedStringArray([ProjectSettings.globalize_path(ROOT)])
+	var loaded := binder.load_layers()
+	var game := preload("../game/hs_game.gd").new()
+	game.config = config
+	var console := DotConsole.new()
+	add_child(console)
+	binder.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
+	print("PROBE ok=%s round=%s seekers=%s sight=%s sight_src=%s cvar=%s speed=%s speed_src=%s range=%s tag=%s tag_src=%s round_src=%s" % [
+		loaded.ok, game.config.round_seconds, game.config.seekers_for(12), game.config.sight_seconds, binder.source_of("sight_seconds"),
+		console.find_cvar("hs_sight_seconds").get_string(), game.config.run_speed, binder.source_of("run_speed"),
+		game.config.sight_range, game.config.tag_range, binder.source_of("tag_range"), binder.source_of("round_seconds")])
+	get_tree().quit(0)
+
+
+func _write(rel: String, text: String) -> void:
+	DirAccess.make_dir_recursive_absolute(ROOT.path_join(rel).get_base_dir())
+	var f := FileAccess.open(ROOT.path_join(rel), FileAccess.WRITE)
+	f.store_string(text)
+	f.close()
+
+
+func _child() -> String:
+	var out: Array = []
+	OS.execute(OS.get_executable_path(), ["--headless", "--path", ProjectSettings.globalize_path("res://"),
+		"res://examples/headless_config.tscn", "--", "--probe", "--hs-run-speed=7.5", "--hs-tag-range=3.3"], out, true)
+	return "".join(PackedStringArray(out))
+
+
+## A value set in a cfg file, the environment and argv each reaches the live config, and later layers win.
+func _layers() -> void:
+	_write("game/%s/config_round/game.yml" % GAME, "round_seconds: 222.0\nplayers_per_seeker: 3.0\nmax_seekers: 4\n")
+	_write("game/%s/config_catching/game.yml" % GAME, "sight_seconds: 2.5\ntag_range: 2.2\nsight_range: 77.0\n")
+	OS.set_environment("HS_SIGHT_SECONDS", "1.75")
+	var text := _child()
+	_check(text.contains("PROBE ok=true"), "the layers load strictly in a fresh process", text.right(300))
+	_check(text.contains("round=222") and text.contains("round_src=yml") and text.contains("seekers=4"), "a cfg file reaches the live config (round_seconds, the seeker count it drives)")
+	_check(text.contains("range=77"), "a second file (config_catching) reaches it too")
+	_check(text.contains(" sight=1.75") and text.contains("sight_src=env") and text.contains("cvar=1.75"), "the environment beats the file and reaches the cvar")
+	_check(text.contains("speed=7.5") and text.contains("speed_src=argv"), "argv beats the file")
+	_check(text.contains("tag=3.3") and text.contains("tag_src=argv"), "argv alone reaches the config")
+	OS.unset_environment("HS_SIGHT_SECONDS")
+	_write("game/%s/config_round/game.yml" % GAME, "sight_seconds: 2.5\n")
+	_check(_child().contains("PROBE ok=false"), "strict: a key in the wrong file is refused")
+	for f in ["config_round", "config_catching"]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(ROOT.path_join("game/%s/%s/game.yml" % [GAME, f])))
+
+
+## The shipped cfg files hold every key, in step with HsConfig, and change nothing as they are.
+func _templates(binder: DotGameConfigBinder) -> void:
+	var files := binder.template_files()
+	_check(files.size() == 5, "five shipped cfg files", str(files.size()))
+	var stale := PackedStringArray()
+	for path: String in files:
+		if not FileAccess.file_exists("res://" + path) or FileAccess.get_file_as_string("res://" + path) != files[path]:
+			stale.append(path)
+	_check(stale.is_empty(), "the shipped files match the config (run tools/cfg_templates.gd)", ",".join(stale))

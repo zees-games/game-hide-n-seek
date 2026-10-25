@@ -16,7 +16,7 @@ const HsNetLink := preload("../game/net/hs_net_link.gd")
 ## nothing but the stand-ins the module seats itself.
 
 const SECTIONS := 15
-const CHECKS := 112
+const CHECKS := 113
 
 const SERVER_DIR := "user://hs_dedicated"
 const PORT := 28931
@@ -173,7 +173,7 @@ func _test_the_module_loads() -> void:
 	# The world is built after the server (whose tick rate it reads) and before the module
 	# (which refuses to load without a world to run; it cannot build one).
 	var config := HsConfig.new()
-	var binder := DotGameConfigBinder.create(config, "game-hide-n-seek", "hs")
+	var binder := HsConfig.make_binder(config)
 	_check(binder.load_layers().ok, "the config layers load")
 	config.warmup_seconds = 0.0
 	config.intermission_seconds = 0.0
@@ -439,11 +439,13 @@ func _test_config_and_noblock() -> void:
 	_check(wb != null and wb.api != null, "the module hosts a workbench")
 	if wb == null or wb.api == null:
 		return
-	var rel: String = binder.profile_set().rel_path
+	var rel := "config_catching"
 	var res: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": rel, "id": binder.profile_id, "key": "auto_taunt_seconds", "value": 33.0})
 	_check(res.ok and is_equal_approx(game.config.auto_taunt_seconds, 33.0) and console.get_float("hs_auto_taunt_seconds") == 33.0,
 		"a workbench edit changes the field and the live cvar", "" if res.ok else res.error.message)
 	_check(game.taunts != null and is_equal_approx(game.taunts.auto_after, 33.0), "and the taunt timer the world cached")
+	var amb: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "ambience", "id": DotGameWorkbench.CVAR_SET_ID, "key": "hs_ambient_volume", "value": 0.2})
+	_check(amb.ok and is_equal_approx(console.get_float("hs_ambient_volume"), 0.2), "the hs_ambient* cvars are a workbench set and an edit moves the cvar", "" if amb.ok else amb.error.message)
 	var teamblock := console.find_cvar("mp_teamblock")
 	var enemyblock := console.find_cvar("mp_enemyblock")
 	_check(teamblock != null and teamblock.get_string() == "0" and enemyblock != null and enemyblock.get_string() == "1", "mp_teamblock is 0 and mp_enemyblock is 1 by default")

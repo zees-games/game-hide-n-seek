@@ -1,0 +1,19 @@
+# game-hide-n-seek: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/game-hide-n-seek/config_players/game.yml. Layers: defaults < this < env < argv.
+
+# --- The players
+#  [1.0..400.0]
+# player_health: 100.0
+#  [1.0..20.0]
+# run_speed: 6.0
+# How much faster sprinting is than running (Shift). 1 turns sprinting off. [1.0..3.0]
+# sprint_scale: 1.35
+# How fast a seeker runs against a hider: 1 the same. A server that finds its seekers never catch anybody rai... [0.5..2.0]
+# seeker_speed_scale: 1.0
+#  [0.1..5.0]
+# jump_height: 1.15
+#  [1.0..60.0]
+# gravity: 20.0
+# auto_bunny_hop: false
+#  [0.0..200.0]
+# air_accelerate: 20.0
