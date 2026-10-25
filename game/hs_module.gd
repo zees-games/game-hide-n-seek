@@ -240,6 +240,13 @@ func _game_load() -> DotResult:
 
 	_bind_config(world)
 
+	# REPLICATED: each client draws (or not) the map's world pack under the server's choice.
+	var _worlds := add_cvar(
+		"hs_use_worlds", "1",
+		"Drawn worlds: 1 lets a client draw a map's converted world pack where it has one, 0 keeps the plain box look everywhere.",
+		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	)
+
 	_bots = add_cvar(
 		"hs_bots", "1",
 		"Automatic stand-ins: 1 keeps as many as bot_quota and bot_quota_mode say, 0 none at all."

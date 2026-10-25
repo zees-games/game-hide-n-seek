@@ -154,6 +154,8 @@ func _hold_for_maps() -> void:
 ## The map's converted world pack is drawn under the cover when it has one ([method HsMap.load_world]); the boxes otherwise.
 func _draw_world_then_release() -> void:
 	var wanted := game.map.id()
+	if link != null and link.has_method(&"replicated_cvar"):
+		game.map.use_worlds = str(link.call(&"replicated_cvar", "hs_use_worlds", "1")).strip_edges() != "0"
 	await game.map.load_world()
 	if game.map.id() == wanted:
 		gate.release(&"map")

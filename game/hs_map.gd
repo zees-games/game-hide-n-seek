@@ -43,6 +43,10 @@ const SURFACES_ROOT := "res://assets/surfaces"
 ## Meta on every drawn box batch; by name they were "@Boxes@N" after the first, which a prefix test missed.
 const BOX_BATCH := &"hs_box_batch"
 
+## Where a map's baked light is shipped (made by `tools/bake_lightmaps.sh`; dot-map's DotMapBoxBake), and the version of what this game bakes.
+const BAKE_PATH := "res://lightmaps/%s.res"
+const BAKE_VERSION := 1
+
 ## Metres of world one batched mesh covers. See the class notes.
 const CHUNK := 12.0
 
@@ -102,6 +106,12 @@ var _sun: DirectionalLight3D = null
 var _bounds: AABB = AABB()
 var _missing: PackedStringArray = PackedStringArray()
 
+## Whether a map's baked light is laid over it when the game ships one (the bake tool turns it off to build what it bakes).
+static var use_bakes: bool = true
+
+## The LightmapGI laid over this map, or null: its lamps then light it live.
+var baked: LightmapGI = null
+
 
 func id() -> StringName:
 	return StringName(str(doc.get("id", "")))
@@ -146,6 +156,7 @@ func build(p_doc: Dictionary) -> DotResult:
 	if draw_world:
 		_build_lights()
 		_build_environment()
+		_attach_bake()
 
 	if not _missing.is_empty():
 		DotLog.warn(CHANNEL, "a map names props this server's catalogue does not have; they are left out", {
@@ -175,6 +186,7 @@ func clear() -> void:
 	_drawn = null
 	_environment = null
 	_sun = null
+	baked = null
 	drawn_world = null
 	world_credits = ""
 
@@ -294,6 +306,7 @@ func _build_boxes() -> void:
 	var look := str(doc.get("look", "pastel"))
 	var batches := {}
 	var any := false
+	var bakeable := draw_world and DotMapBoxBake.can_bake()
 
 	for box: Dictionary in doc["boxes"]:
 		var size := HsMapDoc.v3(box["size"])
@@ -328,23 +341,35 @@ func _build_boxes() -> void:
 		if not batches.has(key):
 			var tool := SurfaceTool.new()
 			tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-			batches[key] = {"tool": tool, "mat": str(box["mat"]), "tint": tint, "solid": solid}
+			var lit := bakeable and solid and not HsMaterials.is_transparent(str(box["mat"]))
+			batches[key] = {"tool": tool, "mat": str(box["mat"]), "tint": tint, "solid": solid, "sheet": DotMapBoxBake.new_sheet() if lit else null}
 
-		_add_box((batches[key] as Dictionary)["tool"], frame, size)
+		var sheet: RefCounted = (batches[key] as Dictionary)["sheet"]
+		if sheet != null:
+			DotMapBoxBake.add_faces(sheet, frame, size)
+		else:
+			_add_box((batches[key] as Dictionary)["tool"], frame, size)
 		if not HsMaterials.is_transparent(str(box["mat"])):
 			_shade_boxes.append({"transform": frame, "size": size})
 
+	var index := 0
 	for key: String in batches:
 		var batch: Dictionary = batches[key]
 		var tool: SurfaceTool = batch["tool"]
 		var mesh := MeshInstance3D.new()
-		mesh.name = "Boxes"
+		# The same name on every build of a document: a bake finds its meshes by path.
+		mesh.name = "Boxes_%d" % index
+		index += 1
 		mesh.set_meta(BOX_BATCH, true)
 		if not bool(batch["solid"]):
 			# Floor paint, water, a light fitting, embers in a hearth: drawn on purpose and
 			# walked over or through (dot-core DotCollisionAudit).
 			mesh.set_meta(&"dot_no_collision", true)
-		mesh.mesh = tool.commit()
+		if batch["sheet"] != null:
+			mesh.mesh = DotMapBoxBake.commit(tool, batch["sheet"])
+			mesh.set_meta(DotMapBoxBake.META_BAKEABLE, true)
+		else:
+			mesh.mesh = tool.commit()
 		mesh.material_override = HsMaterials.material_in(batch["mat"], batch["tint"], look)
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
 			if HsMaterials.is_transparent(batch["mat"]) else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
@@ -480,6 +505,24 @@ func _build_props() -> void:
 			drawn.name = "Props_%s" % String(prop_id)
 			drawn.multimesh = multi
 			_drawn.add_child(drawn)
+
+
+## What this map's bake must have been made from: the boxes, lamps and environment, and the versions of everything that lays them out.
+func light_fingerprint() -> String:
+	return DotMapBoxBake.fingerprint({
+		"hs": BAKE_VERSION, "boxes": doc.get("boxes", []), "lights": doc.get("lights", []), "environment": doc.get("environment", {}),
+		"look": doc.get("look", ""),
+	})
+
+
+## The map's baked light laid over it, if the game ships one made from this document. A map drawn from a world pack has none.
+func _attach_bake() -> void:
+	if not use_bakes or not doc.get("world", {}).is_empty():
+		return
+	var lamps := _drawn.get_children().filter(func(n: Node) -> bool: return n is OmniLight3D)
+	var res := DotMapBoxBake.attach(self, HsPaths.rebase(BAKE_PATH % String(id())), light_fingerprint(), lamps)
+	if res.ok:
+		baked = res.value
 
 
 func _build_lights() -> void:
