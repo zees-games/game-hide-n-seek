@@ -123,6 +123,9 @@ const PBR_KINDS := {
 	"brick": &"brick", "stone": &"stone_block", "roof": &"roof_clay", "wood": &"wood_planks", "metal": &"metal",
 }
 
+## The brightest a photographic surface may average once lit, so interiors do not burn out.
+const PBR_TARGET := 0.66
+
 ## The game's vendored kinds when it carries them (a delivered pack), else dot-map's own.
 const SURFACES_ROOT := "res://assets/surfaces"
 
@@ -139,7 +142,11 @@ static func material_in(id: String, tint: Color, look: String) -> StandardMateri
 		var root := HsPaths.rebase(SURFACES_ROOT)
 		_surfaces = DotMapSurfaces.new(root if DirAccess.dir_exists_absolute(root) else DotMapSurfaces.DEFAULT_ROOT)
 	var pale := Color(minf(tint.r, 1.1), minf(tint.g, 1.1), minf(tint.b, 1.1)).lerp(Color.WHITE, 0.5)
-	var got := _surfaces.try_material(PBR_KINDS[id], pale)
+	# A photograph already holds its light: white tile under the sun and ambient burns out, so a kind brighter than PBR_TARGET is pulled down to it.
+	var kind: StringName = PBR_KINDS[id]
+	var mean: Array = (DotMapSurfaces.KINDS.get(kind, {}) as Dictionary).get("mean", [0.5, 0.5, 0.5])
+	var lum := 0.2126 * float(mean[0]) + 0.7152 * float(mean[1]) + 0.0722 * float(mean[2])
+	var got := _surfaces.try_material(kind, Color(pale.r, pale.g, pale.b).darkened(1.0 - minf(1.0, PBR_TARGET / maxf(lum, 0.01))))
 	return got.value if got.ok else material(id, tint)
 
 
