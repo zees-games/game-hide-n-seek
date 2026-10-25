@@ -17,7 +17,7 @@ const HsMap := preload("../game/hs_map.gd")
 const SETTINGS := {
 	"hs_castle": {"texel_scale": 0.4, "ambient_gain": 1.8, "emit": 0.2},
 	"hs_ship": {"texel_scale": 0.5, "ambient_gain": 1.8, "emit": 0.2},
-	"hs_museum": {"texel_scale": 0.5},
+	"hs_museum": {"texel_scale": 0.5, "ambient_gain": 1.8, "emit": 0.2},
 	"hs_mall": {"texel_scale": 0.5},
 	"hs_school": {"texel_scale": 0.5, "ambient_gain": 1.8, "emit": 0.2},
 	"hs_camp": {"texel_scale": 0.4, "ambient_gain": 1.8, "emit": 0.2},

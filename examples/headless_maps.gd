@@ -23,6 +23,8 @@ const MAPS := ["hs_practice", "hs_apartments", "hs_warehouse", "hs_manor", "hs_v
 const CHECKS_PER_MAP := 14
 ## Per map whose document names a world pack that is here (hide-n-seek-maps/world, linked; local only).
 const CHECKS_PER_WORLD := 3
+## How far a drawn roof may stand above or below the boxes' top: boxes flatten a pitch, and a wall brush runs on into the sky.
+const ROOF_SLACK := 1.5
 
 ## A drawn, non-solid box thicker than this is not floor paint, water or a decal.
 const PAINT_THICKNESS := 0.3
@@ -510,9 +512,12 @@ func _test_drawn_worlds(ids: Array) -> void:
 				var b := AABB(HsMapDoc.v3(box["at"]) - HsMapDoc.v3(box["size"]) * 0.5, HsMapDoc.v3(box["size"]))
 				solid = b if first else solid.merge(b)
 				first = false
-		var off := world_box.get_center() - solid.get_center()
-		_check(drawn != null and off.length() < 0.5 and (world_box.size - solid.size).length() < 1.0,
-			"%s: the pack lines up with the boxes" % id, "centres %.3f m apart, sizes %s and %s" % [off.length(), world_box.size, solid.size])
+		# Corner by corner, not centre to centre: a pitched roof or a wall brush that runs on into the sky is taller as boxes
+		# than as drawn faces (up to ROOF_SLACK), and that must not read as the pack sitting off its boxes.
+		var low := world_box.position - solid.position
+		var high := world_box.end - solid.end
+		_check(drawn != null and absf(low.x) < 0.5 and absf(low.z) < 0.5 and absf(low.y) < 0.5 and absf(high.x) < 1.0 and absf(high.z) < 1.0 and absf(high.y) < ROOF_SLACK,
+			"%s: the pack lines up with the boxes" % id, "low corner %s apart, high corner %s apart" % [low, high])
 		await get_tree().process_frame
 		var res := DotCollisionAudit.audit(game.map, true)
 		var found := (res.value as DotCollisionAudit).count() if res.ok else -1
