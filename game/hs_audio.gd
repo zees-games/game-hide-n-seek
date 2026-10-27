@@ -198,7 +198,7 @@ func setup() -> DotResult:
 	ambience.name = "Ambience"
 	ambience.manager = manager
 	ambience.fallback_bed = &"amb_outdoor"
-	ambience.level = 0.6
+	ambience.level = 0.3
 	add_child(ambience)
 	ambient = DotAmbienceDirector.new()
 	ambient.name = "Ambient"
