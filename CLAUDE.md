@@ -83,3 +83,5 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 2. **Play it in a browser with people**: the hide's length, the touch's reach and the sight meter's speed are numbers only play settles.
 3. **Seeker items** found on a map, as the brief anticipates; copy the weapon plumbing back from mg-prop-hunt.
 4. **Stamina**: dot-player-controller has none (sprint is a flat `sprint_scale`); a modifier there would serve every game that sprints.
+
+**Combat feel (dot-game `DotGameCombatFeel`) is deliberately not adopted**: this game has no weapon arsenal (seekers touch, no gun) and the only crosshair is a static dot. Adopt it when seeker items add a gun, with an arsenal, `feel.attach`, `bind_cvars` and `add_combat_feel`.
