@@ -1,4 +1,4 @@
-extends Node
+extends DotGameCheckSuite
 
 const HsCatalogue := preload("../game/hs_catalogue.gd")
 const HsConfig := preload("../game/hs_config.gd")
@@ -17,11 +17,8 @@ const HsVote := preload("../game/hs_vote.gd")
 const ROOT := "user://hs_ws_fixture/"
 const CHECKS := 18
 
-var _passed := 0
-var _failed := 0
 var _sections_entered := 0
 var _sections_finished := 0
-var _failures: Array[String] = []
 
 
 func _ready() -> void:
@@ -166,15 +163,3 @@ func _ids(list: Array) -> PackedStringArray:
 		out.append(String(id))
 
 	return out
-
-
-func _check(ok: bool, what: String, detail: String = "") -> void:
-	if ok:
-		_passed += 1
-		print("  ok    %s" % what)
-		return
-
-	_failed += 1
-	var line := "%s%s" % [what, "" if detail == "" else "  (%s)" % detail]
-	_failures.append(line)
-	print("  FAIL  %s" % line)

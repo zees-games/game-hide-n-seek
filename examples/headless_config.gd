@@ -1,4 +1,4 @@
-extends Node
+extends DotGameCheckSuite
 
 ## HsConfig through DotGameConfigBinder: fields, cvars, strict refusal, the diff, a shipped yml loading back, and the workbench round trip.
 ##
@@ -10,22 +10,10 @@ const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
 const CHECKS := 34
 
-var _passed := 0
-var _failed := 0
-var _failures := PackedStringArray()
-
 
 func _ready() -> void:
 	DotLog.set_level(DotLog.Level.FATAL)
 	_run.call_deferred()
-
-
-func _check(ok: bool, what: String, _detail := "") -> void:
-	if ok:
-		_passed += 1
-	else:
-		_failed += 1
-		_failures.append(what)
 
 
 const ROOT := "user://hs_cfgtest"
