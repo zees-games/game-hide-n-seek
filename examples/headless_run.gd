@@ -25,9 +25,9 @@ const HsSettings := preload("../game/hs_settings.gd")
 ## ([method HsCatalogue.practice]), whose comment lists where everything is: the wall between
 ## the rooms at x 0 with its door at z -1..0.8, the kitchen east of it, the living room west.
 
-const SECTIONS := 25
+const SECTIONS := 26
 
-const CHECKS := 146
+const CHECKS := 150
 
 const TICK_RATE := 64
 const TICK := 1.0 / float(TICK_RATE)
@@ -72,6 +72,7 @@ func _run() -> void:
 	await _test_taunts()
 	await _test_the_round()
 	await _test_falls()
+	await _test_fall_damage()
 	await _test_the_beacon()
 	await _test_joiners()
 	_test_interest()
@@ -924,6 +925,26 @@ func _test_wheel_jump() -> void:
 	settings.queue_free()
 	await get_tree().process_frame
 	_finished()
+
+
+func _test_fall_damage() -> void:
+	_section("sv_falldamage: a hard landing costs health, a short drop and the cvar off cost none")
+	var game := await _seek_round()
+	var me = game.players_on(HsGame.SEEKERS)[0]
+	_check(game.fall_rules.enabled and me.get_node_or_null("FallDamage") != null, "on in this game, a component per player")
+	var floor_at: Vector3 = me.controller.state.position
+	var hurt := {}
+	for case in [["high", 14.0, true], ["short", 0.6, true], ["off", 14.0, false]]:
+		game.fall_rules.enabled = case[2]
+		me.health.health = me.health.max_health
+		me.place_at(floor_at + Vector3(0.0, case[1], 0.0), 0.0)
+		await _step(game, TICK_RATE * 2)
+		hurt[case[0]] = me.health.max_health - me.health.health
+	_check(hurt["high"] > 0.0, "a drop from 14 m hurts", "lost %.1f" % hurt["high"])
+	_check(hurt["short"] == 0.0, "a short drop does not", "lost %.1f" % hurt["short"])
+	_check(hurt["off"] == 0.0, "cvar off: a 14 m drop does not hurt", "lost %.1f" % hurt["off"])
+	_finished()
+
 
 
 func _section(name: String) -> void:

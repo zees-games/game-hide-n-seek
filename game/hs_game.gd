@@ -154,6 +154,10 @@ var view_rules: DotPlayerViewRules = DotPlayerViewRules.new()
 ## by the module (REPLICATED) and followed by a client, which is the end that flies the camera.
 var spectate_rules: DotSpectatorRules = DotSpectatorRules.new()
 var body_rules: DotPlayerBodyRules = DotPlayerBodyRules.new()
+
+## `sv_falldamage*`: landing hard hurts. On in this game (dot-combat's default is off); the
+## server applies it through [member combat], a client never does.
+var fall_rules: DotFallDamageRules = _make_fall_rules()
 ## The ambience cvars (`hs_ambient*`): bound by the module (REPLICATED), followed by a client through its link.
 var ambient_rules: DotAmbienceRules = HsAmbience.make_rules()
 
@@ -565,6 +569,12 @@ func taunt_ids() -> Array[StringName]:
 
 # --- Players ----------------------------------------------------------------
 
+static func _make_fall_rules() -> DotFallDamageRules:
+	var rules := DotFallDamageRules.new()
+	rules.enabled = true
+	return rules
+
+
 ## Puts somebody in the world. [param wanted_side] is a side, or 0 to be placed.
 ##
 ## [b]Somebody who joins while the seekers are out seeks.[/b] A hider dropped into a round that
@@ -617,6 +627,17 @@ func add_player(
 
 	if combat != null:
 		combat.register_health(player.entity_id, health)
+
+	if combat != null and player.controller != null:
+		var fall := DotFallDamage.new()
+		fall.name = "FallDamage"
+		fall.rules = fall_rules
+		fall.victim = player.entity_id
+		fall.controller = DotNodeRef.of_path(player.controller.get_path())
+		fall.controller.mode = DotNodeRef.Mode.ABSOLUTE
+		fall.combat = DotNodeRef.of_path(combat.get_path())
+		fall.combat.mode = DotNodeRef.Mode.ABSOLUTE
+		player.add_child(fall)
 
 	health.died.connect(func(damage: DotDamage) -> void: _on_player_died(player, damage))
 

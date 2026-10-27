@@ -203,6 +203,10 @@ func _game_load() -> DotResult:
 	_add_tunables(world)
 	_build_vote(world)
 
+	# sv_falldamage and its tunables: dot-combat's, on by default in this game. Server-side
+	# only, so no REPLICATED: the damage is the server's and arrives as health.
+	var _fall := world.fall_rules.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY)
+
 	# dot-player-controller's mp_forceview (first or third person: the player's choice, or one
 	# held) and mp_solidplayers (players and stand-ins block each other, 1 by default).
 	# REPLICATED: the client places its own camera under the first and predicts its own
