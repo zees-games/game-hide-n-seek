@@ -157,7 +157,7 @@ var body_rules: DotPlayerBodyRules = DotPlayerBodyRules.new()
 
 ## `sv_falldamage*`: landing hard hurts. On in this game (dot-combat's default is off); the
 ## server applies it through [member combat], a client never does.
-var fall_rules: DotFallDamageRules = _make_fall_rules()
+var fall_rules: DotFallDamageRules = make_fall_rules()
 ## The ambience cvars (`hs_ambient*`): bound by the module (REPLICATED), followed by a client through its link.
 var ambient_rules: DotAmbienceRules = HsAmbience.make_rules()
 
@@ -569,9 +569,11 @@ func taunt_ids() -> Array[StringName]:
 
 # --- Players ----------------------------------------------------------------
 
-static func _make_fall_rules() -> DotFallDamageRules:
+static func make_fall_rules() -> DotFallDamageRules:
 	var rules := DotFallDamageRules.new()
 	rules.enabled = true
+	# Mild: hiding high on props is core play, so only a very long drop (about 40 m/s) kills.
+	rules.lethal_speed = 40.0
 	return rules
 
 
@@ -637,6 +639,8 @@ func add_player(
 		fall.controller.mode = DotNodeRef.Mode.ABSOLUTE
 		fall.combat = DotNodeRef.of_path(combat.get_path())
 		fall.combat.mode = DotNodeRef.Mode.ABSOLUTE
+		# No ladders or noclip here; nobody is hurt between rounds (the intermission).
+		fall.context_checks = {&"protected": func() -> bool: return phase == Phase.IDLE}
 		player.add_child(fall)
 
 	health.died.connect(func(damage: DotDamage) -> void: _on_player_died(player, damage))

@@ -7,7 +7,8 @@ extends Node
 ## [/codeblock]
 
 const HsConfig := preload("../game/hs_config.gd")
-const CHECKS := 30
+const HsGame := preload("../game/hs_game.gd")
+const CHECKS := 34
 
 var _passed := 0
 var _failed := 0
@@ -65,6 +66,14 @@ func _run() -> void:
 	strict.strict = true
 	_check(not strict.load_layers().ok, "strict: an unknown key is refused")
 	DirAccess.remove_absolute("user://hs_config_bad.json")
+
+	var fall := HsGame.make_fall_rules()
+	var _made := fall.bind_cvars(console.cvar, DotConVar.FLAG_NOTIFY)
+	_check(console.get_int("sv_falldamage") == 1 and fall.enabled, "fall damage is on in this game")
+	_check(fall.damage_for(20.0) > 0.0 and fall.damage_for(5.0) == 0.0, "a hard landing hurts, a small one does not")
+	_check(console.get_int("sv_falldamage_lethal") == 40 and fall.damage_for(45.0) > 1000.0, "only a very high speed kills outright")
+	console.set_cvar("sv_falldamage", "0")
+	_check(not fall.enabled and fall.damage_for(60.0) == 0.0, "the cvar turns it off")
 
 	_layers()
 	_templates(binder)
