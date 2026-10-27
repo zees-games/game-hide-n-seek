@@ -152,6 +152,8 @@ var _next_bot_session: int = FIRST_BOT_SESSION
 var _player_of_peer: Dictionary = {}
 var _peer_of_player: Dictionary = {}
 var _ready_peers: Dictionary = {}
+## Carries the game's profile runtime over this manager; null when the types would not register.
+var profile_link: DotNetProfileLink = null
 ## Server: peers whose READY came before their seat ([method add_player]). A client sends READY
 ## when its link says PLAYING, which the link decides itself after sending `loaded` on another
 ## channel; over ENet with loss the READY can overtake `loaded`, and a READY dropped here left
@@ -194,6 +196,13 @@ var _toy_holder: Node3D = null
 
 # --- Wiring ----------------------------------------------------------------
 
+func _exit_tree() -> void:
+	# The link and the runtime hold each other through broadcast; left, both outlive the process's exit.
+	if profile_link != null:
+		profile_link.release()
+		profile_link = null
+
+
 ## [param p_game] and [param p_net], in the shape [DotGameNetcode] calls it.
 func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
 	var world := p_game as HsGame
@@ -235,6 +244,9 @@ func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
 
 	net.messages.on(HsEvent.NAME, _on_event)
 	net.messages.on(HsRequest.NAME, _on_request)
+
+	# Edited profiles reach every client, so a remote admin's panel shows what the server holds; edits themselves go through the remote workbench.
+	profile_link = DotNetProfileLink.attach(net, world.ensure_runtime())
 
 	# Both ends. The server's tick is `server_tick` and the client's is `client_tick`, which
 	# simulates what it predicts and leaves the rest to interpolation. A world still running
@@ -1060,6 +1072,9 @@ func _admit(peer_id: int) -> void:
 		game.config.beacon_period,
 		game.config.taunt_range
 	))
+
+	if profile_link != null:
+		profile_link.peer_joined(peer_id)
 
 	# The map, before anything that stands on it.
 	if not _map_body.is_empty():

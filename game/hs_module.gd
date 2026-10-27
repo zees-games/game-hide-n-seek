@@ -474,10 +474,13 @@ func _start_workbench(world: HsGame) -> void:
 	if ambient_set != null:
 		workbench.add_set(ambient_set, "Ambience (hs_ambient*)")
 	add_child(workbench)
-	var started := workbench.start()
+	var started := workbench.start(world.ensure_runtime())
 	if not started.ok:
 		DotLog.result(CHANNEL, "the workbench", started)
 		return
+	# Off until the owner sets sv_workbench_remote 1; then flagged admins edit from a client.
+	if net != null:
+		var _served := workbench.serve_remote(net)
 	if workbench.api != null:
 		var rt := workbench.api.runtime as DotProfileRuntime
 		if rt != null:
