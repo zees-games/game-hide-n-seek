@@ -206,6 +206,7 @@ func setup() -> DotResult:
 	ambient.default_mood = HsAmbience.DEFAULT_MOOD
 	ambient.prefix_moods = HsAmbience.PREFIX_MOODS
 	ambient.rules = HsAmbience.make_rules()
+	ambient.beds = ambience
 	add_child(ambient)
 	var _moods := ambient.setup()
 	ambient.follow_settings(null)
