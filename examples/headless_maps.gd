@@ -1,4 +1,4 @@
-extends Node
+extends DotGameCheckSuite
 
 const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
@@ -49,11 +49,8 @@ const MIN_COVER := 12
 const COVER_HEIGHT := 0.8
 const COVER_WIDTH := 0.6
 
-var _passed := 0
-var _failed := 0
 var _sections_entered := 0
 var _sections_finished := 0
-var _failures := PackedStringArray()
 
 
 func _ready() -> void:
@@ -74,27 +71,9 @@ func _run() -> void:
 	if not worlds.is_empty():
 		await _test_drawn_worlds(worlds)
 
-	print("")
-	print("%d sections entered, %d finished" % [_sections_entered, _sections_finished])
-	print("%d passed, %d failed" % [_passed, _failed])
-
-	for line in _failures:
-		print("  FAIL  %s" % line)
-
-	var code := 1 if _failed > 0 else 0
-
-	var sections := 1 + _maps.size() + (0 if worlds.is_empty() else 1)
-	var checks := 1 + CHECKS_PER_MAP * _maps.size() + CHECKS_PER_WORLD * worlds.size()
-
-	if _sections_entered != _sections_finished or _sections_entered != sections:
-		print("ERROR: %d of %d sections finished, %d expected." % [_sections_finished, _sections_entered, sections])
-		code = 1
-
-	if _passed + _failed != checks or _maps.is_empty():
-		print("ERROR: %d checks ran, %d expected. A section aborted part-way." % [_passed + _failed, checks])
-		code = 1
-
-	get_tree().quit(code)
+	_broken = _maps.is_empty()
+	_report_sections(_sections_entered, _sections_finished, 1 + _maps.size() + (0 if worlds.is_empty() else 1),
+			1 + CHECKS_PER_MAP * _maps.size() + CHECKS_PER_WORLD * worlds.size())
 
 
 func _test_the_catalogue() -> void:
@@ -542,15 +521,3 @@ func _section(name: String) -> void:
 
 func _finished() -> void:
 	_sections_finished += 1
-
-
-func _check(ok: bool, what: String, detail: String = "") -> void:
-	if ok:
-		_passed += 1
-		print("  ok    %s%s" % [what, "" if detail == "" else "  (%s)" % detail])
-		return
-
-	_failed += 1
-	var line := "%s%s" % [what, "" if detail == "" else "  (%s)" % detail]
-	_failures.append(line)
-	print("  FAIL  %s" % line)
