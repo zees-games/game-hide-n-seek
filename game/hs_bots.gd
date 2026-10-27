@@ -139,6 +139,12 @@ const LINGER_POCKET := 2.5
 ## How long a door that would not shut is left alone.
 const SHUT_FAILED_FOR := 10.0
 
+## A place a bot lingered at is left out of its flee goals this far around, for this long.
+## How long a seeker that gave up a goal at a door ignores the hider it was chasing.
+const CHASE_OFF_FOR := 4.0
+const AVOID_RADIUS := 4.0
+const AVOID_FOR := 20.0
+
 
 ## How far off, as a share of `bot_sight`, somebody keeping still and crouched is made out, and
 ## then only whole (head and chest): a head over a sofa's back is passed over. 10 m at medium.
@@ -760,6 +766,7 @@ func _pick_spot(player: HsPlayer, state: Dictionary, avoid: PackedVector3Array, 
 	var pool := _hider_pool(threats)
 	if within < INF:
 		pool = spots.filter(func(s: Dictionary) -> bool: return (s["at"] as Vector3).distance_to(at) < within)
+	pool.assign(_without_avoided(state, pool, now()))
 
 	var start := nav.closest(at) if nav.is_ready() else at
 	# A shuffle "within" so many metres is within so many metres of walking: a place 9 m away
@@ -945,6 +952,7 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 		var there: Vector3 = spot["at"]
 		if there.distance_to(at) <= FLEE_WITHIN + 5.0 and (not nav.is_ready() or (nav.joined(start, there) and nav.path_length(start, there) <= (FLEE_WITHIN + 5.0) * 1.5)):
 			runnable.append(spot)
+	runnable.assign(_without_avoided(state, runnable, now()))
 	var away := DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN + 5.0, FLEE_CLEAR + 4.0) if marked_chase \
 		else DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN, FLEE_CLEAR) if running \
 		else DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken)
@@ -1195,6 +1203,12 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 			prey_d = d
 			prey = hider
 
+	# A chase that has lingered at a door's panel (`_give_up_goal`) is dropped for a few seconds:
+	# the prey keeps circling the same doorway and the re-targeted walk went back to it each time.
+	if t < float(state.get("chase_off_until", -INF)):
+		prey = null
+		state["target"] = StringName()
+
 	var aim := _aim_of(player)
 
 	if prey != null:
@@ -1298,7 +1312,10 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 	var pace := _search_pace()
 	if command.is_pressed(DotFpsCommand.BUTTON_CROUCH):
 		pace = minf(1.0, _search_pace() / maxf(player.controller.tunables.crouch_speed_scale, 0.01))
-	command.move = command.move.limit_length(pace)
+	# Not at the search pace while it lingers round one spot (`headless_bots`): a slow walk near a
+	# doorway is ten seconds within 1.5 m of it.
+	if t - float(state.get("linger_since", t)) < LINGER_POCKET:
+		command.move = command.move.limit_length(pace)
 	if not (state.get("opening", {}) as Dictionary).is_empty() or not (state.get("shut", {}) as Dictionary).is_empty():
 		# Facing a door to open or shut it: the search's glances would turn it away, and the
 		# use key goes to the door it faces.
@@ -1905,7 +1922,7 @@ func _linger_by_door(player: HsPlayer, state: Dictionary, at: Vector3, t: float)
 	# again at LINGER_POCKET instead of after the shut attempt (`headless_bots` round 22, hs_park
 	# toilet door: 9.5 s against 9).
 	if t - since >= LINGER_POCKET and t - since < LINGER_SHUT and float(state.get("linger_gave", -INF)) != since \
-			and not (state.get("spot", {}) as Dictionary).is_empty() and _open_door_near(state.get("goal", Vector3.INF), HsPlayer.BODY_RADIUS + 0.3):
+			and (not (state.get("spot", {}) as Dictionary).is_empty() or state.get("target", StringName()) != StringName()) and _open_door_near(state.get("goal", Vector3.INF), HsPlayer.BODY_RADIUS + 0.3):
 		state["linger_gave"] = since
 		_give_up_goal(player, state)
 		state["detour"] = PackedVector3Array()
@@ -2008,6 +2025,8 @@ func _give_up_goal(player: HsPlayer, state: Dictionary) -> void:
 	if place.has("seen_at"):
 		place["seen_at"] = now()
 	state["goal_place"] = {}
+	if game.call("team_of", player.player_id) != 1:
+		state["chase_off_until"] = now() + CHASE_OFF_FOR
 	# The tour's remaining stops are as far across the map as the one given up, and the way to
 	# them is the same doorway: the nearest-first sweep takes over (`headless_bots`, a camp
 	# corridor, eleven seconds beside a panel that a stop at a time kept being sent through).
@@ -2023,6 +2042,38 @@ func _give_up_goal(player: HsPlayer, state: Dictionary) -> void:
 		# at a time (`headless_bots`, a camp corridor for eleven seconds).
 		var near := 14.0 if state["mode"] == &"fleeing" else INF
 		_pick_spot(player, state, PackedVector3Array([(state["spot"] as Dictionary).get("at", at)]), near)
+
+
+## Flee goals within [constant AVOID_RADIUS] of a place the bot lingered at (past
+## [constant LINGER_POCKET]) are left out for [constant AVOID_FOR] seconds, so a chased hider that
+## keeps picking the same doorway's far side picks somewhere else (`headless_bots`, hs_manor).
+func _without_avoided(state: Dictionary, spots: Array, t: float) -> Array:
+	var avoid: Array = state.get("avoid", [])
+	var anchor: Vector3 = state.get("linger_at", Vector3.INF)
+	if anchor != Vector3.INF and t - float(state.get("linger_since", t)) >= LINGER_POCKET:
+		avoid.append([anchor, t])
+	var kept: Array = []
+	for entry in avoid:
+		if t - float(entry[1]) < AVOID_FOR:
+			kept.append(entry)
+	if kept.size() > 8:
+		kept = kept.slice(kept.size() - 8)
+	state["avoid"] = kept
+	if kept.is_empty():
+		return spots
+	var out: Array = []
+	for spot in spots:
+		var there: Vector3 = spot["at"]
+		var bad := false
+		for entry in kept:
+			var v: Vector3 = entry[0]
+			if Vector2(there.x - v.x, there.z - v.z).length() < AVOID_RADIUS:
+				bad = true
+				break
+		if not bad:
+			out.append(spot)
+	# Everything avoided: better the old choice than none.
+	return out if not out.is_empty() else spots
 
 
 func _note_lingering(state: Dictionary, at: Vector3, t: float) -> void:
