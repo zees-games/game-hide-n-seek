@@ -35,9 +35,14 @@ var profile_runtime: DotProfileRuntime = null
 func ensure_runtime() -> DotProfileRuntime:
 	if profile_runtime == null:
 		profile_runtime = DotProfileRuntime.new()
-		profile_runtime.permit = func(actor: Variant, _flag: String) -> bool:
-			return typeof(actor) == TYPE_STRING_NAME and actor == &"local"
+		# A method, not a lambda: a static may keep the runtime past the tree, and a lambda
+		# there retains this path-based base script until exit frees it mid-walk (exit 134).
+		profile_runtime.permit = _local_permit
 	return profile_runtime
+
+
+func _local_permit(actor: Variant, _flag: String) -> bool:
+	return typeof(actor) == TYPE_STRING_NAME and actor == &"local"
 
 ## dot-team's block rules (`!block`, `!noblock`, `mp_teamblock`), set by the server module or `DotGameClient.add_noblock`. They feed [member body_rules]'s `pair_fn`.
 var block_rules: Object = null:
