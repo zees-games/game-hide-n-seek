@@ -27,7 +27,7 @@ const HsSettings := preload("../game/hs_settings.gd")
 
 const SECTIONS := 26
 
-const CHECKS := 150
+const CHECKS := 151
 
 const TICK_RATE := 64
 const TICK := 1.0 / float(TICK_RATE)
@@ -683,6 +683,9 @@ func _test_the_client() -> void:
 	_check(world.team_of(&"local") == HsGame.SEEKERS and bool(hud.call("is_blindfolded")),
 		"a seeker counting is blindfolded on their own screen")
 
+	hud.call("_process", 0.0)
+	var xh: DotCrosshair = hud.get("_crosshair")
+	_check(xh != null and xh.suppressed and not xh.is_shown(), "the blindfolded seeker's crosshair is suppressed")
 	# The clock is dot-ui's DotScoreStrip, the two sides still in it as its plates.
 	hud.call("_process", 0.0)
 	var strip: DotScoreStrip = hud.get("strip")

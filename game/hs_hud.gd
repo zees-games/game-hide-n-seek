@@ -103,7 +103,7 @@ var _meter_back: ColorRect = null
 var _meter_fill: ColorRect = null
 var _meter_label: Label = null
 var _blindfold_label: Label = null
-var _crosshair: ColorRect = null
+var _crosshair: DotCrosshair = null
 var _shout_for: float = 0.0
 
 
@@ -251,15 +251,20 @@ func _build() -> void:
 	prompt.visible = false
 	_root.add_child(prompt)
 
-	_crosshair = ColorRect.new()
+	# A dot, as before: no arms, no outline, no spread.
+	_crosshair = DotCrosshair.new()
 	_crosshair.name = "Crosshair"
-	_crosshair.color = Color(1.0, 1.0, 1.0, 0.75)
-	_crosshair.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	_crosshair.offset_left = -3.0
-	_crosshair.offset_top = -3.0
-	_crosshair.offset_right = 3.0
-	_crosshair.offset_bottom = 3.0
+	_crosshair.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_crosshair.length = 0.0
+	_crosshair.base_gap = 0.0
+	_crosshair.top_arm = false
+	_crosshair.dynamic = false
+	_crosshair.outline = false
+	_crosshair.dot_radius = 3.0
+	_crosshair.colour = Color(1.0, 1.0, 1.0, 0.75)
 	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if DotAddonApi.build_level("dot_ui") >= 14:
+		_crosshair.set(&"alive_source", func() -> bool: return player != null and player.is_alive())
 	_root.add_child(_crosshair)
 
 
@@ -365,7 +370,7 @@ func _process(delta: float) -> void:
 	_draw_meter(side)
 	_draw_seen(side)
 	_draw_door_prompt()
-	_crosshair.visible = player != null and player.is_alive() and not is_blindfolded()
+	_crosshair.suppressed = is_blindfolded()
 
 	if _shout_for > 0.0:
 		_shout_for -= delta
