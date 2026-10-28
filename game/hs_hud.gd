@@ -450,7 +450,8 @@ func _door_words() -> String:
 	var toy := game.toy_aimed(player)
 
 	if toy >= 0:
-		return game.map.toys.toy(toy).prompt()
+		var aimed = game.map.toys.toy(toy)
+		return "" if aimed == null else aimed.prompt()
 
 	if game.map.doors == null or not game.config.doors_enabled:
 		return ""
