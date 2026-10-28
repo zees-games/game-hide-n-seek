@@ -64,33 +64,7 @@ func _prepare() -> void:
 		return
 
 	if key != _baked:
-		_baked = key
-		if not _narrowing:
-			_nav_radius = HsPlayer.BODY_RADIUS
-		_narrowing = false
-		spots.clear()
-		sweep.clear()
-		annotations = null
-		_job = null
-		_job_done = false
-		_pool.clear()
-		# The walls, floors and furniture, never the doors: a door baked shut is a doorway the
-		# mesh does not go through.
-		var still: Array = [map.get("_solid"), map.get("_furniture")]
-		# And round every toy that stands in the way (a swing's sweep, a see-saw, a trampoline):
-		# a bot never paths across one. The loose toys are not in it; a bot walks through a
-		# ball and pushes it, as anybody does.
-		var toys: Variant = map.get("toys")
-		if toys is DotPropToyBox:
-			still.append_array((toys as DotPropToyBox).nav_bodies())
-		var baked := nav.bake(map, {"radius": _nav_radius, "height": HsPlayer.BODY_CROUCH, "climb": HsPlayer.BODY_STEP}, 0, still)
-		if not baked.ok:
-			_surveyed = key
-			DotLog.warn(CHANNEL, "no walkable mesh for the bots; they walk straight", {"map": str(doc.get("id", "")), "why": baked.error.message})
-		# The navigation server takes the mesh in on a later frame; survey a quarter of a second
-		# of game time on, always the same tick, so a round plays the same however the frames
-		# fall (and later still only when the server is that slow).
-		_survey_at = int(game.get("_tick")) + maxi(int(game.get("tick_rate")) / 4, 1)
+		_bake_map(map, doc, key)
 		return
 
 	if int(game.get("_tick")) < _survey_at or not nav.is_ready():
@@ -121,6 +95,44 @@ func _prepare() -> void:
 		if _job.state == DotJob.State.RUNNING or _job.state == DotJob.State.PENDING:
 			return
 
+	_finish_survey(key, map, doc)
+
+
+## Bakes the navigation mesh for the map, and sets when to survey it (the server takes the mesh in on a later frame).
+func _bake_map(map: Node3D, doc: Dictionary, key: String) -> void:
+	_baked = key
+	_baked = key
+	if not _narrowing:
+		_nav_radius = HsPlayer.BODY_RADIUS
+	_narrowing = false
+	spots.clear()
+	sweep.clear()
+	annotations = null
+	_job = null
+	_job_done = false
+	_pool.clear()
+	# The walls, floors and furniture, never the doors: a door baked shut is a doorway the
+	# mesh does not go through.
+	var still: Array = [map.get("_solid"), map.get("_furniture")]
+	# And round every toy that stands in the way (a swing's sweep, a see-saw, a trampoline):
+	# a bot never paths across one. The loose toys are not in it; a bot walks through a
+	# ball and pushes it, as anybody does.
+	var toys: Variant = map.get("toys")
+	if toys is DotPropToyBox:
+		still.append_array((toys as DotPropToyBox).nav_bodies())
+	var baked := nav.bake(map, {"radius": _nav_radius, "height": HsPlayer.BODY_CROUCH, "climb": HsPlayer.BODY_STEP}, 0, still)
+	if not baked.ok:
+		_surveyed = key
+		DotLog.warn(CHANNEL, "no walkable mesh for the bots; they walk straight", {"map": str(doc.get("id", "")), "why": baked.error.message})
+	# The navigation server takes the mesh in on a later frame; survey a quarter of a second
+	# of game time on, always the same tick, so a round plays the same however the frames
+	# fall (and later still only when the server is that slow).
+	_survey_at = int(game.get("_tick")) + maxi(int(game.get("tick_rate")) / 4, 1)
+	return
+
+
+## Keeps the annotated spots and the sweep (or the random survey when nothing annotated) and logs what it cost.
+func _finish_survey(key: String, map: Node3D, doc: Dictionary) -> void:
 	_surveyed = key
 	var started := Time.get_ticks_usec()
 	var random: DotRandomManager = game.get("random")
@@ -595,17 +607,8 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 	var t := now()
 	var at := player.controller.state.position
 	var profile := settings().profile
-	var nearest: HsPlayer = null
-	var nearest_d := INF
-
-	for other in (game.call("players_on", 2) as Array):
-		var seeker := other as HsPlayer
-		if not seeker.is_alive() or seeker.watching:
-			continue
-		var d := at.distance_to(seeker.controller.state.position)
-		if d < nearest_d and d < profile.sight and _sees(player, seeker):
-			nearest_d = d
-			nearest = seeker
+	var nearest := _nearest_seen_seeker(player, at, profile.sight)
+	var nearest_d := INF if nearest == null else at.distance_to(nearest.controller.state.position)
 
 	var heard := _heard(player, 2)
 	# Seen by it: it will make the hider out in a moment whatever the hider does, so go now, at a
@@ -632,30 +635,8 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 	# Coming to the hider's own place (a seeker searches the hidden places, and this is one):
 	# keeping still only works for a seeker passing by. Seen walking at it, or heard getting
 	# closer, it is coming here.
-	var coming := false
-	if nearest != null and not seen:
-		var v := nearest.controller.state.velocity
-		var to_me := Vector3(at.x - nearest.controller.state.position.x, 0.0, at.z - nearest.controller.state.position.z)
-		var flat_v := Vector3(v.x, 0.0, v.z)
-		if nearest_d < COMING_FROM and flat_v.length() > 1.0 and to_me.length() > 0.01 \
-				and rad_to_deg(flat_v.angle_to(to_me)) < COMING_CONE:
-			coming = true
-	elif nearest == null and not heard.is_empty():
-		var was: Vector3 = state.get("heard_from", Vector3.INF)
-		var now_at: Vector3 = heard["at"]
-		var d_now := at.distance_to(now_at)
-		if was != Vector3.INF and d_now < COMING_FROM and d_now < at.distance_to(was) - 0.8:
-			coming = true
-		state["heard_from"] = now_at
-
-	# A catch heard close by: two seekers are about to start from there, one held a moment.
-	var catch_near := false
-	for sound: Dictionary in _sounds:
-		if sound.get("caught", false) and at.distance_to(sound["at"]) < minf(profile.hearing, 15.0) \
-				and t - float(sound["t"]) < 0.5 and StringName(sound["by"]) != player.player_id:
-			catch_near = true
-			state["threat"] = sound["at"]
-			state["threat_at"] = t
+	var coming := _seeker_coming(state, at, nearest, nearest_d, seen, heard)
+	var catch_near := _catch_heard_near(player, state, at, t, profile)
 
 	if not (seen or bumping or coming or catch_near or marked_chase):
 		return
@@ -680,26 +661,7 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 		return
 
 	var running := seen or bumping or marked_chase
-	var taken := PackedVector3Array()
-	for id: StringName in _state:
-		if id != player.player_id and not ((_state[id] as Dictionary).get("spot", {}) as Dictionary).is_empty():
-			taken.append((_state[id]["spot"] as Dictionary)["at"])
-	# Running: round a corner and well away. Slipping away: the nearest place out of its sight. Only places a short walk away:
-	# with the annotator's links a place across a drop is near as the crow flies and far by path.
-	var runnable: Array[Dictionary] = []
-	var start := nav.closest(at) if nav.is_ready() else at
-	for spot in spots:
-		var there: Vector3 = spot["at"]
-		if there.distance_to(at) <= FLEE_WITHIN + 5.0 and (not nav.is_ready() or (nav.joined(start, there) and nav.path_length(start, there) <= (FLEE_WITHIN + 5.0) * 1.5)):
-			runnable.append(spot)
-	runnable.assign(_without_avoided(state, runnable, now()))
-	var away := DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN + 5.0, FLEE_CLEAR + 4.0) if marked_chase \
-		else DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN, FLEE_CLEAR) if running \
-		else DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken)
-	if away.is_empty():
-		# Nowhere out of its sight: away from it, whatever the place.
-		var dir := Vector3(at.x - threat.x, 0.0, at.z - threat.z).normalized()
-		away = {"at": nav.closest(at + dir * 10.0), "exposure": 1.0}
+	var away := _flee_spot_for(player, state, at, threat, threat_eye, running, marked_chase)
 	# Running to a place that is still away from the threat: a new choice behind the runner is the
 	# other end of a fenced yard, and taking it each settle paced a hider between the two for 17 s.
 	var held: Dictionary = state.get("spot", {})
@@ -719,6 +681,76 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 	state["crouch"] = not running
 	# What sent it, for `headless_bots`' trace.
 	state["why"] = "%s %.1f" % ["seen" if seen else ("bump" if bumping else ("beacon" if marked_chase else ("coming" if coming else "catch"))), at.distance_to(threat)]
+
+
+## The nearest living seeker within `sight` that the hider can see, or null.
+func _nearest_seen_seeker(player: HsPlayer, at: Vector3, sight: float) -> HsPlayer:
+	var nearest: HsPlayer = null
+	var nearest_d := INF
+	for other in (game.call("players_on", 2) as Array):
+		var seeker := other as HsPlayer
+		if not seeker.is_alive() or seeker.watching:
+			continue
+		var d := at.distance_to(seeker.controller.state.position)
+		if d < nearest_d and d < sight and _sees(player, seeker):
+			nearest_d = d
+			nearest = seeker
+	return nearest
+
+
+## Whether the seeker seen walking at the hider, or heard getting closer, is coming to its place. Keeps the last heard position.
+func _seeker_coming(state: Dictionary, at: Vector3, nearest: HsPlayer, nearest_d: float, seen: bool, heard: Dictionary) -> bool:
+	var coming := false
+	if nearest != null and not seen:
+		var v := nearest.controller.state.velocity
+		var to_me := Vector3(at.x - nearest.controller.state.position.x, 0.0, at.z - nearest.controller.state.position.z)
+		var flat_v := Vector3(v.x, 0.0, v.z)
+		if nearest_d < COMING_FROM and flat_v.length() > 1.0 and to_me.length() > 0.01 \
+				and rad_to_deg(flat_v.angle_to(to_me)) < COMING_CONE:
+			coming = true
+	elif nearest == null and not heard.is_empty():
+		var was: Vector3 = state.get("heard_from", Vector3.INF)
+		var now_at: Vector3 = heard["at"]
+		var d_now := at.distance_to(now_at)
+		if was != Vector3.INF and d_now < COMING_FROM and d_now < at.distance_to(was) - 0.8:
+			coming = true
+		state["heard_from"] = now_at
+	return coming
+
+
+## A catch heard close by: two seekers are about to start from there, one held a moment. Notes it as the threat.
+func _catch_heard_near(player: HsPlayer, state: Dictionary, at: Vector3, t: float, profile: DotBotProfile) -> bool:
+	var catch_near := false
+	for sound: Dictionary in _sounds:
+		if sound.get("caught", false) and at.distance_to(sound["at"]) < minf(profile.hearing, 15.0) \
+				and t - float(sound["t"]) < 0.5 and StringName(sound["by"]) != player.player_id:
+			catch_near = true
+			state["threat"] = sound["at"]
+			state["threat_at"] = t
+	return catch_near
+
+
+## Where a hider flees to: running goes round a corner and well away, slipping away takes the nearest place out of sight.
+func _flee_spot_for(player: HsPlayer, state: Dictionary, at: Vector3, threat: Vector3, threat_eye: Vector3, running: bool, marked_chase: bool) -> Dictionary:
+	var taken := PackedVector3Array()
+	for id: StringName in _state:
+		if id != player.player_id and not ((_state[id] as Dictionary).get("spot", {}) as Dictionary).is_empty():
+			taken.append((_state[id]["spot"] as Dictionary)["at"])
+	# Only places a short walk away: with the annotator's links a place across a drop is near as the crow flies and far by path.
+	var runnable: Array[Dictionary] = []
+	var start := nav.closest(at) if nav.is_ready() else at
+	for spot in spots:
+		var there: Vector3 = spot["at"]
+		if there.distance_to(at) <= FLEE_WITHIN + 5.0 and (not nav.is_ready() or (nav.joined(start, there) and nav.path_length(start, there) <= (FLEE_WITHIN + 5.0) * 1.5)):
+			runnable.append(spot)
+	runnable.assign(_without_avoided(state, runnable, now()))
+	var away := DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN + 5.0, FLEE_CLEAR + 4.0) if marked_chase \
+		else DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN, FLEE_CLEAR) if running \
+		else DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken)
+	if away.is_empty():
+		var dir := Vector3(at.x - threat.x, 0.0, at.z - threat.z).normalized()
+		away = {"at": nav.closest(at + dir * 10.0), "exposure": 1.0}
+	return away
 
 
 ## Remembers the doorway the hider is in and, once through and clear of the panel's sweep, decides whether to shut the door behind it:
@@ -908,33 +940,12 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 	var at := player.controller.state.position
 	var stream: DotRandomStream = state["stream"]
 
-	if state["search"] == null:
-		var search := DotBotSearch.new()
-		var places: Array[Dictionary] = []
-		places.append_array(spots)
-		places.append_array(sweep)
-		# Only the places this seeker can walk to: a basement the stair does not reach was a goal
-		# three seekers pressed against the floor over for a whole round (`headless_bots`,
-		# hs_restaurant).
-		if nav.is_ready():
-			var from := nav.closest(at)
-			places = places.filter(func(place: Dictionary) -> bool: return nav.joined(from, place["at"]))
-		search.setup(places, profile.map_knowledge)
-		state["search"] = search
-		state["tour"] = _tour(at, profile.map_knowledge)
+	_ensure_search(state, at, profile)
 	var search: DotBotSearch = state["search"]
 
 	# Who it can see; a hider marked by the game's beacon is known to every seeker.
-	var prey: HsPlayer = null
-	var prey_d := INF
-	for other in (game.call("players_on", 1) as Array):
-		var hider := other as HsPlayer
-		if not hider.is_alive() or hider.watching or hider.caught:
-			continue
-		var d := at.distance_to(hider.controller.state.position)
-		if d < prey_d and (hider.marked or _sees(player, hider)):
-			prey_d = d
-			prey = hider
+	var prey := _visible_prey(player, at)
+	var prey_d := INF if prey == null else at.distance_to(prey.controller.state.position)
 
 	# A chase that has lingered at a door's panel (`_give_up_goal`) is dropped for a few seconds:
 	# the prey keeps circling the same doorway and the re-targeted walk went back to it each time.
@@ -992,6 +1003,63 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 	if int(game.get("_tick")) % 4 == 0:
 		var _crossed := search.observe(player.eye_position(), player.aim_direction(), profile.fov, profile.sight, _los, t)
 
+	var place := _goal_place_for(player, state, search, at, t, stream)
+
+	state["sprint"] = false
+	var _there := _walk_to(player, command, state, place["at"], false, true, true)
+	# Searching is done at a walk: somebody running through a house looks at nothing. Crouched (a crawl space) at the same pace,
+	# not that pace slowed again by the crouch.
+	var pace := _search_pace()
+	if command.is_pressed(DotFpsCommand.BUTTON_CROUCH):
+		pace = minf(1.0, _search_pace() / maxf(player.controller.tunables.crouch_speed_scale, 0.01))
+	# Not at the search pace while it lingers round one spot (`headless_bots`): a slow walk near a
+	# doorway is ten seconds within 1.5 m of it.
+	if t - float(state.get("linger_since", t)) < LINGER_POCKET:
+		command.move = command.move.limit_length(pace)
+	if not (state.get("opening", {}) as Dictionary).is_empty() or not (state.get("shut", {}) as Dictionary).is_empty():
+		# Facing a door to open or shut it: the search's glances would turn it away, and the
+		# use key goes to the door it faces.
+		return
+
+	_look_while_searching(player, command, state, place, search, at, t)
+
+
+## Gives a seeker its search (the places it can walk to from where it stands) and its tour, once.
+func _ensure_search(state: Dictionary, at: Vector3, profile: DotBotProfile) -> void:
+	if state["search"] != null:
+		return
+	var search := DotBotSearch.new()
+	var places: Array[Dictionary] = []
+	places.append_array(spots)
+	places.append_array(sweep)
+	# Only the places this seeker can walk to: a basement the stair does not reach was a goal
+	# three seekers pressed against the floor over for a whole round (`headless_bots`,
+	# hs_restaurant).
+	if nav.is_ready():
+		var from := nav.closest(at)
+		places = places.filter(func(place: Dictionary) -> bool: return nav.joined(from, place["at"]))
+	search.setup(places, profile.map_knowledge)
+	state["search"] = search
+	state["tour"] = _tour(at, profile.map_knowledge)
+
+
+## The nearest living hider the seeker can see; a hider marked by the game's beacon is known to every seeker.
+func _visible_prey(player: HsPlayer, at: Vector3) -> HsPlayer:
+	var prey: HsPlayer = null
+	var prey_d := INF
+	for other in (game.call("players_on", 1) as Array):
+		var hider := other as HsPlayer
+		if not hider.is_alive() or hider.watching or hider.caught:
+			continue
+		var d := at.distance_to(hider.controller.state.position)
+		if d < prey_d and (hider.marked or _sees(player, hider)):
+			prey_d = d
+			prey = hider
+	return prey
+
+
+## The place a seeker is walking to: kept until reached, stale or looked at, else the next of the tour, the search, or any point.
+func _goal_place_for(player: HsPlayer, state: Dictionary, search: DotBotSearch, at: Vector3, t: float, stream: DotRandomStream) -> Dictionary:
 	var place: Dictionary = state.get("goal_place", {})
 	# Stood on it: looked at, whether or not the eye had it in view. A place inside a bush is never
 	# in view from anywhere (the line to it ends in leaves), and was picked again, nearest, every
@@ -1035,24 +1103,11 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 		place["picked_at"] = t
 		state["goal_place"] = place
 		state["path"] = PackedVector3Array()
+	return place
 
-	state["sprint"] = false
-	var _there := _walk_to(player, command, state, place["at"], false, true, true)
-	# Searching is done at a walk: somebody running through a house looks at nothing. Crouched (a crawl space) at the same pace,
-	# not that pace slowed again by the crouch.
-	var pace := _search_pace()
-	if command.is_pressed(DotFpsCommand.BUTTON_CROUCH):
-		pace = minf(1.0, _search_pace() / maxf(player.controller.tunables.crouch_speed_scale, 0.01))
-	# Not at the search pace while it lingers round one spot (`headless_bots`): a slow walk near a
-	# doorway is ten seconds within 1.5 m of it.
-	if t - float(state.get("linger_since", t)) < LINGER_POCKET:
-		command.move = command.move.limit_length(pace)
-	if not (state.get("opening", {}) as Dictionary).is_empty() or not (state.get("shut", {}) as Dictionary).is_empty():
-		# Facing a door to open or shut it: the search's glances would turn it away, and the
-		# use key goes to the door it faces.
-		return
 
-	# Looking: at the place once near it, else along the way with a glance from side to side.
+## Where a searching seeker looks: at the place once near it, else along the way with a glance from side to side.
+func _look_while_searching(player: HsPlayer, command: DotFpsCommand, state: Dictionary, place: Dictionary, search: DotBotSearch, at: Vector3, t: float) -> void:
 	var target: Vector3 = place["at"]
 	# Only while the walk is heading that way too: staring at a place across a wall while the path leaves by a doorway is walking
 	# sideways at a fifth of the pace, which reads as stuck and gives up the goal.
