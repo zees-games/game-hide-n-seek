@@ -26,3 +26,7 @@
 ## The deployment
 
 dot-server-deploy's `examples/hideseek_client` boots the delivered pack, joins with a real client over a real socket, reads the maps, prop catalogue and taunts from their mounts, and checks the client builds the server's map with every prop.
+
+## pieces.json is stale on purpose (2026-10-28)
+
+`props/pieces.json` has not been re-measured since the rebuilt models of passes 1 to 4 (`art-src/build_props.py`): `tools/measure_props.gd -- --check` reports it stale. A re-measure (committed once, then reverted) adds a convex piece per decoration (books, fruit, moss) and re-cuts the furniture, and `headless_bots` then fails its bands (hiders won 5 of 24, 11% never found, against 30-60% and 15-40%) while `headless_climb`'s low-branch jump is a knife edge on three centimetres of branch. Re-measure together with a bot-balance retune, and keep decoration on trunks off the bark material.

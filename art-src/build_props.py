@@ -1,7 +1,8 @@
-"""Rebuilds thirty-four of the furniture and nature models under assets/props/ for game-hide-n-seek.
+"""Rebuilds forty-eight of the furniture and nature models under assets/props/ for game-hide-n-seek.
 
+Pass 4: seven furniture models and seven nature ones (NATURE4: stones, logs, a pumpkin), sheets in reports/models/2026-10-28/props4.
 Pass 3 (NATURE below): twelve trees, bushes and a melon patch from Kenney's Nature Kit (CC0, bases in art-src/base/nature/), written to
-assets/props/nature/: their own bark and a three-tone foliage by height, root flares, knots, moss, fruit, blossom, cones and berries.
+assets/props/nature/: their own bark and a three-tone foliage by height, knots, moss, fruit, blossom, cones and berries.
 
 Run:  blender -b -P art-src/build_props.py -- [name ...] [--out DIR]
 Bases: art-src/base/<name>.glb, the stock Kenney Furniture Kit (CC0, see assets/props/furniture/LICENSE-kenney-furniture-kit.txt).
@@ -28,6 +29,7 @@ if "--out" in argv:
 names = argv
 NATURE = ["tree_default", "tree_oak", "tree_tall", "tree_cone", "tree_pineTallA", "tree_pineRoundA", "tree_detailed", "tree_fat",
           "tree_small", "plant_bushLarge", "plant_bushDetailed", "crop_melon"]
+NATURE4 = ["rock_largeA", "rock_tallA", "rock_smallA", "log", "log_large", "log_stack", "crop_pumpkin"]
 naturedir = os.path.join(here, "..", "assets", "props", "nature")
 
 PAL = {}
@@ -81,6 +83,16 @@ def palette():
     PAL["berry"] = mat("berry", (0.12, 0.1, 0.4), 0.0, 0.4)
     PAL["pinecone"] = mat("pinecone", (0.3, 0.17, 0.07), 0.0, 0.8)
     PAL["melonRind"] = mat("melonRind", (0.2, 0.42, 0.12), 0.0, 0.6)
+    PAL["stoneDark"] = mat("stoneDark", (0.17, 0.17, 0.18), 0.0, 0.9)
+    PAL["stoneMid"] = mat("stoneMid", (0.3, 0.29, 0.28), 0.0, 0.9)
+    PAL["stoneLight"] = mat("stoneLight", (0.45, 0.43, 0.4), 0.0, 0.9)
+    PAL["lichen"] = mat("lichen", (0.5, 0.52, 0.28), 0.0, 0.95)
+    PAL["ring"] = mat("ring", (0.5, 0.34, 0.17), 0.0, 0.8)
+    PAL["ringDark"] = mat("ringDark", (0.34, 0.2, 0.09), 0.0, 0.8)
+    PAL["pumpkin"] = mat("pumpkin", (0.72, 0.28, 0.03), 0.0, 0.55)
+    PAL["pumpkinDark"] = mat("pumpkinDark", (0.5, 0.17, 0.02), 0.0, 0.6)
+    PAL["stem"] = mat("stem", (0.2, 0.26, 0.07), 0.0, 0.8)
+    PAL["capRed"] = mat("capRed", (0.62, 0.08, 0.06), 0.0, 0.5)
     PAL["melonFlesh"] = mat("melonFlesh", (0.6, 0.12, 0.1), 0.0, 0.5)
     # books() draws from these names.
     PAL["leather"] = PAL["teal"]
@@ -109,7 +121,12 @@ OVERRIDES = {"cardboardBoxClosed": {"wood": "kraft", "woodDark": "kraftDark"}, "
              "bookcaseClosedDoors": {"wood": "oakDark"}, "bookcaseClosedWide": {"wood": "sage"}, "bookcaseClosed": {"wood": "oakDark"},
              "cabinetBedDrawer": {"wood": "sage", "_defaultMat": "oak"}, "sideTableDrawers": {"wood": "oak", "_defaultMat": "sage"},
              "tableRound": {"wood": "oakDark"}, "coatRackStanding": {"wood": "oakDark"},
-             "rugRectangle": {"carpet": "mustard", "carpetDarker": "red"}}
+             "rugRectangle": {"carpet": "mustard", "carpetDarker": "red"},
+             "bedDouble": {"carpet": "sage", "carpetWhite": "linen", "wood": "oakDark"},
+             "chairRounded": {"wood": "sage"}, "chairCushion": {"wood": "oakDark", "carpet": "mustard"},
+             "cabinetTelevision": {"wood": "oakDark"}, "loungeChairRelax": {"carpet": "teal", "wood": "oak", "metal": "copper"},
+             "benchCushionLow": {"wood": "oakDark", "carpet": "sage"},
+             "kitchenStove": {"metal": "steel", "wood": "oakDark", "metalDark": "ink", "carpetWhite": "tileWhite", "glass": "ink"}}
 
 def reskin(o, overrides=None):
     overrides = overrides or {}
@@ -532,7 +549,7 @@ def trunk_radius(o):
                     pts.append(p)
     return min(0.07, max(max(abs(p.x), abs(p.y)) for p in pts)) if pts else 0.04
 
-def tree_parts(by, name, fruit=None, fruit_r=0.016, count=14, moss=True, roots=True, keys=("leafMid", "leafLight"), seed=3):
+def tree_parts(by, name, fruit=None, fruit_r=0.016, count=14, moss=True, roots=False, keys=("leafMid", "leafLight"), seed=3):
     o = by[name]
     nature_skin(o, seed)
     lo, hi = world_box([o])
@@ -541,10 +558,9 @@ def tree_parts(by, name, fruit=None, fruit_r=0.016, count=14, moss=True, roots=T
     if roots:
         for k in range(5):
             a = k * 2 * math.pi / 5 + 0.4
-            add_sphere(o, (math.cos(a) * r * 1.05, math.sin(a) * r * 1.05, 0.012), r * 0.7, "barkDark", 0.45)
+            add_sphere(o, (math.cos(a) * r * 0.95, math.sin(a) * r * 0.95, 0.0), r * 0.5, "barkDark", 0.3)
     if moss:
         add_box(o, (-r * 0.45, -r * 0.97, 0.09), (r * 0.45, -r * 0.8, 0.09 + h * 0.05), "moss")
-    add_sphere(o, (r * 0.55, -r * 0.8, 0.2 + h * 0.08), r * 0.28, "barkDark", 0.7)
     if fruit:
         scatter(o, o, keys, count, fruit_r, fruit, seed + 7)
 
@@ -596,11 +612,257 @@ def do_crop_melon(by):
         add_sphere(o, (x, y, 0.045), 0.045, "melonRind", 0.8)
         add_box(o, (x - 0.004, y - 0.046, 0.05), (x + 0.004, y + 0.046, 0.088), "melonFlesh", rot=0.0)
 
+# ---- pass 4: furniture --------------------------------------------------------------------------------
+
+def seat_z(o, lo_f=0.25, hi_f=0.8):
+    hi = world_box([o])[1]
+    lv = [(a, z) for z, a in top_levels(o, 0.0005) if hi.z * lo_f < z < hi.z * hi_f]
+    return max(lv)[1] if lv else hi.z * 0.5
+
+def feet(o, lo, hi, r=0.006, inset=0.01):
+    for x in (lo.x + inset, hi.x - inset):
+        for y in (lo.y + inset, hi.y - inset):
+            add_cyl(o, (x, y, lo.z + 0.002), r, 0.006, "copper", verts=8)
+
+def do_bedDouble(by):
+    o, cover = by["bedDouble(Clone)"], by["cover"]
+    lo, hi = world_box([o])
+    clo, chi = world_box([cover])
+    add_box(cover, (clo.x - 0.002, clo.y + 0.30, chi.z - 0.004), (chi.x + 0.002, clo.y + 0.33, chi.z + 0.002), "mustard")
+    add_box(cover, (clo.x - 0.002, clo.y + 0.37, chi.z - 0.004), (chi.x + 0.002, clo.y + 0.38, chi.z + 0.0015), "mustard")
+    add_box(cover, (clo.x - 0.002, chi.y - 0.10, chi.z - 0.004), (chi.x + 0.002, chi.y, chi.z + 0.004), "linen")
+    for k in ("pillowLeft", "pillowRight"):
+        plo, phi = world_box([by[k]])
+        add_box(by[k], (plo.x + 0.03, plo.y + 0.02, phi.z - 0.003), (phi.x - 0.03, phi.y - 0.02, phi.z + 0.0), "cream")
+    for x in (lo.x + 0.012, hi.x - 0.012):
+        add_sphere(o, (x, hi.y - 0.012, hi.z - 0.012), 0.014, "copper")
+    feet(o, lo, hi, 0.01, 0.014)
+
+def do_chairRounded(by):
+    o = by["chairRounded(Clone)"]
+    lo, hi = world_box([o])
+    z = seat_z(o)
+    add_box(o, (lo.x + 0.025, lo.y + 0.025, z - 0.002), (hi.x - 0.025, hi.y - 0.025, z + 0.012), "mustard")
+    feet(o, lo, hi, 0.0055, 0.012)
+
+def do_chairCushion(by):
+    o = by["chairCushion(Clone)"]
+    lo, hi = world_box([o])
+    z = seat_z(o)
+    c = (lo + hi) / 2
+    add_box(o, (lo.x + 0.02, lo.y + 0.02, z - 0.004), (hi.x - 0.02, hi.y - 0.02, z + 0.002), "cream")
+    add_box(o, (c.x - 0.003, lo.y + 0.02, z), (c.x + 0.003, hi.y - 0.02, z + 0.004), "tealDark")
+    feet(o, lo, hi, 0.0055, 0.012)
+
+def do_cabinetTelevision(by):
+    o = by["cabinetTelevision(Clone)"]
+    lo, hi = world_box([o])
+    add_box(o, (lo.x + 0.01, lo.y + 0.01, lo.z), (hi.x - 0.01, hi.y - 0.01, lo.z + 0.02), "ink")
+    add_box(o, (lo.x + 0.1, lo.y + 0.04, hi.z - 0.002), (hi.x - 0.1, hi.y - 0.04, hi.z + 0.003), "teal")
+    for x in (lo.x + (hi.x - lo.x) * 0.3, lo.x + (hi.x - lo.x) * 0.7):
+        add_box(o, (x - 0.045, lo.y - 0.001, lo.z + 0.1), (x + 0.045, lo.y + 0.002, lo.z + 0.105), "copper")
+        add_sphere(o, (x, lo.y + 0.004, lo.z + 0.16), 0.008, "copper", 0.8)
+    add_box(o, (hi.x - 0.2, lo.y + 0.06, hi.z - 0.002), (hi.x - 0.14, hi.y - 0.06, hi.z + 0.004), "red")
+
+def do_loungeChairRelax(by):
+    o = by["loungeChairRelax(Clone)"]
+    lo, hi = world_box([o])
+    z = seat_z(o, 0.2, 0.6)
+    add_box(o, (lo.x + 0.1, lo.y + 0.12, z), (hi.x - 0.1, lo.y + 0.3, z + 0.012), "mustard")
+    add_box(o, (lo.x + 0.1, hi.y - 0.2, hi.z * 0.62), (hi.x - 0.1, hi.y - 0.14, hi.z * 0.62 + 0.012), "mustard")
+    add_box(o, (hi.x - 0.17, lo.y + 0.16, z + 0.0), (hi.x - 0.07, lo.y + 0.26, z + 0.05), "cream", rot=0.4)
+
+def do_benchCushionLow(by):
+    o = by["benchCushionLow(Clone)"]
+    lo, hi = world_box([o])
+    z = seat_z(o, 0.4, 1.0)
+    for x in (lo.x + (hi.x - lo.x) * 0.33, lo.x + (hi.x - lo.x) * 0.66):
+        add_box(o, (x - 0.002, lo.y + 0.012, z - 0.003), (x + 0.002, hi.y - 0.012, z + 0.003), "tealDark")
+    add_box(o, (lo.x + 0.012, lo.y + 0.012, z - 0.003), (hi.x - 0.012, lo.y + 0.018, z + 0.003), "cream")
+    add_box(o, (lo.x + 0.012, hi.y - 0.018, z - 0.003), (hi.x - 0.012, hi.y - 0.012, z + 0.003), "cream")
+    feet(o, lo, hi, 0.007, 0.02)
+
+def do_kitchenStove(by):
+    o, door = by["kitchenStove(Clone)"], by["door"]
+    lo, hi = world_box([o])
+    dlo, dhi = world_box([door])
+    for x in (lo.x + (hi.x - lo.x) * 0.28, lo.x + (hi.x - lo.x) * 0.72):
+        for y in (lo.y + (hi.y - lo.y) * 0.3, lo.y + (hi.y - lo.y) * 0.72):
+            add_torus(o, (x, y, hi.z - 0.002), 0.05, 0.005, "ink")
+            add_cyl(o, (x, y, hi.z - 0.004), 0.025, 0.006, "ink", verts=14)
+    for k in range(4):
+        add_cyl(o, (lo.x + 0.07 + k * 0.1, lo.y + 0.002, hi.z - 0.045), 0.012, 0.012, "copper", axis="Y", verts=10)
+    add_cyl(door, ((dlo.x + dhi.x) / 2, dlo.y - 0.001, dhi.z - 0.03), 0.006, dhi.x - dlo.x - 0.07, "copper", axis="X", verts=8)
+    feet(o, lo, hi, 0.01, 0.015)
+
+
+# ---- pass 4: stone, logs, pumpkin -----------------------------------------------------------------------
+
+def stone_skin(o, seed):
+    """Rock faces take one of three greys by height and noise, upward grass faces a moss green, lichen blotches on the tops."""
+    rnd = random.Random(seed)
+    lo, hi = world_box([o])
+    old = [s.material.name.split(".")[0] for s in o.material_slots]
+    was = [f.material_index for f in o.data.polygons]
+    o.data.materials.clear()
+    idx = {}
+    def ix(key):
+        if key not in idx:
+            o.data.materials.append(PAL[key])
+            idx[key] = len(o.data.materials) - 1
+        return idx[key]
+    mw = o.matrix_world
+    for f in o.data.polygons:
+        k = old[was[f.index]]
+        t = ((mw @ f.center).z - lo.z) / max(hi.z - lo.z, 1e-6) + rnd.uniform(-0.15, 0.15)
+        nz = (mw.to_3x3() @ f.normal).normalized().z
+        if k == "grass":
+            f.material_index = ix("moss" if rnd.random() < 0.8 else "lichen")
+        else:
+            f.material_index = ix("stoneDark" if t < 0.3 else "stoneMid" if t < 0.65 else "stoneLight")
+            if nz > 0.6 and rnd.random() < 0.12:
+                f.material_index = ix("lichen")
+        f.use_smooth = False
+
+def pebbles(host, lo, hi, n, seed, rmax=0.04):
+    rnd = random.Random(seed)
+    cx, cy = (lo.x + hi.x) / 2, (lo.y + hi.y) / 2
+    for _ in range(n):
+        a = rnd.uniform(0, 2 * math.pi)
+        k = rnd.uniform(0.85, 1.0)
+        r = rnd.uniform(rmax * 0.4, rmax)
+        add_sphere(host, (cx + math.cos(a) * (hi.x - lo.x) / 2 * k, cy + math.sin(a) * (hi.y - lo.y) / 2 * k, lo.z + 0.05 + r * 0.2), r,
+                   ["stoneMid", "stoneLight", "stoneDark"][rnd.randrange(3)], 0.6)
+
+def rock_parts(by, name, seed, n_peb, cracks):
+    o = by[name]
+    stone_skin(o, seed)
+    lo, hi = world_box([o])
+    top = hi.z
+    pebbles(o, Vector((lo.x * 0.7, lo.y * 0.7, lo.z)), Vector((hi.x * 0.7, hi.y * 0.7, hi.z)), n_peb, seed + 1, 0.035)
+    add_cyl(o, (0, 0, lo.z + 0.056), min(hi.x - lo.x, hi.y - lo.y) * 0.25, 0.012, "soil", verts=12)
+
+def do_rock_largeA(by):
+    rock_parts(by, "rock_largeA", 31, 8, 3)
+
+def do_rock_tallA(by):
+    rock_parts(by, "rock_tallA", 33, 6, 4)
+
+def do_rock_smallA(by):
+    rock_parts(by, "rock_smallA", 35, 5, 2)
+
+def bark_skin(o, seed):
+    rnd = random.Random(seed)
+    old = [s.material.name.split(".")[0] for s in o.material_slots]
+    was = [f.material_index for f in o.data.polygons]
+    o.data.materials.clear()
+    idx = {}
+    def ix(key):
+        if key not in idx:
+            o.data.materials.append(PAL[key])
+            idx[key] = len(o.data.materials) - 1
+        return idx[key]
+    for f in o.data.polygons:
+        k = old[was[f.index]]
+        f.material_index = ix(("bark" if rnd.random() < 0.6 else "barkDark") if k == "woodBark" else "ring")
+        f.use_smooth = False
+
+def ring_at(host, c, R, r, key, axis):
+    rot = {"X": (0, math.pi / 2, 0), "Y": (math.pi / 2, 0, 0), "Z": (0, 0, 0)}[axis]
+    bpy.ops.mesh.primitive_torus_add(major_radius=R, minor_radius=r, major_segments=20, minor_segments=5, location=c, rotation=rot)
+    join(host, bpy.context.active_object, key)
+
+def end_caps(o):
+    """Cut ends of a log: (centre, radius, axis letter, sign) per group of woodInner faces on one plane."""
+    mw = o.matrix_world
+    groups = {}
+    for f in o.data.polygons:
+        if o.material_slots[f.material_index].material.name.split(".")[0] != "ring":
+            continue
+        n = (mw.to_3x3() @ f.normal).normalized()
+        ax = max(range(3), key=lambda i: abs(n[i]))
+        if ax == 2:
+            continue
+        s = 1 if n[ax] > 0 else -1
+        c = mw @ f.center
+        groups.setdefault((ax, s, round(c[ax], 2)), []).append((c, f.area))
+    out = []
+    for (ax, s, _), fs in groups.items():
+        tot = sum(a for _, a in fs)
+        c = sum((c * a for c, a in fs), Vector()) / tot
+        lo, hi = world_box([o])
+        edge = hi["XYZ".index("XYZ"[ax])] if s > 0 else lo["XYZ".index("XYZ"[ax])]
+        if tot > 0.004 and abs(c[ax] - edge) < 0.012:
+            out.append((c, math.sqrt(tot / math.pi), "XYZ"[ax], s))
+    return out
+
+def log_parts(by, name, seed, moss=True, mushrooms=1):
+    o = by[name]
+    bark_skin(o, seed)
+    lo, hi = world_box([o])
+    for c, r, ax, s in end_caps(o):
+        off = Vector((0, 0, 0))
+        off["XYZ".index(ax)] = 0.002 * s
+        for f in (0.35, 0.65, 0.9):
+            ring_at(o, c + off, r * f, 0.0035, "ringDark" if f < 0.5 else "ring", ax)
+        bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=0.012, radius2=0.012, depth=0.004, location=c + off,
+                                        rotation={"X": (0, math.pi / 2, 0), "Y": (math.pi / 2, 0, 0), "Z": (0, 0, 0)}[ax])
+        join(o, bpy.context.active_object, "ringDark")
+    rnd = random.Random(seed)
+    cx, cy = (lo.x + hi.x) / 2, (lo.y + hi.y) / 2
+    if moss:
+        for _ in range(3):
+            x, y = cx + rnd.uniform(-0.25, 0.25) * (hi.x - lo.x), cy + rnd.uniform(-0.3, 0.3) * (hi.y - lo.y)
+            add_box(o, (x - 0.03, y - 0.04, hi.z - 0.02), (x + 0.03, y + 0.04, hi.z + 0.0), "moss", rot=rnd.uniform(0, 1))
+    for _ in range(2):
+        x, y = cx + rnd.uniform(-0.3, 0.3) * (hi.x - lo.x), cy + rnd.uniform(-0.3, 0.3) * (hi.y - lo.y)
+        add_sphere(o, (x, y, hi.z - 0.02), 0.014, "barkDark", 0.6)
+    for k in range(mushrooms):
+        x, y = lo.x + (hi.x - lo.x) * 0.15, cy + rnd.uniform(-0.2, 0.2) * (hi.y - lo.y)
+        add_cyl(o, (x, y, lo.z + 0.065), 0.006, 0.03, "cream", verts=6)
+        add_sphere(o, (x, y, lo.z + 0.082), 0.017, "capRed", 0.5)
+
+def do_log(by):
+    log_parts(by, "log", 41)
+
+def do_log_large(by):
+    log_parts(by, "log_large", 43, mushrooms=2)
+
+def do_log_stack(by):
+    log_parts(by, "log_stack", 45)
+
+def do_crop_pumpkin(by):
+    o = by["crop_pumpkin"]
+    rnd = random.Random(47)
+    old = [s.material.name.split(".")[0] for s in o.material_slots]
+    was = [f.material_index for f in o.data.polygons]
+    o.data.materials.clear()
+    idx = {}
+    def ix(key):
+        if key not in idx:
+            o.data.materials.append(PAL[key])
+            idx[key] = len(o.data.materials) - 1
+        return idx[key]
+    for f in o.data.polygons:
+        k = old[was[f.index]]
+        f.material_index = ix(("pumpkin" if rnd.random() < 0.65 else "pumpkinDark") if k == "leafsFall" else "grassLight" if rnd.random() < 0.5 else "grassDark")
+        f.use_smooth = False
+    lo, hi = world_box([o])
+    for k in range(6):
+        a = k * math.pi / 3 + 0.2
+        add_box(o, (math.cos(a) * 0.12 - 0.003, math.sin(a) * 0.12 - 0.003, lo.z + 0.1), (math.cos(a) * 0.12 + 0.003, math.sin(a) * 0.12 + 0.003, lo.z + 0.25),
+                "pumpkinDark", rot=a)
+    add_cyl(o, (0.0, 0.0, hi.z - 0.02), 0.014, 0.05, "stem", verts=6, r2=0.008)
+    add_cyl(o, (0.14, -0.1, lo.z + 0.1), 0.025, 0.07, "stem", verts=6, r2=0.012, axis="X")
+    add_sphere(o, (0.16, -0.12, lo.z + 0.1), 0.06, "pumpkin", 0.8)
+    add_cyl(o, (0, 0, lo.z + 0.056), 0.18, 0.012, "soil", verts=12)
+
+
 def build(name):
     palette()
     for o in list(bpy.data.objects):
         bpy.data.objects.remove(o)
-    nat = name in NATURE
+    nat = name in NATURE or name in NATURE4
     bpy.ops.import_scene.gltf(filepath=os.path.join(here, "base", "nature" if nat else "", name + ".glb"))
     objs = meshes()
     by = {o.name: o for o in bpy.data.objects}
@@ -633,5 +895,6 @@ def build(name):
 ALL = ["cardboardBoxClosed", "cardboardBoxOpen", "kitchenBar", "desk", "chairDesk", "bench", "chair", "table", "trashcan", "bookcaseOpen"]
 ALL2 = ["cabinetBedDrawer", "bedSingle", "pottedPlant", "bookcaseClosedWide", "loungeSofa", "bookcaseClosedDoors",
         "bookcaseClosed", "kitchenCabinet", "rugRectangle", "coatRackStanding", "tableRound", "sideTableDrawers"]
-for n in (names or ALL + ALL2 + NATURE):
+ALL4 = ["bedDouble", "chairRounded", "chairCushion", "cabinetTelevision", "loungeChairRelax", "benchCushionLow", "kitchenStove"]
+for n in (names or ALL + ALL2 + NATURE + ALL4 + NATURE4):
     build(n)
