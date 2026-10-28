@@ -130,9 +130,8 @@ var players: Dictionary = {}
 ## `mp_solidplayers` (do players and stand-ins block each other). Bound by the module
 ## (REPLICATED) and followed by a client through its link.
 var view_rules: DotPlayerViewRules = DotPlayerViewRules.new()
-## Who a spectator may watch and whether they may fly a free camera: dot-spectate's
-## `mp_forcecamera`, `mp_freeroam` and `mp_freeroam_speed`. One object for the life of the
-## game, shared with [HsSpectate]'s manager, so a cvar change reaches the rules in use. Bound
-## by the module (REPLICATED) and followed by a client, which is the end that flies the camera.
+## Who a spectator may watch and whether they may fly a free camera: dot-spectate's `mp_forcecamera`,
+## `mp_freeroam` and `mp_freeroam_speed`. Shared with [HsSpectate]'s manager, bound by the module
+## (REPLICATED) and followed by a client, which is the end that flies the camera.
 var spectate_rules: DotSpectatorRules = DotSpectatorRules.new()
 var body_rules: DotPlayerBodyRules = DotPlayerBodyRules.new()

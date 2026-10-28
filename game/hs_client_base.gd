@@ -74,8 +74,6 @@ var _started_msec: int = Time.get_ticks_msec()
 var _beeped: int = -1
 
 
-# --- The Tab board ---------------------------------------------------------
-
 func _dress_board() -> void:
 	if board == null:
 		return
@@ -126,10 +124,9 @@ func _prepare_board(snap: Dictionary) -> void:
 	add_bot_rows(snap, game)
 
 
-## Online the board is dot-server's roster, which lists sessions only, and a stand-in is not
-## one: the HUD counted four hidden while the board said nobody. Adds a row for each bot in
-## the world that the roster does not carry, keyed as `board_snapshot()` keys it so
-## `_decorate_row` finds its team, points and face. Static so a suite can run it on a world.
+## Online the board is dot-server's roster, which lists sessions only, not stand-ins. Adds a row for
+## each bot the roster lacks, keyed as `board_snapshot()` keys it so `_decorate_row` finds its team.
+## Static so a suite can run it on a world.
 static func add_bot_rows(snap: Dictionary, world: HsGame) -> void:
 	var rows: Array = snap.get("players", []) as Array
 	var listed := {}

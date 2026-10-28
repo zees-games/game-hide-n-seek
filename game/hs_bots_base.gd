@@ -194,7 +194,7 @@ var longest_stuck_who: StringName = &""
 ## How long the last survey took, milliseconds.
 var survey_ms: float = 0.0
 
-## The stand-ins as Christian's review saw them (2026-10-15: hiders stood where they spawned, the
-## seeker walked a straight line), kept so `headless_bots` can arm its checks: each must fail with
-## this on, or it measures nothing. Never set by the game itself.
+## The stand-ins as Christian's review saw them (hiders stood where they spawned, the seeker walked
+## a straight line), kept so `headless_bots` can arm its checks: each must fail with this on, or it
+## measures nothing. Never set by the game itself.
 var legacy: bool = false

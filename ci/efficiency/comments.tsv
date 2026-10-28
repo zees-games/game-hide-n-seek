@@ -1,14 +1,13 @@
 # comments
 # Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
-examples/dedicated.gd::banner	1
-examples/dedicated.gd::history	2
-examples/dedicated.gd::long_block	12
+examples/dedicated.gd::history	1
+examples/dedicated.gd::long_block	9
 examples/headless_bots.gd::long_block	4
 examples/headless_climb.gd::banner	1
 examples/headless_climb.gd::history	2
 examples/headless_climb.gd::long_block	3
 examples/headless_maps.gd::long_block	3
-examples/headless_net.gd::banner	3
+examples/headless_net.gd::banner	2
 examples/headless_net.gd::long_block	4
 examples/headless_run.gd::banner	3
 examples/headless_run.gd::history	1
@@ -18,11 +17,10 @@ game/hs_audio.gd::long_block	2
 game/hs_avatars.gd::long_block	5
 game/hs_bindings.gd::history	2
 game/hs_bindings.gd::long_block	1
-game/hs_bots.gd::history	1
 game/hs_catalogue.gd::banner	1
 game/hs_catalogue.gd::long_block	2
-game/hs_client.gd::banner	10
-game/hs_client.gd::long_block	7
+game/hs_client.gd::banner	9
+game/hs_client.gd::long_block	6
 game/hs_config.gd::banner	11
 game/hs_config.gd::long_block	6
 game/hs_controller.gd::long_block	2
@@ -31,7 +29,7 @@ game/hs_doors.gd::long_block	3
 game/hs_figure.gd::history	1
 game/hs_figure.gd::long_block	1
 game/hs_game.gd::banner	11
-game/hs_game.gd::long_block	14
+game/hs_game.gd::long_block	13
 game/hs_hud.gd::history	1
 game/hs_hud.gd::long_block	2
 game/hs_map.gd::banner	2
@@ -41,7 +39,7 @@ game/hs_map_doc.gd::banner	1
 game/hs_map_doc.gd::long_block	2
 game/hs_materials.gd::long_block	2
 game/hs_module.gd::history	1
-game/hs_module.gd::long_block	20
+game/hs_module.gd::long_block	19
 game/hs_paths.gd::long_block	4
 game/hs_player.gd::banner	1
 game/hs_player.gd::long_block	2
