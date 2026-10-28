@@ -696,7 +696,18 @@ func _test_the_client() -> void:
 		str(strip.describe())
 	)
 
-	# Christian's first play test: a darker HUD by default, restyled live by the menu's theme.
+	_client_theme(client, hud, strip)
+	await _client_ragdoll(client, world)
+	_client_death_codec()
+	await _client_door_prompt(client, world, hud)
+	remove_child(client)
+	client.free()
+	await get_tree().process_frame
+	_finished()
+
+
+## A darker HUD by default, restyled live by the menu's theme.
+func _client_theme(client: Node, hud: Node, strip: DotScoreStrip) -> void:
 	var themed: DotMenu = (client.get("settings") as Node).get("menu")
 	var plate := strip.colour(&"plate")
 	_check(plate.get_luminance() < 0.1 and plate.a >= 0.7 and strip.colour(&"highlight") == (load("res://game/hs_hud.gd") as GDScript).get("MAP_COLOUR"),
@@ -708,8 +719,9 @@ func _test_the_client() -> void:
 		"a theme picked in the menu reaches the clock and the HUD's lines at once, the accent kept")
 	_t = themed.settings.set_value(&"ui_theme", &"midnight")
 
-	# A slain stand-in falls as dot-player-char's ragdoll: the world picked the fall, and the
-	# client copied the body from the figure it draws, under the game's rules, the figure hidden.
+
+## A slain stand-in falls as dot-player-char's ragdoll, copied by the client from the figure it draws.
+func _client_ragdoll(client: Node, world: HsGame) -> void:
 	world._set_phase(HsGame.Phase.SEEK)
 	var ragdolls: DotPlayerRagdolls = client.get("ragdolls")
 	var victim: HsPlayer = null
@@ -743,7 +755,8 @@ func _test_the_client() -> void:
 			_check(false, "a stand-in drawn to slay")
 	_check(_death_sounds_listed(), "the death sounds are in the game's catalogue")
 
-	# The fall rides DEATH last and optional, so a death from an older server still reads.
+
+func _client_death_codec() -> void:
 	var fall := DotPlayerDeath.new()
 	fall.reaction = &"face_plant"
 	fall.roll_seed = 1234
@@ -755,7 +768,9 @@ func _test_the_client() -> void:
 	var bare := HsEvents.read_death(DotNetReader.new(HsEvents.write_death(5, 6, HsGame.DIED_SLAIN)))
 	_check(bool(bare["ok"]) and not bare.has("death"), "and one without a fall still reads")
 
-	# A hider a step in front of a door is prompted by DotKeyPrompt with the use key as bound.
+
+## A hider in front of a door is prompted with the use key as bound; then the pack's dot-ui floor.
+func _client_door_prompt(client: Node, world: HsGame, hud: Node) -> void:
 	# The seek first, which lets this seeker's blindfold hold go; then a hider.
 	world._set_phase(HsGame.Phase.SEEK)
 	world._set_side(&"local", HsGame.HIDERS)
@@ -783,11 +798,6 @@ func _test_the_client() -> void:
 		"the pack asks a shell for dot-ui level 4, the glance pieces",
 		str(asks.get("dot_ui"))
 	)
-
-	remove_child(client)
-	client.free()
-	await get_tree().process_frame
-	_finished()
 
 
 ## The family's rule since the first play test: H opens help in every game, nothing else in
