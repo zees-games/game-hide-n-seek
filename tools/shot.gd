@@ -178,36 +178,7 @@ func _run() -> void:
 				var sc := sbox.get_center()
 				_free_camera().look_at_from_position(sc + Vector3(0.0, maxf(sbox.size.x, sbox.size.z) * 0.9, 0.5), sc)
 		"bots":
-			# The stand-in hiders where they hid: the hide played out, the seekers let go, and a
-			# camera a few metres from the [member _pick]th best-hidden one (or the best).
-			game._set_phase(HsGame.Phase.HIDE)
-			game.phase_elapsed = 0.0
-			while game.phase == HsGame.Phase.HIDE:
-				await get_tree().process_frame
-			await _seconds_of(0.5)
-			var hidden: Array = []
-			for id: StringName in game.players:
-				var p: HsPlayer = game.players[id]
-				if p.is_bot and game.team_of(id) == HsGame.HIDERS:
-					var spot: Dictionary = game.bots._state_of(p).get("spot", {})
-					hidden.append([float(spot.get("exposure", 1.0)), p])
-					print("hider %s at %s, exposure %.2f" % [p.display_name, p.controller.state.position.snapped(Vector3.ONE * 0.1), float(spot.get("exposure", 1.0))])
-			hidden.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
-			var who: HsPlayer = hidden[mini(_pick, hidden.size() - 1)][1]
-			var at: Vector3 = who.controller.state.position
-			var eye := at + Vector3(0.0, 1.0, 0.0)
-			var from := _at if _at != Vector3.INF else at + Vector3(2.6, 2.2, 2.6)
-			if _at == Vector3.INF:
-				# Back off along a clear line, so the camera is not inside a wall.
-				for k in range(8):
-					var dir := Vector3(cos(k * TAU / 8.0), 0.55, sin(k * TAU / 8.0)).normalized()
-					var hit := get_viewport().world_3d.direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(eye, eye + dir * 4.0))
-					var reach := 4.0 if hit.is_empty() else eye.distance_to(hit["position"]) - 0.3
-					if reach > 2.4:
-						from = eye + dir * reach
-						break
-			_free_camera().look_at_from_position(from, eye)
-			print("looking at %s from %s" % [who.display_name, from.snapped(Vector3.ONE * 0.1)])
+			await _view_bots(game)
 		"ragdoll":
 			# A stand-in slain in front of a free camera, and [member _seconds] of its fall:
 			# `--seconds=0.15`, `0.6` and `2` are the start, the drop and the body at rest.
@@ -299,6 +270,39 @@ func _run() -> void:
 	var saved := image.save_png(path)
 	print("saved %s (%s): %s" % [_out, _view, error_string(saved)])
 	get_tree().quit(0 if saved == OK else 1)
+
+
+func _view_bots(game: HsGame) -> void:
+	# The stand-in hiders where they hid: the hide played out, the seekers let go, and a
+	# camera a few metres from the [member _pick]th best-hidden one (or the best).
+	game._set_phase(HsGame.Phase.HIDE)
+	game.phase_elapsed = 0.0
+	while game.phase == HsGame.Phase.HIDE:
+		await get_tree().process_frame
+	await _seconds_of(0.5)
+	var hidden: Array = []
+	for id: StringName in game.players:
+		var p: HsPlayer = game.players[id]
+		if p.is_bot and game.team_of(id) == HsGame.HIDERS:
+			var spot: Dictionary = game.bots._state_of(p).get("spot", {})
+			hidden.append([float(spot.get("exposure", 1.0)), p])
+			print("hider %s at %s, exposure %.2f" % [p.display_name, p.controller.state.position.snapped(Vector3.ONE * 0.1), float(spot.get("exposure", 1.0))])
+	hidden.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	var who: HsPlayer = hidden[mini(_pick, hidden.size() - 1)][1]
+	var at: Vector3 = who.controller.state.position
+	var eye := at + Vector3(0.0, 1.0, 0.0)
+	var from := _at if _at != Vector3.INF else at + Vector3(2.6, 2.2, 2.6)
+	if _at == Vector3.INF:
+		# Back off along a clear line, so the camera is not inside a wall.
+		for k in range(8):
+			var dir := Vector3(cos(k * TAU / 8.0), 0.55, sin(k * TAU / 8.0)).normalized()
+			var hit := get_viewport().world_3d.direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(eye, eye + dir * 4.0))
+			var reach := 4.0 if hit.is_empty() else eye.distance_to(hit["position"]) - 0.3
+			if reach > 2.4:
+				from = eye + dir * reach
+				break
+	_free_camera().look_at_from_position(from, eye)
+	print("looking at %s from %s" % [who.display_name, from.snapped(Vector3.ONE * 0.1)])
 
 
 func _until_a_round(game: HsGame) -> void:
