@@ -20,7 +20,9 @@ try:
     sc.cycles.device = "GPU"
 except Exception as e:
     print("no GPU", e)
-sc.cycles.samples = 64
+sc.cycles.samples = int(os.environ.get("SAMPLES", 64))
+if os.environ.get("SAMPLES"):
+    sc.cycles.use_denoising = False
 w = bpy.data.worlds.new("w")
 w.use_nodes = True
 w.node_tree.nodes["Background"].inputs[0].default_value = (0.62, 0.68, 0.76, 1)
@@ -42,8 +44,9 @@ def place(path, x, y):
 
 step = 1.0
 for i, n in enumerate(names):
-    place(os.path.join(here, "base", n + ".glb"), i * step, 1.0)
-    place(os.path.join(here, "..", "assets", "props", "furniture", n + ".glb"), i * step, 0.0)
+    nat = os.path.exists(os.path.join(here, "base", "nature", n + ".glb"))
+    place(os.path.join(here, "base", "nature" if nat else "", n + ".glb"), i * step, 1.0)
+    place(os.path.join(here, "..", "assets", "props", "nature" if nat else "furniture", n + ".glb"), i * step, 0.0)
 bpy.ops.mesh.primitive_plane_add(size=60, location=(len(names) * step / 2, 0, -0.001))
 cx = (len(names) - 1) * step / 2
 sc.render.resolution_x = min(4000, 400 * len(names))

@@ -1,4 +1,7 @@
-"""Rebuilds twenty-two of the furniture models under assets/props/furniture/ for game-hide-n-seek.
+"""Rebuilds thirty-four of the furniture and nature models under assets/props/ for game-hide-n-seek.
+
+Pass 3 (NATURE below): twelve trees, bushes and a melon patch from Kenney's Nature Kit (CC0, bases in art-src/base/nature/), written to
+assets/props/nature/: their own bark and a three-tone foliage by height, root flares, knots, moss, fruit, blossom, cones and berries.
 
 Run:  blender -b -P art-src/build_props.py -- [name ...] [--out DIR]
 Bases: art-src/base/<name>.glb, the stock Kenney Furniture Kit (CC0, see assets/props/furniture/LICENSE-kenney-furniture-kit.txt).
@@ -23,6 +26,9 @@ if "--out" in argv:
     outdir = argv[i + 1]
     del argv[i:i + 2]
 names = argv
+NATURE = ["tree_default", "tree_oak", "tree_tall", "tree_cone", "tree_pineTallA", "tree_pineRoundA", "tree_detailed", "tree_fat",
+          "tree_small", "plant_bushLarge", "plant_bushDetailed", "crop_melon"]
+naturedir = os.path.join(here, "..", "assets", "props", "nature")
 
 PAL = {}
 
@@ -58,6 +64,24 @@ def palette():
     PAL["terracotta"] = mat("terracotta", (0.46, 0.17, 0.08), 0.0, 0.8)
     PAL["soil"] = mat("soil", (0.025, 0.015, 0.01), 0.0, 1.0)
     PAL["brass"] = PAL["copper"]
+    PAL["bark"] = mat("bark", (0.24, 0.15, 0.08), 0.0, 0.9)
+    PAL["barkDark"] = mat("barkDark", (0.15, 0.1, 0.07), 0.0, 0.9)
+    PAL["moss"] = mat("moss", (0.16, 0.3, 0.1), 0.0, 0.95)
+    PAL["leafDark"] = mat("leafDark", (0.06, 0.2, 0.08), 0.0, 0.8)
+    PAL["leafMid"] = mat("leafMid", (0.12, 0.31, 0.09), 0.0, 0.8)
+    PAL["leafLight"] = mat("leafLight", (0.26, 0.42, 0.1), 0.0, 0.8)
+    PAL["pineDark"] = mat("pineDark", (0.03, 0.15, 0.1), 0.0, 0.8)
+    PAL["pineMid"] = mat("pineMid", (0.05, 0.23, 0.14), 0.0, 0.8)
+    PAL["pineLight"] = mat("pineLight", (0.14, 0.33, 0.16), 0.0, 0.8)
+    PAL["grassDark"] = mat("grassDark", (0.1, 0.24, 0.07), 0.0, 0.85)
+    PAL["grassLight"] = mat("grassLight", (0.22, 0.38, 0.09), 0.0, 0.85)
+    PAL["apple"] = mat("apple", (0.6, 0.05, 0.04), 0.0, 0.4)
+    PAL["orange"] = mat("orange", (0.75, 0.32, 0.04), 0.0, 0.4)
+    PAL["blossom"] = mat("blossom", (0.8, 0.52, 0.55), 0.0, 0.6)
+    PAL["berry"] = mat("berry", (0.12, 0.1, 0.4), 0.0, 0.4)
+    PAL["pinecone"] = mat("pinecone", (0.3, 0.17, 0.07), 0.0, 0.8)
+    PAL["melonRind"] = mat("melonRind", (0.2, 0.42, 0.12), 0.0, 0.6)
+    PAL["melonFlesh"] = mat("melonFlesh", (0.6, 0.12, 0.1), 0.0, 0.5)
     # books() draws from these names.
     PAL["leather"] = PAL["teal"]
     PAL["velvet"] = PAL["tealDark"]
@@ -441,24 +465,155 @@ def do_tableRound(by):
     add_cyl(o, (c.x + 0.08, c.y, hi.z), 0.04, 0.005, "mustard", verts=18)
     add_cyl(o, (c.x + 0.08, c.y, hi.z + 0.002), 0.026, 0.005, "cream", verts=18)
 
+
+# ---- nature (pass 3) ------------------------------------------------------------------------------------
+
+LEAF_BANDS = {"leafsGreen": ("leafDark", "leafMid", "leafLight"), "leafsDark": ("pineDark", "pineMid", "pineLight"),
+              "grass": ("grassDark", "grassLight", "grassLight")}
+NSWAP = {"woodBark": "bark", "woodBarkDark": "barkDark", "dirt": "soil", "_defaultMat": "bark"}
+
+def nature_skin(o, seed):
+    """Foliage faces get one of three tones by height with a little noise; bark and soil take our colours."""
+    rnd = random.Random(seed)
+    lo, hi = world_box([o])
+    old = [s.material.name.split(".")[0] for s in o.material_slots]
+    was = [f.material_index for f in o.data.polygons]
+    o.data.materials.clear()
+    idx = {}
+    def ix(key):
+        if key not in idx:
+            o.data.materials.append(PAL[key])
+            idx[key] = len(o.data.materials) - 1
+        return idx[key]
+    mw = o.matrix_world
+    for f in o.data.polygons:
+        k = old[was[f.index]]
+        if k in LEAF_BANDS:
+            t = ((mw @ f.center).z - lo.z) / max(hi.z - lo.z, 1e-6) + rnd.uniform(-0.12, 0.12)
+            b = LEAF_BANDS[k]
+            f.material_index = ix(b[0] if t < 0.45 else b[1] if t < 0.75 else b[2])
+        elif k == "leafsDark" or k == "dirt" or k in NSWAP:
+            f.material_index = ix(NSWAP[k])
+        else:
+            f.material_index = ix("melonRind" if k == "leafsDark" else "leafMid")
+        f.use_smooth = False
+
+def faces_of(o, keys, min_nz=0.3):
+    """(world centre, world normal) of upward-ish faces on slots whose material is one of keys."""
+    mw = o.matrix_world
+    out = []
+    for f in o.data.polygons:
+        if o.material_slots[f.material_index].material.name.split(".")[0] in [PAL[k].name for k in keys]:
+            n = (mw.to_3x3() @ f.normal).normalized()
+            if n.z > min_nz:
+                out.append((mw @ f.center, n))
+    return out
+
+def scatter(host, o, keys, count, r, key, seed, sq=1.0, above=0.25):
+    """Fruit, blossom or cones: small spheres half sunk into upward faces of the foliage."""
+    rnd = random.Random(seed)
+    fs = faces_of(o, keys)
+    lo, hi = world_box([o])
+    fs = [f for f in fs if (f[0].z - lo.z) / (hi.z - lo.z) > above]
+    rnd.shuffle(fs)
+    for c, n in fs[:count]:
+        add_sphere(host, c + n * (r * 0.3), r, key, sq)
+
+def trunk_radius(o):
+    """Radius of the bark near the ground, from bark faces only (a squat tree's canopy is low)."""
+    lo, hi = world_box([o])
+    bark = [PAL["bark"].name, PAL["barkDark"].name]
+    pts = []
+    for f in o.data.polygons:
+        if o.material_slots[f.material_index].material.name in bark:
+            for vi in f.vertices:
+                p = o.matrix_world @ o.data.vertices[vi].co
+                if p.z < lo.z + (hi.z - lo.z) * 0.3:
+                    pts.append(p)
+    return min(0.07, max(max(abs(p.x), abs(p.y)) for p in pts)) if pts else 0.04
+
+def tree_parts(by, name, fruit=None, fruit_r=0.016, count=14, moss=True, roots=True, keys=("leafMid", "leafLight"), seed=3):
+    o = by[name]
+    nature_skin(o, seed)
+    lo, hi = world_box([o])
+    r = trunk_radius(o)
+    h = hi.z - lo.z
+    if roots:
+        for k in range(5):
+            a = k * 2 * math.pi / 5 + 0.4
+            add_sphere(o, (math.cos(a) * r * 1.05, math.sin(a) * r * 1.05, 0.012), r * 0.7, "barkDark", 0.45)
+    if moss:
+        add_box(o, (-r * 0.45, -r * 0.97, 0.09), (r * 0.45, -r * 0.8, 0.09 + h * 0.05), "moss")
+    add_sphere(o, (r * 0.55, -r * 0.8, 0.2 + h * 0.08), r * 0.28, "barkDark", 0.7)
+    if fruit:
+        scatter(o, o, keys, count, fruit_r, fruit, seed + 7)
+
+def do_tree_default(by):
+    tree_parts(by, "tree_default", "blossom", 0.014, 16)
+
+def do_tree_oak(by):
+    tree_parts(by, "tree_oak", "apple", 0.016, 12, seed=5)
+
+def do_tree_tall(by):
+    tree_parts(by, "tree_tall", "orange", 0.014, 10, keys=("leafLight", "leafMid"), seed=7)
+
+def do_tree_cone(by):
+    tree_parts(by, "tree_cone", "pinecone", 0.014, 12, keys=("leafMid", "leafLight", "leafDark"), seed=9)
+
+def do_tree_pineTallA(by):
+    tree_parts(by, "tree_pineTallA", "pinecone", 0.013, 12, keys=("pineMid", "pineLight", "pineDark"), seed=11)
+
+def do_tree_pineRoundA(by):
+    tree_parts(by, "tree_pineRoundA", "pinecone", 0.014, 14, keys=("pineMid", "pineLight", "pineDark"), seed=13)
+
+def do_tree_detailed(by):
+    tree_parts(by, "tree_detailed", "apple", 0.014, 14, seed=15)
+
+def do_tree_fat(by):
+    tree_parts(by, "tree_fat", "orange", 0.016, 12, seed=17)
+
+def do_tree_small(by):
+    tree_parts(by, "tree_small", "blossom", 0.012, 12, seed=19)
+
+def bush_parts(by, name, fruit, count, seed, r=0.014):
+    o = by[name]
+    nature_skin(o, seed)
+    scatter(o, o, ("grassDark", "grassLight"), count, r, fruit, seed + 1, above=0.35)
+    lo, hi = world_box([o])
+    add_cyl(o, (0, 0, lo.z + 0.056), min(hi.x - lo.x, hi.y - lo.y) * 0.3, 0.012, "soil", verts=12)
+
+def do_plant_bushLarge(by):
+    bush_parts(by, "plant_bushLarge", "berry", 12, 21)
+
+def do_plant_bushDetailed(by):
+    bush_parts(by, "plant_bushDetailed", "apple", 14, 23, 0.016)
+
+def do_crop_melon(by):
+    o = by["crop_melon"]
+    nature_skin(o, 25)
+    lo, hi = world_box([o])
+    for k, (x, y) in enumerate(((0.05, 0.03), (-0.09, -0.05))):
+        add_sphere(o, (x, y, 0.045), 0.045, "melonRind", 0.8)
+        add_box(o, (x - 0.004, y - 0.046, 0.05), (x + 0.004, y + 0.046, 0.088), "melonFlesh", rot=0.0)
+
 def build(name):
     palette()
     for o in list(bpy.data.objects):
         bpy.data.objects.remove(o)
-    bpy.ops.import_scene.gltf(filepath=os.path.join(here, "base", name + ".glb"))
+    nat = name in NATURE
+    bpy.ops.import_scene.gltf(filepath=os.path.join(here, "base", "nature" if nat else "", name + ".glb"))
     objs = meshes()
     by = {o.name: o for o in bpy.data.objects}
     # Bounds are taken before anything is added, from the stock model.
     lo0, hi0 = world_box(objs)
     names0 = sorted(o.name for o in bpy.data.objects)
-    for o in objs:
-        for i, s in enumerate(o.material_slots):
-            pass
-        reskin(o, OVERRIDES.get(name))
-        bevel(o)
-    for o in objs:
-        for f in o.data.polygons:
-            f.use_smooth = False
+    if not nat:
+        for o in objs:
+            reskin(o, OVERRIDES.get(name))
+            bevel(o)
+        for o in objs:
+            for f in o.data.polygons:
+                f.use_smooth = False
     globals()["do_" + name](by)
     objs = meshes()
     lo, hi = world_box(objs)
@@ -470,12 +625,13 @@ def build(name):
         o.matrix_world = Matrix.Translation(lo0) @ Matrix.Diagonal((*s, 1)) @ Matrix.Translation(-lo) @ o.matrix_world
     assert names0 == sorted(o.name for o in bpy.data.objects), "node names changed"
     bpy.ops.object.select_all(action="DESELECT")
-    os.makedirs(outdir, exist_ok=True)
-    bpy.ops.export_scene.gltf(filepath=os.path.join(outdir, name + ".glb"), export_format="GLB", export_yup=True,
+    od = naturedir if nat else outdir
+    os.makedirs(od, exist_ok=True)
+    bpy.ops.export_scene.gltf(filepath=os.path.join(od, name + ".glb"), export_format="GLB", export_yup=True,
                               export_apply=False, export_cameras=False, export_lights=False)
 
 ALL = ["cardboardBoxClosed", "cardboardBoxOpen", "kitchenBar", "desk", "chairDesk", "bench", "chair", "table", "trashcan", "bookcaseOpen"]
 ALL2 = ["cabinetBedDrawer", "bedSingle", "pottedPlant", "bookcaseClosedWide", "loungeSofa", "bookcaseClosedDoors",
         "bookcaseClosed", "kitchenCabinet", "rugRectangle", "coatRackStanding", "tableRound", "sideTableDrawers"]
-for n in (names or ALL + ALL2):
+for n in (names or ALL + ALL2 + NATURE):
     build(n)
