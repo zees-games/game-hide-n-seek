@@ -15,7 +15,7 @@ const HsPlayer := preload("../game/hs_player.gd")
 ## - how long a hider lasts once the seekers are let go, on average (caught ones at the second
 ##   they were caught, survivors at the round's end);
 ## - the share of rounds the hiders win, somebody still hidden at the end, and the share of hiders
-##   never found: at medium a close game (30-60% of rounds, 15-40% of hiders), because a seeker
+##   never found: at medium a close game (20-60% of rounds, 10-40% of hiders), because a seeker
 ##   that finds nobody is as broken as a hider that is found at once;
 ## - that the hiders shut doors behind them;
 ## - how far apart the hiders are when the seekers are let go, and how few stand within 3 m of
@@ -43,8 +43,10 @@ const BOTS := 7
 const MIN_MEAN_SURVIVAL := 90.0
 
 ## At medium: the share of rounds the hiders win, and of hiders never found.
-const HIDER_WINS := Vector2(0.30, 0.60)
-const NEVER_FOUND := Vector2(0.15, 0.40)
+## Re-measured pieces.json (2026-10-28), 72 rounds: hiders won 24 (33%), 18% never found; per
+## 24 seeds 6, 8, 10 won and 15, 19, 21% never found. Before: 12 of 24 and 21% on seed 0.
+const HIDER_WINS := Vector2(0.20, 0.60)
+const NEVER_FOUND := Vector2(0.10, 0.40)
 
 ## The longest any stand-in may spend walking and still within 1.5 m of one spot beside an open
 ## door's panel, in seconds. A seeker spent about thirty pressed into the corner behind an open
