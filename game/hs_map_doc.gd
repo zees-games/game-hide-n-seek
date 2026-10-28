@@ -174,22 +174,10 @@ static func validate(source: Dictionary) -> DotResult:
 
 	doc["props"] = props
 
-	var lights: Array = []
-	for raw: Variant in source.get("lights", []):
-		if not (raw is Dictionary) or not (raw as Dictionary).has("at"):
-			return _refuse("light %d has no 'at'" % lights.size(), source)
-		var light := raw as Dictionary
-		lights.append({
-			"at": _floats(light["at"], 3),
-			"range": clampf(float(light.get("range", 8.0)), 0.5, 80.0),
-			"energy": clampf(float(light.get("energy", 1.0)), 0.0, 16.0),
-			"colour": _floats(light.get("colour", [1.0, 0.95, 0.85]), 3),
-		})
+	var bad := _lights(source, doc)
 
-	if lights.size() > MAX_LIGHTS:
-		return _refuse("%d lights; the most is %d" % [lights.size(), MAX_LIGHTS], source)
-
-	doc["lights"] = lights
+	if bad != "":
+		return _refuse(bad, source)
 
 	var doors: Array = []
 	for raw: Variant in source.get("doors", []):
@@ -203,6 +191,40 @@ static func validate(source: Dictionary) -> DotResult:
 
 	doc["doors"] = doors
 
+	bad = _toys(source, doc)
+
+	if bad != "":
+		return _refuse(bad, source)
+
+	bad = _spawns(source, doc)
+
+	if bad != "":
+		return _refuse(bad, source)
+
+	return DotResult.success(doc)
+
+
+static func _lights(source: Dictionary, out: Dictionary) -> String:
+	var lights: Array = []
+	for raw: Variant in source.get("lights", []):
+		if not (raw is Dictionary) or not (raw as Dictionary).has("at"):
+			return "light %d has no 'at'" % lights.size()
+		var light := raw as Dictionary
+		lights.append({
+			"at": _floats(light["at"], 3),
+			"range": clampf(float(light.get("range", 8.0)), 0.5, 80.0),
+			"energy": clampf(float(light.get("energy", 1.0)), 0.0, 16.0),
+			"colour": _floats(light.get("colour", [1.0, 0.95, 0.85]), 3),
+		})
+
+	if lights.size() > MAX_LIGHTS:
+		return "%d lights; the most is %d" % [lights.size(), MAX_LIGHTS]
+
+	out["lights"] = lights
+	return ""
+
+
+static func _toys(source: Dictionary, out: Dictionary) -> String:
 	# Toys: dot-props' DotPropToyBox placements, `{toy, at, yaw, links?, on?}`. Which ids exist
 	# is the catalogue's to say when the map is built (an unknown one is left out and listed),
 	# so a map with a toy a newer dot-props has still plays on an older server.
@@ -210,38 +232,41 @@ static func validate(source: Dictionary) -> DotResult:
 	for raw: Variant in source.get("toys", []):
 		var toy := DotPropToyBox.normal_placement(raw)
 		if toy.is_empty():
-			return _refuse("toy %d is not {toy, at}" % toys.size(), source)
+			return "toy %d is not {toy, at}" % toys.size()
 		toys.append(toy)
 
 	if toys.size() > MAX_TOYS:
-		return _refuse("%d toys; the most is %d" % [toys.size(), MAX_TOYS], source)
+		return "%d toys; the most is %d" % [toys.size(), MAX_TOYS]
 
 	for toy: Dictionary in toys:
 		for link: int in toy.get("links", []):
 			if link < 0 or link >= toys.size():
-				return _refuse("a %s links to toy %d, and there are %d" % [toy["toy"], link, toys.size()], source)
+				return "a %s links to toy %d, and there are %d" % [toy["toy"], link, toys.size()]
 
-	doc["toys"] = toys
+	out["toys"] = toys
+	return ""
 
+
+static func _spawns(source: Dictionary, out: Dictionary) -> String:
 	var spawns: Variant = source.get("spawns", {})
 	if not (spawns is Dictionary):
-		return _refuse("'spawns' is not {hiders, seekers}", source)
+		return "'spawns' is not {hiders, seekers}"
 
 	var out_spawns := {}
 	for side in ["hiders", "seekers"]:
 		var list: Array = []
 		for raw: Variant in (spawns as Dictionary).get(side, []):
 			if not (raw is Dictionary) or not (raw as Dictionary).has("at"):
-				return _refuse("a %s spawn has no 'at'" % side, source)
+				return "a %s spawn has no 'at'" % side
 			list.append({"at": _floats((raw as Dictionary)["at"], 3), "yaw": _r(float((raw as Dictionary).get("yaw", 0.0)))})
 		if list.is_empty():
-			return _refuse("no spawns for the %s" % side, source)
+			return "no spawns for the %s" % side
 		if list.size() > MAX_SPAWNS:
-			return _refuse("%d %s spawns; the most is %d" % [list.size(), side, MAX_SPAWNS], source)
+			return "%d %s spawns; the most is %d" % [list.size(), side, MAX_SPAWNS]
 		out_spawns[side] = list
 
-	doc["spawns"] = out_spawns
-	return DotResult.success(doc)
+	out["spawns"] = out_spawns
+	return ""
 
 
 static func _box(raw: Variant) -> Dictionary:
