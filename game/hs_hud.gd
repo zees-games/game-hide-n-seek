@@ -115,6 +115,15 @@ func bind(p_game: HsGame, p_player: HsPlayer) -> void:
 		_build()
 
 
+## Anchors a control to [param preset] with these four offsets.
+func _rect(c: Control, preset: Control.LayoutPreset, left: float, top: float, right: float, bottom: float) -> void:
+	c.set_anchors_and_offsets_preset(preset)
+	c.offset_left = left
+	c.offset_top = top
+	c.offset_right = right
+	c.offset_bottom = bottom
+
+
 func _build() -> void:
 	# A full-rect Control between the CanvasLayer and the labels: a CanvasLayer does not lay its
 	# children out, so anchors on a Label parented straight to one resolve against nothing.
@@ -128,11 +137,7 @@ func _build() -> void:
 	blind_overlay = _cover("Blind", BLIND_COLOUR)
 
 	_blindfold_label = _label(30)
-	_blindfold_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	_blindfold_label.offset_left = -520.0
-	_blindfold_label.offset_right = 520.0
-	_blindfold_label.offset_top = -40.0
-	_blindfold_label.offset_bottom = 40.0
+	_rect(_blindfold_label, Control.PRESET_CENTER, -520.0, -40.0, 520.0, 40.0)
 	_blindfold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_blindfold_label.add_theme_color_override("font_color", Color(0.98, 0.78, 0.45))
 
@@ -152,18 +157,10 @@ func _build() -> void:
 
 	# Top left: the keys this side has, as the player has them bound.
 	_hints = _label(15)
-	_hints.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	_hints.offset_left = 22.0
-	_hints.offset_top = 18.0
-	_hints.offset_right = 420.0
-	_hints.offset_bottom = 260.0
+	_rect(_hints, Control.PRESET_TOP_LEFT, 22.0, 18.0, 420.0, 260.0)
 
 	_shout = _label(40)
-	_shout.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	_shout.offset_top = 170.0
-	_shout.offset_bottom = 240.0
-	_shout.offset_left = -600.0
-	_shout.offset_right = 600.0
+	_rect(_shout, Control.PRESET_CENTER_TOP, -600.0, 170.0, 600.0, 240.0)
 	_shout.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_shout.add_theme_color_override("font_color", Color(0.99, 0.86, 0.40))
 
@@ -172,11 +169,7 @@ func _build() -> void:
 	# Above the chat box, which also draws bottom-left.
 	_disc = Panel.new()
 	_disc.name = "Disc"
-	_disc.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	_disc.offset_left = 22.0
-	_disc.offset_right = 102.0
-	_disc.offset_top = -300.0
-	_disc.offset_bottom = -220.0
+	_rect(_disc, Control.PRESET_BOTTOM_LEFT, 22.0, -300.0, 102.0, -220.0)
 	_disc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_disc)
 
@@ -191,18 +184,10 @@ func _build() -> void:
 	_disc.add_child(_disc_label)
 
 	_as = _label(17)
-	_as.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	_as.offset_left = 112.0
-	_as.offset_right = 600.0
-	_as.offset_top = -296.0
-	_as.offset_bottom = -266.0
+	_rect(_as, Control.PRESET_BOTTOM_LEFT, 112.0, -296.0, 600.0, -266.0)
 
 	_lock = _label(15)
-	_lock.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	_lock.offset_left = 112.0
-	_lock.offset_right = 600.0
-	_lock.offset_top = -264.0
-	_lock.offset_bottom = -240.0
+	_rect(_lock, Control.PRESET_BOTTOM_LEFT, 112.0, -264.0, 600.0, -240.0)
 	_lock.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
 
 	# The forced-taunt meter, under the disc's words: how long a hider has before they give
@@ -215,27 +200,15 @@ func _build() -> void:
 	_seen_back = _centre_bar(Color(0.0, 0.0, 0.0, 0.5))
 	_seen_fill = _centre_bar(Color(0.98, 0.42, 0.12, 0.95))
 	_seen_label = _label(16)
-	_seen_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	_seen_label.offset_left = -200.0
-	_seen_label.offset_right = 200.0
-	_seen_label.offset_top = 68.0
-	_seen_label.offset_bottom = 90.0
+	_rect(_seen_label, Control.PRESET_CENTER, -200.0, 68.0, 200.0, 90.0)
 	_seen_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_seen_label.add_theme_color_override("font_color", Color(1.0, 0.72, 0.5))
 	_meter_label = _label(15)
-	_meter_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	_meter_label.offset_left = 112.0
-	_meter_label.offset_right = 420.0
-	_meter_label.offset_top = -256.0
-	_meter_label.offset_bottom = -236.0
+	_rect(_meter_label, Control.PRESET_BOTTOM_LEFT, 112.0, -256.0, 420.0, -236.0)
 
 	watching_label = _label(20)
 	watching_label.name = "Watching"
-	watching_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	watching_label.offset_left = -520.0
-	watching_label.offset_right = 520.0
-	watching_label.offset_top = -140.0
-	watching_label.offset_bottom = -104.0
+	_rect(watching_label, Control.PRESET_CENTER_BOTTOM, -520.0, -140.0, 520.0, -104.0)
 	watching_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	watching_label.add_theme_color_override("font_color", Color(0.80, 0.90, 1.0))
 
@@ -243,11 +216,7 @@ func _build() -> void:
 	prompt = DotKeyPrompt.new()
 	prompt.name = "DoorPrompt"
 	prompt.font_size = 15
-	prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	prompt.offset_left = -240.0
-	prompt.offset_right = 240.0
-	prompt.offset_top = 14.0
-	prompt.offset_bottom = 46.0
+	_rect(prompt, Control.PRESET_CENTER, -240.0, 14.0, 240.0, 46.0)
 	prompt.visible = false
 	_root.add_child(prompt)
 
