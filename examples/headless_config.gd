@@ -63,6 +63,20 @@ func _run() -> void:
 	_layers()
 	_templates(binder)
 
+	_workbench(binder, config, keys)
+	console.free()
+	print("")
+	print("%d passed, %d failed" % [_passed, _failed])
+	for line in _failures:
+		print("  FAIL  %s" % line)
+	if _passed + _failed != CHECKS:
+		print("ERROR: %d checks ran, %d expected." % [_passed + _failed, CHECKS])
+		get_tree().quit(1)
+		return
+	get_tree().quit(1 if _failed > 0 else 0)
+
+## The workbench lists every key over the profile sets, a set reaches the live config, and the export holds the edit.
+func _workbench(binder: DotGameConfigBinder, config: HsConfig, keys: PackedStringArray) -> void:
 	var wb := DotGameWorkbench.new()
 	wb.panel_mode = 1
 	wb.config = {"enabled": false}
@@ -88,16 +102,6 @@ func _run() -> void:
 	_check(text.contains("player_health: 150.0"), "the export holds the edit in the cfg layout")
 
 	wb.free()
-	console.free()
-	print("")
-	print("%d passed, %d failed" % [_passed, _failed])
-	for line in _failures:
-		print("  FAIL  %s" % line)
-	if _passed + _failed != CHECKS:
-		print("ERROR: %d checks ran, %d expected." % [_passed + _failed, CHECKS])
-		get_tree().quit(1)
-		return
-	get_tree().quit(1 if _failed > 0 else 0)
 
 
 ## Child process: loads the layers strictly over the test root and prints what the live config holds.
