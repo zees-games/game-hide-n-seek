@@ -1,12 +1,8 @@
 extends Node
 
-## Writes one bake scene per map for dot-lighting's baker: the map built exactly as a client builds it, its opaque box batches (with their
-## UV2), lamps and sun kept, a LightmapGI added and the map's fingerprint recorded (dot-map's DotMapBoxBake). tools/bake_lightmaps.sh runs
-## this and then the bake.
-##
-##   xvfb-run -a godot --path . res://tools/lightmap_scenes.tscn -- --out=res://lightbake_work [--maps=hs_mall,hs_school]
-##
-## Under a display, not --headless: a headless process keeps no mesh data to save.
+## Writes one bake scene per map for dot-lighting's baker: the map built as a client builds it, opaque box batches (with UV2), lamps and sun kept,
+## a LightmapGI added and the fingerprint recorded (DotMapBoxBake); tools/bake_lightmaps.sh runs this then the bake.
+## Needs a display (xvfb-run), not --headless: a headless process keeps no mesh data to save.
 
 const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")

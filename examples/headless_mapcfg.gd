@@ -3,12 +3,7 @@ extends DotGameCheckSuite
 const HsMapConfig := preload("../game/hs_map_config.gd")
 
 ## A map's file sets the round's cvars and the next map puts them back; the client's two keys do the same on a plain config.
-##
-## [codeblock]
-## godot --headless --path . res://examples/headless_mapcfg.tscn
-## [/codeblock]
-##
-## It writes a file into the operator tier for the run and removes it. The cvars start away from the file's values.
+## Writes a file into the operator tier for the run and removes it; the cvars start away from the file's values.
 
 const CHECKS := 9
 const DIR := "res://cfg/server/game/game-hide-n-seek/dot_map/map"

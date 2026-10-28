@@ -3,19 +3,9 @@ extends Node
 const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
 
-## Bot soak on the real game: N stand-ins play rounds back to back on one map for M simulated
-## minutes through dot-bot's DotBotSoak, fed by dot-spawn's DotSpawnWatch.
-##
-## [codeblock]
-## ./game.sh soak [map] [minutes]
-## godot --headless --path . res://tools/soak.tscn -- --map hs_manor --bots 7 --minutes 5
-## [/codeblock]
-##
-## --probe prints a PROBE line per bot per second (the log has them all; the game.sh filter hides them).
-## Takes the harness's own flags too (--soak-max-stuck-sec and the rest of DotBotSoakConfig).
-## Writes .godot/test-logs/soak-<map>.json, prints the SOAK line, exits 1 when the run fails.
-## A hider settled in its spot, a seeker through the hide and anyone between rounds have no goal.
-## There is no navigation mesh query here, so off-nav and unreachable are off.
+## Bot soak on the real game: N stand-ins play rounds back to back on one map for M simulated minutes through DotBotSoak, fed by DotSpawnWatch.
+## Run `./game.sh soak [map] [minutes]`; --probe prints a PROBE line per bot per second, and DotBotSoakConfig flags are accepted.
+## Writes .godot/test-logs/soak-<map>.json, prints the SOAK line, exits 1 on failure. No navigation mesh query here, so off-nav and unreachable are off.
 
 const DEFAULT_MAP := &"hs_manor"
 const DEFAULT_MINUTES := 2.0

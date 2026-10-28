@@ -3,7 +3,6 @@
 examples/dedicated.gd::banner	1
 examples/dedicated.gd::history	2
 examples/dedicated.gd::long_block	12
-examples/headless_bots.gd::history	1
 examples/headless_bots.gd::long_block	4
 examples/headless_climb.gd::banner	1
 examples/headless_climb.gd::history	2
@@ -19,9 +18,7 @@ game/hs_audio.gd::long_block	2
 game/hs_avatars.gd::long_block	5
 game/hs_bindings.gd::history	2
 game/hs_bindings.gd::long_block	1
-game/hs_bots.gd::banner	5
-game/hs_bots.gd::history	2
-game/hs_bots.gd::long_block	28
+game/hs_bots.gd::history	1
 game/hs_catalogue.gd::banner	1
 game/hs_catalogue.gd::long_block	2
 game/hs_client.gd::banner	10
@@ -44,7 +41,7 @@ game/hs_map_doc.gd::banner	1
 game/hs_map_doc.gd::long_block	2
 game/hs_materials.gd::long_block	2
 game/hs_module.gd::history	1
-game/hs_module.gd::long_block	21
+game/hs_module.gd::long_block	20
 game/hs_paths.gd::long_block	4
 game/hs_player.gd::banner	1
 game/hs_player.gd::long_block	2
@@ -52,7 +49,6 @@ game/hs_progress.gd::banner	5
 game/hs_progress.gd::long_block	3
 game/hs_props.gd::long_block	1
 game/hs_rules.gd::long_block	2
-game/hs_server.gd::long_block	3
 game/hs_services.gd::banner	1
 game/hs_services.gd::long_block	10
 game/hs_settings.gd::history	1
@@ -67,9 +63,6 @@ game/net/hs_events.gd::banner	7
 game/net/hs_events.gd::history	1
 game/net/hs_events.gd::long_block	9
 game/net/hs_interest.gd::long_block	1
-game/net/hs_net_bridge.gd::banner	12
-game/net/hs_net_bridge.gd::history	2
-game/net/hs_net_bridge.gd::long_block	32
 game/net/hs_net_command.gd::long_block	1
 game/net/hs_net_link.gd::banner	2
 game/net/hs_net_link.gd::history	1

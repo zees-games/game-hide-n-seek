@@ -2,36 +2,9 @@ extends RefCounted
 
 const HsPlayer := preload("hs_player.gd")
 
-## The stand-ins: hiders that hide and seekers that search, on dot-bot's settings.
-##
-## [b]What the first play test saw.[/b] Bot hiders stood together in the open and three were
-## tagged inside one second; seekers ran in a cluster; a bot walked into his camera. A hider then
-## walked to a random spot beside a random piece of furniture, and a seeker wandered from prop to
-## prop. Now:
-##
-## - [b]The map is surveyed once[/b] when it is built (`_prepare`): dot-bot's [DotBotNav] bakes
-##   where a body can walk from the map's colliders (stairs, crawl spaces, doorways whatever their
-##   doors), and [DotBotHiding.survey] scores a few hundred places on it by how many of the map's
-##   sight lines reach a crouched head there. A cupboard scores near 0, a field near 1.
-## - [b]A hider picks a hidden place apart from the others[/b] ([DotBotHiding.choose]: spots
-##   taken nearby cost, so do the seekers' start, and a place it cannot reach before the seekers
-##   are let go is out), walks the mesh's path there, crouches and keeps still. It watches and
-##   listens with its own `bot_fov`, `bot_sight` and `bot_hearing`: a seeker that comes close
-##   and can see it, or is heard coming close, sends it to a place out of that seeker's sight
-##   ([DotBotHiding.flee_spot]), at a sprint when it is seen and quietly when it is only heard.
-##   Before the standing-still clock forces a taunt it shuffles to another place nearby.
-## - [b]A seeker searches[/b] with a [DotBotSearch]: the most hidden places first as far as
-##   `bot_map_knowledge` goes, the nearest first, crossing off every place it has had in view, and
-##   never where another seeker is already going. Footsteps and taunts it hears put the places
-##   round them first. A hider it sees is noticed after `bot_reaction` (more off to the side,
-##   `bot_notice`) and chased; one lost from sight is looked for where it went for `bot_memory`.
-## - [b]Nobody cheats.[/b] A bot knows of another body only by seeing it (cone, range, nothing
-##   solid between: the game's own sight test) or hearing it; the beacon the game puts on the
-##   last hiders is the one exception, because it is the rules telling every seeker.
-## - [b]The view turns at `bot_turn_rate`[/b] through [DotBotAim], never in one tick, and the bot
-##   walks along its path whatever way it is looking.
-## - [b]People do not collide with people,[/b] so a bot steps round anybody within a metre
-##   rather than through their camera.
+## The stand-ins: hiders that hide and seekers that search, on dot-bot's settings. The map is surveyed once in `_prepare`
+## (DotBotNav mesh, DotBotHiding.survey scoring places by sight lines); a hider picks a hidden place apart from the others, a seeker searches with DotBotSearch.
+## Nobody cheats: a bot knows another body only by seeing or hearing it, the last-hiders beacon being the one exception.
 
 const CHANNEL := "hs.bots"
 
@@ -57,10 +30,8 @@ const DROP_MAX := 2.0
 ## Metres between two links along one stretch of edge (the annotator's default is 2).
 const LINK_SPACING := 6.0
 
-## The corner a bot was walking to when it gave up its goal is shunned for [constant SHUN_FOR]
-## seconds: a walk that passes within [constant SHUN_RADIUS] of it costs [constant SHUN_COST] metres
-## more (a seeker) or is not a place to go (a hider), so it does not go straight back through the
-## doorway it could not pass.
+## A corner a bot gave up on is shunned for [constant SHUN_FOR] seconds, so it does not go straight back
+## through the doorway it could not pass.
 const SHUN_COST := 200.0
 const SHUN_FOR := 30.0
 const SHUN_RADIUS := 0.8
@@ -128,10 +99,8 @@ const DOOR_CLEAR := 1.4
 ## panel before it shuts that door (`_linger_by_door`). `headless_bots` holds the worst to 9.0 s.
 const LINGER_SHUT := 5.0
 
-## And still there this long after it first came (the door would not shut, or the walk went
-## straight back to the same spot): somewhere else, once. Without it a seeker searching a manor
-## dining room stayed in the corner behind its open door for ten seconds after its shut had
-## failed (`headless_bots` round 13).
+## Still there this long after it first came (door would not shut, or the walk returned to the same spot): somewhere else, once.
+## Else a seeker stayed in the corner behind its open door.
 const LINGER_GIVE_UP := 8.0
 ## Seconds round one spot before a goal under an open panel is dropped (`_linger_by_door`).
 const LINGER_POCKET := 2.5
@@ -146,25 +115,16 @@ const AVOID_RADIUS := 4.0
 const AVOID_FOR := 20.0
 
 
-## How far off, as a share of `bot_sight`, somebody keeping still and crouched is made out, and
-## then only whole (head and chest): a head over a sofa's back is passed over. 10 m at medium.
-## It was 0.25 with either showing, and a seeker that walked the hidden places found nearly
-## everybody (`headless_bots`: 4% of hiders left at medium). 0.18 until 2026-10-12, when
-## dot-player-controller stopped seekers hanging in the corners behind open doors and the hiders
-## fell from 12 rounds in 24 to 6; 0.12 (7 m at medium) brought them back to 11. 0.10 (6 m)
-## since bots stopped lingering at doors (`hns-bot-door-linger-2`), with the search pace below.
-## Not monotonic: 0.08 took the hiders from 10 rounds in 24 to 6.
+## How far off, as a share of `bot_sight`, somebody still and crouched is made out, and only whole (head and chest).
+## Tuned against `headless_bots` hider win rates; not monotonic (0.08 was worse than 0.10), so re-measure before moving it.
 const STILL_LOW_SIGHT := 0.10
 
 ## Metres from the eye within which somebody is felt whichever way the bot faces: an arm's
 ## length, about, past the touch's reach.
 const FELT_WITHIN := 2.0
 
-## How fast a seeker searches, as a share of a run: a walk, looking (1.7 m/s). Chasing is a sprint.
-## At a run the seekers searched the hidden places of a house in a minute, and a round with one
-## seeker was over long before its clock. 0.30 until seekers stopped lingering at doors
-## (`hns-bot-door-linger-2`): freed, they found more, and the hiders won 6 rounds in 24 on seeds
-## 0-23; 0.28 gives 11 on both halves of 48.
+## How fast a seeker searches, as a share of a run (1.7 m/s); chasing is a sprint. At a run the seekers
+## searched a house in a minute. Tuned with STILL_LOW_SIGHT against `headless_bots` hider win rates.
 const SEARCH_PACE := 0.28
 
 ## Seconds a hider waits after a move before it may move again for the same seeker.
@@ -291,7 +251,6 @@ func on_taunted(player_id: StringName) -> void:
 	_sounds.append({"at": who.controller.state.position, "loud": LOUD_TAUNT, "by": player_id, "t": now()})
 
 
-# --- The map ------------------------------------------------------------------
 
 ## Bakes and surveys the map now built, once per map. Only where bots run (the server, or solo).
 func _prepare() -> void:
@@ -335,10 +294,8 @@ func _prepare() -> void:
 	if int(game.get("_tick")) < _survey_at or not nav.is_ready():
 		return
 
-	# A doorway a body walks through but the mesh does not (the baker rounds the radius up to whole
-	# 0.175 m cells and erodes both jambs, which shuts a 0.9 m door) cuts the hiders' spawn off from
-	# the seekers': nobody has a spot to walk to and all of them stand the round out. Bake once
-	# more with a one-cell radius; the walk's jamb handling copes with the closer paths.
+	# A doorway a body walks through but the mesh does not (the baker rounds the radius up and erodes both jambs) cuts the hiders'
+	# spawn off from the seekers', so nobody has a spot. Bake once more with a one-cell radius.
 	if _nav_radius > DotBotNav.CELL and not _spawns_joined(map):
 		_nav_radius = DotBotNav.CELL
 		DotLog.info(CHANNEL, "the spawns are not joined on the mesh; baking narrower", {"map": str(doc.get("id", ""))})
@@ -383,14 +340,9 @@ func _prepare() -> void:
 	})
 
 
-## The old survey: random points over the mesh and points beside props, each scored by the
-## share of random watchers that see it. Kept as the sweep's open-floor places, as the fallback
-## when a map has no annotations, and as the yardstick `headless_bots` measures the new hiding
-## against ([method legacy_picks]).
-## The spots a seeker can walk to from its spawn. The annotator also finds places the mesh does not
-## join to it (a slab above the roof, a basement), and the best-scored of them filled the hiders'
-## whole shortlist: `DotBotHiding.choose` only looks at a few of the top, so a hider with the
-## doorway shunned found nothing for ninety seconds. All of them when none is joined.
+## The old survey (random points and points beside props, scored by random watchers): the sweep's open-floor places, the fallback without
+## annotations, and the yardstick `headless_bots` measures hiding against ([method legacy_picks]).
+## Spots a seeker can walk to from its spawn: unjoined places (a slab above the roof) filled the shortlist; all of them when none is joined.
 func _walkable_spots(all: Array[Dictionary], map: Node3D) -> Array[Dictionary]:
 	if not nav.is_ready():
 		return all
@@ -436,10 +388,8 @@ func _random_survey(map: Node3D, stream: DotRandomStream, points: int, prop_coun
 	return DotBotHiding.survey(candidates, watchers, _los)
 
 
-## What the map means to somebody walking it: [DotNpcAiNavAnnotator] over the baked mesh, seeded
-## with every spawn, the doors left out of its rays (the bake left them out), cached by key under
-## `user://nav`. Returns the job to step, or null when the cache had it (or there is no mesh);
-## [method _finish_annotation] then hands drop and jump-up links to the mesh as ride edges.
+## What the map means to somebody walking it: [DotNpcAiNavAnnotator] over the baked mesh, seeded with every spawn, doors left out, cached under `user://nav`.
+## Returns the job to step, or null on a cache hit; [method _finish_annotation] then adds drop and jump-up links as ride edges.
 func _begin_annotation(map: Node3D, doc: Dictionary) -> DotJob:
 	annotate_cached = false
 	annotate_ms = 0.0
@@ -520,7 +470,6 @@ func _los(a: Vector3, b: Vector3) -> bool:
 	return bool(game.call("_clear_between", a, b, true))
 
 
-# --- Every tick -----------------------------------------------------------------
 
 ## What every stand-in presses this tick. Called by the game before the bodies move.
 func drive() -> void:
@@ -654,10 +603,8 @@ func _heard(player: HsPlayer, side: int) -> Dictionary:
 	return best
 
 
-## Whether [param player] sees [param other]'s head or chest with its own eyes and settings.
-## Movement draws the eye: somebody keeping still, or creeping crouched, is noticed at half
-## `bot_sight`, and keeping still crouched only at [constant STILL_LOW_SIGHT] of it and only
-## whole, which is how a person in a corner gets passed by.
+## Whether [param player] sees [param other]'s head or chest with its own eyes and settings. Movement draws the eye: somebody still or creeping
+## is noticed at half `bot_sight`, still and crouched only at [constant STILL_LOW_SIGHT] of it and only whole.
 func _sees(player: HsPlayer, other: HsPlayer) -> bool:
 	var profile := settings().profile
 	var sight := profile.sight
@@ -685,7 +632,6 @@ func _sees(player: HsPlayer, other: HsPlayer) -> bool:
 	return head_seen or chest_seen
 
 
-# --- Hiding ---------------------------------------------------------------------
 
 func _hide(player: HsPlayer, command: DotFpsCommand) -> void:
 	var state := _state_of(player)
@@ -816,11 +762,8 @@ func _pick_spot(player: HsPlayer, state: Dictionary, avoid: PackedVector3Array, 
 	state["path"] = PackedVector3Array()
 
 
-## The hiding spots as a hider sees them: out of sight first (the annotator's exposure), then
-## tucked in (its enclosure), and best of all behind cover from where the seekers start (a
-## crouched body behind something from every one of them: [method cover_from]). Folded into
-## `exposure` so [DotBotHiding.choose] spreads and ranks them as before; the measured share stays
-## in `seen_exposure`. Made once a round, the seekers' start being fixed.
+## The hiding spots as a hider sees them: out of sight first (exposure), tucked in (enclosure), best behind cover from the seekers' start
+## ([method cover_from]). Folded into `exposure` so [DotBotHiding.choose] ranks them as before; the measured share stays in `seen_exposure`.
 func _hider_pool(threats: PackedVector3Array) -> Array[Dictionary]:
 	if not _pool.is_empty() and _pool_threats == threats:
 		return _pool
@@ -915,10 +858,8 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 	if not (seen or bumping or coming or catch_near or marked_chase):
 		return
 
-	# In its sight but close, hidden still and low: running from a seeker a few metres off is
-	# caught inside two seconds (`headless_bots`: 74 of 77 hiders that ran from one that could
-	# see them), and a still, crouched body takes it a moment longer to make out than a running
-	# one. Keep still and hope to be passed over; a step closer is a bump, and then it runs.
+	# In its sight but close, hidden still and low: running from a seeker a few metres off is caught inside two seconds, and a still
+	# crouched body is made out later. Keep still and hope to be passed over; a step closer is a bump, and then it runs.
 	if seen and not (bumping or marked_chase) and state["mode"] == &"hidden" and nearest_d < FREEZE_WITHIN:
 		return
 
@@ -941,11 +882,8 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 	for id: StringName in _state:
 		if id != player.player_id and not ((_state[id] as Dictionary).get("spot", {}) as Dictionary).is_empty():
 			taken.append((_state[id]["spot"] as Dictionary)["at"])
-	# Running: round a corner and well away, so it has to search again. Slipping away: the
-	# nearest place out of its sight.
-	# Only places it can get to by a short walk: with the annotator's links a place across a drop
-	# or up a stair is near as the crow flies and half a minute off by path, and a hider told to
-	# run there went round a camp's doorway for twelve seconds changing its mind.
+	# Running: round a corner and well away. Slipping away: the nearest place out of its sight. Only places a short walk away:
+	# with the annotator's links a place across a drop is near as the crow flies and far by path.
 	var runnable: Array[Dictionary] = []
 	var start := nav.closest(at) if nav.is_ready() else at
 	for spot in spots:
@@ -981,10 +919,8 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 	state["why"] = "%s %.1f" % ["seen" if seen else ("bump" if bumping else ("beacon" if marked_chase else ("coming" if coming else "catch"))), at.distance_to(threat)]
 
 
-## Remembers the doorway the hider is in, and once it is through and clear of the panel's
-## sweep, decides whether to shut the door behind it: always running from a seeker behind it,
-## and going to a place close beyond the door. A shut door is a wall to a seeker's eye until it
-## is opened, and opening it costs the seeker the panel's swing.
+## Remembers the doorway the hider is in and, once through and clear of the panel's sweep, decides whether to shut the door behind it:
+## always when running from a seeker behind it. A shut door is a wall to a seeker's eye, and opening it costs the swing.
 func _note_doorway(player: HsPlayer, state: Dictionary, goal: Vector3) -> void:
 	var map: Node3D = game.get("map")
 	var doors: Object = map.get("doors") if map != null else null
@@ -1045,13 +981,9 @@ func _shut_door(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> 
 	return true
 
 
-## A shut door the walk goes into that would swing into the bot itself (a door pinned to open
-## one way, `away: false`, from the side it opens towards): the game refuses a use while anybody
-## stands where the panel will pass, the opener too, so pressing from there does nothing. A
-## person steps back first. Plans a point out of the swing, square to the door's middle, on the
-## mesh; true when it did, and `_open_from_clear` walks there and opens it. Without it a hider
-## fleeing a park cabin stood at its inward front door for eighteen seconds (`headless_bots`
-## round 10).
+## A shut door the walk goes into that would swing into the bot itself (pinned to open one way): the game refuses a use while anybody
+## stands where the panel will pass, so a person steps back first. Plans a point out of the swing; true when it did,
+## and `_open_from_clear` walks there and opens it.
 func _plan_open_from_clear(player: HsPlayer, state: Dictionary, dir: Vector3) -> bool:
 	if dir.length() < 0.01 or _before(state, "open_check"):
 		return false
@@ -1166,7 +1098,6 @@ func _before(state: Dictionary, key: String) -> bool:
 	return now() < float(state.get(key, -INF))
 
 
-# --- Seeking ----------------------------------------------------------------------
 
 func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 	var state := _state_of(player)
@@ -1305,10 +1236,8 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 
 	state["sprint"] = false
 	var _there := _walk_to(player, command, state, place["at"], false, true, true)
-	# Searching is done at a walk: somebody running through a house looks at nothing. Crouched
-	# (a crawl space, under a table) at the same pace, not that pace slowed again by the crouch:
-	# a seeker crawling under a camp cabin at 0.8 m/s spent fifteen seconds there beside its door
-	# (`headless_bots` round 12).
+	# Searching is done at a walk: somebody running through a house looks at nothing. Crouched (a crawl space) at the same pace,
+	# not that pace slowed again by the crouch.
 	var pace := _search_pace()
 	if command.is_pressed(DotFpsCommand.BUTTON_CROUCH):
 		pace = minf(1.0, _search_pace() / maxf(player.controller.tunables.crouch_speed_scale, 0.01))
@@ -1323,10 +1252,8 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 
 	# Looking: at the place once near it, else along the way with a glance from side to side.
 	var target: Vector3 = place["at"]
-	# Only while the walk is heading that way too: staring at a place across a wall while the path
-	# leaves another way (a doorway) is walking backwards or sideways at a fifth of the pace, and
-	# the 0.3 m/s walk reads as stuck, sidesteps, gives up the goal and picks one on the other
-	# side (`headless_bots` round 47, school door 5: thirteen seconds in a doorway).
+	# Only while the walk is heading that way too: staring at a place across a wall while the path leaves by a doorway is walking
+	# sideways at a fifth of the pace, which reads as stuck and gives up the goal.
 	var to_place := Vector2(target.x - at.x, target.z - at.z)
 	var walking: Vector3 = state.get("walk_dir", Vector3.ZERO)
 	var heading := Vector2(walking.x, walking.z)
@@ -1394,7 +1321,6 @@ func _tour_next(state: Dictionary, at: Vector3, claimed: PackedVector3Array, sea
 	return {}
 
 
-# --- Moving -------------------------------------------------------------------------
 
 ## Walks [param player] along the mesh to [param goal]. Returns true when there.
 func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal: Vector3, sprint: bool, look: bool = true, seeker: bool = false) -> bool:
@@ -1429,10 +1355,8 @@ func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal:
 	var path: PackedVector3Array = state["path"]
 	if path.is_empty() or (state["goal"] as Vector3).distance_to(goal) > 1.0 or t - float(state["path_at"]) > 3.0:
 		path = nav.path(at, goal) if nav.is_ready() else PackedVector3Array()
-		# A path that goes nowhere (it ends where the bot stands, well short of the goal) starts on
-		# an island of the mesh: a stair's landing or a desk top it climbed or hopped onto. Straight
-		# for the goal, which steps it off; following the path kept a hider on a school landing
-		# beside an open door for half a minute (`headless_bots` round 11).
+		# A path that goes nowhere (ends where the bot stands, short of the goal) starts on an island of the mesh, a landing or desk top it
+		# climbed onto. Go straight for the goal, which steps it off; following the path kept a hider there.
 		if path.size() < 2 or (path.size() == 2 and Vector2(path[1].x - at.x, path[1].z - at.z).length() < 0.5 \
 				and Vector2(goal.x - at.x, goal.z - at.z).length() > 2.0):
 			path = PackedVector3Array([at, goal])
@@ -1443,11 +1367,8 @@ func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal:
 
 	var corner := _next_corner(state, at)
 
-	# An open door's panel across the way (the mesh is baked without doors, so a path runs
-	# through wherever a panel stands): round its free edge, then on. Without it a seeker stood
-	# pressed into the corner behind an open fire door for half a minute (`hns-bot-door-corner-1`)
-	# and a hider spent the whole hide against one at the top of a stair, then was caught in the
-	# seek's first three seconds.
+	# An open door's panel across the way (the mesh is baked without doors): round its free edge, then on. Without it a bot stood
+	# pressed into the corner behind an open fire door.
 	var detour: PackedVector3Array = state.get("detour", PackedVector3Array())
 	if detour.is_empty() and t >= float(state.get("detour_check", -INF)):
 		var round_door := _door_detour(at, corner, seeker)
@@ -1538,10 +1459,8 @@ func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal:
 	return false
 
 
-## `[door, points]`: two points round the free edge of the open door panel standing between
-## [param at] and [param corner] (one this side of the edge, one past it on the far side), or
-## `[-1, empty]` when no panel is in the way or there is no floor round its edge. A panel is in
-## the way when the next stretch of the walk crosses it.
+## `[door, points]`: two points round the free edge of the open door panel between [param at] and [param corner] (one this side, one past it),
+## or `[-1, empty]` when no panel is in the way (the next stretch of the walk crosses it) or no floor round its edge.
 func _door_detour(at: Vector3, corner: Vector3, seeker: bool = false) -> Array:
 	var map: Node3D = game.get("map")
 	var doors: Object = map.get("doors") if map != null else null
@@ -1603,10 +1522,8 @@ func _door_detour(at: Vector3, corner: Vector3, seeker: bool = false) -> Array:
 		var edge := Vector3(e.x, at.y, e.y) + waist
 		if not _los(edge, edge + Vector3(along.x, 0.0, along.y) * (k + HsPlayer.BODY_RADIUS)):
 			return [index, PackedVector3Array()]
-		# A seeker only: the gap between the free edge and a wall or fence on the detour's side
-		# must take a body, or the first waypoint wedges it (hs_village's back door, 0.71 m from a
-		# fence). A fleeing hider keeps the old behaviour: a door-only result there left it
-		# wedged against the panel (hs_camp's boathouse door).
+		# A seeker only: the gap between the free edge and a wall or fence on the detour's side must take a body, or the first waypoint
+		# wedges it. A fleeing hider keeps the old behaviour: a door-only result left it wedged against the panel.
 		if seeker:
 			var pinch := edge + Vector3(-along.y, 0.0, along.x) * near * -1.0 * (HsPlayer.BODY_RADIUS * 2.0 + 0.05)
 			if not _los(edge, pinch):
@@ -1631,11 +1548,8 @@ func _door_fraction(index: int) -> float:
 func _next_corner(state: Dictionary, at: Vector3) -> Vector3:
 	var path: PackedVector3Array = state["path"]
 	var corner: int = state["corner"]
-	# Passed when near it flat and on its level: on a switchback stair the corner of the flight
-	# above is right over the bot's head, and skipping it sent bots round in circles.
-	# A sharp turn (a doorway entered from along its wall) is passed only close to: passed at
-	# half a metre, a bot cut the corner into the jamb and stood there (`headless_bots` round 13,
-	# the manor's upstairs library door).
+	# Passed when near it flat and on its level: on a switchback stair the next flight's corner is over the bot's head. A sharp turn
+	# (a doorway entered from along its wall) is passed only close to, or a bot cut the corner into the jamb.
 	while corner < path.size() - 1 and Vector2(path[corner].x - at.x, path[corner].z - at.z).length() < _pass_within(path, corner) \
 			and absf(path[corner].y - at.y) < 0.9:
 		# Not until the way to the next one is open to a body: passed early, a bot turning round
@@ -1648,11 +1562,8 @@ func _next_corner(state: Dictionary, at: Vector3) -> Vector3:
 	return path[mini(corner, path.size() - 1)] if not path.is_empty() else at
 
 
-## Whether a body walking straight from [param at] to [param to] on one level meets no wall or
-## furniture at the height of a rail's bars: three lines, its middle and either side. Not the
-## doors: an open panel across the way is `_door_detour`'s, and counted here a corner beside one
-## was never passed, because a body cannot come within reach of a corner on a panel's edge
-## (`headless_bots` round 23, the school's gym doors).
+## Whether a body walking straight from [param at] to [param to] on one level meets no wall or furniture at a rail's bar height (three lines).
+## Not the doors: an open panel is `_door_detour`'s, and counted here a corner beside one was never passed.
 func _body_clear(at: Vector3, to: Vector3) -> bool:
 	if absf(to.y - at.y) > HsPlayer.BODY_STEP:
 		return true
@@ -1773,11 +1684,8 @@ func _wants_door(player: HsPlayer, command: DotFpsCommand) -> bool:
 	return index >= 0 and not bool(doors.call("is_open", index)) and not bool(doors.call("moving", index, int(game.get("_tick"))))
 
 
-## Hops, then steps aside, then asks for somewhere else, when it has made no headway for
-## [constant STUCK_SECONDS]. The count goes back to nothing only once the bot is
-## [constant STUCK_LEFT] from where it first stuck: with a reset on any 0.35 m of movement, a
-## step aside and back reset it every time, so "somewhere else" never came and a bot stood
-## against an open fire door for the whole hide (`headless_bots` round 38).
+## Hops, then steps aside, then asks for somewhere else, when it has made no headway for [constant STUCK_SECONDS]. The count resets only once
+## the bot is [constant STUCK_LEFT] from where it first stuck: a reset on any small move let a step aside and back reset it every time.
 func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> void:
 	var mark: Array = state["stuck"]
 	var at := player.controller.state.position
@@ -1836,11 +1744,8 @@ func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> vo
 	state["stuck"] = [at, t]
 
 
-## Which way to step aside when caught on something ahead: towards a wall within a body's width
-## when there is one on one side only, else by chance. A stair that runs along a wall (a castle
-## tower's, whose steps are too shallow for the 0.35 m body to stand on three of them) is climbed
-## against the wall; the path runs down the middle of the mesh and the bot stood below the first
-## step for half a minute (`hns-soak-stuck-bots`, hs_castle).
+## Which way to step aside when caught on something ahead: towards a wall within a body's width when there is one on one side only,
+## else by chance. A stair along a wall is climbed against the wall; the path runs down the middle of the mesh.
 func _sidestep_side(at: Vector3, ahead: Vector3, stream: DotRandomStream) -> float:
 	if ahead.length() > 0.01:
 		var waist := at + Vector3(0.0, 0.6, 0.0)
@@ -1852,12 +1757,9 @@ func _sidestep_side(at: Vector3, ahead: Vector3, stream: DotRandomStream) -> flo
 	return 1.0 if stream.next_unit() < 0.5 else -1.0
 
 
-## Stuck within a metre of an open doorway the walk goes through (the next corner is on its
-## far side): two points, square to the doorway's middle on this side and past it on the far
-## side, as the detour. The path is baked at exactly a body's radius from the frame, so a bot a
-## little off it caught the jamb: a seeker climbing a camp cabin's steps stood against one for
-## twelve seconds (`headless_bots` round 12). Only once stuck: steering every path through every
-## doorway's middle sent bots round in circles elsewhere. True when it set one.
+## Stuck within a metre of an open doorway the walk goes through: two points, square to its middle on this side and past it on the far side.
+## The path is baked at exactly a body's radius from the frame, so a bot a little off caught the jamb. Only once stuck:
+## steering every path through every doorway's middle sent bots round in circles. True when it set one.
 func _through_doorway(state: Dictionary, at: Vector3, t: float) -> bool:
 	var map: Node3D = game.get("map")
 	var doors: Object = map.get("doors") if map != null else null
@@ -1906,21 +1808,16 @@ func _search_pace() -> float:
 	return clampf(asked, 0.1, 1.0) if asked > 0.0 else SEARCH_PACE
 
 
-## Round and round one spot beside an open door's panel for [constant LINGER_SHUT]: whatever
-## the walk is trying there is not getting it past (a free edge against a bench, a jamb's corner
-## it keeps catching). The panel is the thing in the way, so the bot shuts it, as a person
-## would, and the walk opens it again from its own side; standing where it swings, it steps
-## back out of the way first, or with no floor for that goes somewhere else. Once for each
-## spot. True when it started any of them.
+## Round and round one spot beside an open door's panel for [constant LINGER_SHUT]: the panel is the thing in the way, so the bot shuts it
+## and the walk opens it again from its own side; standing where it swings, it steps back first, or with no floor goes elsewhere.
+## Once for each spot. True when it started any of them.
 func _linger_by_door(player: HsPlayer, state: Dictionary, at: Vector3, t: float) -> bool:
 	var anchor: Vector3 = state.get("linger_at", Vector3.INF)
 	var since := float(state.get("linger_since", t))
 	if anchor == Vector3.INF:
 		return false
-	# A hider's goal lies under the open panel (the mesh is baked without the doors, and the door was
-	# shut when the place was chosen): no shutting or stepping back gets it there, so choose
-	# again at LINGER_POCKET instead of after the shut attempt (`headless_bots` round 22, hs_park
-	# toilet door: 9.5 s against 9).
+	# A hider's goal lies under the open panel (the door was shut when the place was chosen): shutting or stepping back cannot get it there,
+	# so choose again at LINGER_POCKET instead of after the shut attempt.
 	if t - since >= LINGER_POCKET and t - since < LINGER_SHUT and float(state.get("linger_gave", -INF)) != since \
 			and (not (state.get("spot", {}) as Dictionary).is_empty() or state.get("target", StringName()) != StringName()) and _open_door_near(state.get("goal", Vector3.INF), HsPlayer.BODY_RADIUS + 0.3):
 		state["linger_gave"] = since
@@ -1958,10 +1855,8 @@ func _linger_by_door(player: HsPlayer, state: Dictionary, at: Vector3, t: float)
 	return true
 
 
-## A door this bot tried to shut and could not, for [constant SHUT_FAILED_FOR]: not tried again
-## from here. Forgotten at every give-up, it was planned again at once, and a bot stood facing a
-## door at the top of a flats stair for fifteen seconds, stepping back to shut it every three
-## (`headless_bots` round 44).
+## A door this bot tried to shut and could not, for [constant SHUT_FAILED_FOR]: not tried again from here. Forgotten at every give-up,
+## it was planned again at once and the bot stepped back to shut it every three seconds.
 func _note_shut_failed(state: Dictionary, index: int) -> void:
 	state["shut_failed"] = index
 	state["shut_failed_at"] = now()
@@ -2003,11 +1898,8 @@ func _open_door_index_near(at: Vector3, reach: float) -> int:
 	return best
 
 
-## Whether a door's panel is on the storey of somebody standing at [param at]: its foot within a
-## step of their feet and its head above a crouched body's. Within a flat
-## 2 m and 2.5 m up, a cabin's door counted for a hider in the crawl space under its floor,
-## which went round a panel in the room over its head for fourteen seconds (`headless_bots`
-## round 30, the camp).
+## Whether a door's panel is on the storey of somebody standing at [param at]: its foot within a step of their feet and its head above
+## a crouched body's. A flat 2 m / 2.5 m window counted a cabin's door for a hider in the crawl space under its floor.
 static func _door_on_level(spec: Dictionary, at: Vector3) -> bool:
 	var c: Array = spec["at"]
 	var half := float((spec["size"] as Array)[1]) * 0.5
@@ -2089,10 +1981,8 @@ func _note_lingering(state: Dictionary, at: Vector3, t: float) -> void:
 		longest_stuck_who = state.get("who", &"")
 
 
-## How well a body crouched at [param at] is hidden, by one measure for anything: `[exposure,
-## enclosure]`, the share of this map's watchers (random places on the mesh at a standing eye,
-## the same every call) within 30 m that see a crouched head there, and the share of sixteen
-## directions with something within 2 m. `headless_bots` holds the hiders' places to it.
+## How well a body crouched at [param at] is hidden, by one measure: `[exposure, enclosure]`, the share of this map's watchers within 30 m
+## that see a crouched head there, and the share of sixteen directions with something within 2 m. `headless_bots` holds the hiders to it.
 func quality(at: Vector3) -> Array:
 	if _watch_eyes.is_empty() and nav.is_baked():
 		var stream := DotRandomStream.new(7, &"hs_bot_quality")

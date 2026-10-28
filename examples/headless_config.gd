@@ -1,10 +1,7 @@
 extends DotGameCheckSuite
 
 ## HsConfig through DotGameConfigBinder: fields, cvars, strict refusal, the diff, a shipped yml loading back, and the workbench round trip.
-##
-## [codeblock]
-## godot --headless --path . res://examples/headless_config.tscn
-## [/codeblock]
+## Run: godot --headless --path . res://examples/headless_config.tscn
 
 const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")

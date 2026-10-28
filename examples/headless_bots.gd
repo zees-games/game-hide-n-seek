@@ -43,7 +43,7 @@ const BOTS := 7
 const MIN_MEAN_SURVIVAL := 90.0
 
 ## At medium: the share of rounds the hiders win, and of hiders never found.
-## Re-measured pieces.json (2026-10-28), 72 rounds: hiders won 24 (33%), 18% never found; per
+## Re-measured pieces.json, 72 rounds: hiders won 24 (33%), 18% never found; per
 ## 24 seeds 6, 8, 10 won and 15, 19, 21% never found. Before: 12 of 24 and 21% on seed 0.
 const HIDER_WINS := Vector2(0.20, 0.60)
 const NEVER_FOUND := Vector2(0.10, 0.40)
@@ -58,7 +58,7 @@ const NEVER_FOUND := Vector2(0.10, 0.40)
 ## way on is open, and the maps lost their panels with no way round (small rooms' doors slide).
 const MAX_STUCK := 9.0
 
-## What the review found wrong (2026-10-15) and how it is held. Hiders: this share ends the hide at
+## What the review found wrong and how it is held. Hiders: this share ends the hide at
 ## least [constant MOVED_FAR] metres from where they spawned and out of every seeker's sight.
 ## Seeker: the first seeker's walk comes within [constant COVER_RADIUS] metres of at least
 ## [constant MIN_COVERED] of the map's surveyed places inside [constant COVER_SECONDS] seconds,
