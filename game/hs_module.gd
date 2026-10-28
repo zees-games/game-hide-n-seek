@@ -1,28 +1,4 @@
-extends DotGameModule
-
-const HsNetBridge := preload("net/hs_net_bridge.gd")
-const HsServices := preload("hs_services.gd")
-const HsMapConfig := preload("hs_map_config.gd")
-
-const HsGame := preload("hs_game.gd")
-const HsPlayer := preload("hs_player.gd")
-const HsAvatars := preload("hs_avatars.gd")
-const HsVote := preload("hs_vote.gd")
-const HsAmbience := preload("hs_ambience.gd")
-## The workbench kind of the ambience cvar set (saved to cfg/.../ambience/server.yml).
-const AMBIENT_KIND := "ambience"
-
-## Older cvar names kept for shipped server configs and map files: alias -> HsConfig field.
-const ALIASES := {
-	"hs_caught_seek": "caught_become_seekers",
-	"hs_caught_from": "caught_seek_from",
-	"hs_caught_freeze": "caught_freeze_seconds",
-	"hs_side_choice": "allow_side_choice",
-	"hs_doors": "doors_enabled",
-	"hs_autobhop": "auto_bunny_hop",
-	"hs_min_players": "minimum_players",
-	"sv_map_rotation_file": "map_rotation_file",
-}
+extends "hs_module_base.gd"
 
 ## This game, as a module a dedicated server loads.
 ##
@@ -50,42 +26,10 @@ const ALIASES := {
 # name, so a second channel would split one module's records across two places an operator
 # has to know to turn up separately.
 
-## Seconds between checks of how many people are in the round.
-const ROSTER_INTERVAL := 2.0
-
-## Where the services keep punishments. Empty is [DotGameServices]'s own default,
-## `user://hideseek_punishments.json` — the store a real server enforces.
-##
-## [b]Static, because nothing holds this module before it exists[/b]: dot-server constructs
-## it from a path inside `load_module`, so there is no instance for a host to set a field on
-## first. `examples/dedicated.tscn` points it at a directory of its own; before it could,
-## every run appended the live tools' audit warnings to the real store, 106 of them by the
-## time anybody counted.
+## Where the services keep punishments (empty: [DotGameServices]'s default store). Static because
+## dot-server constructs the module from a path, so there is no instance to set a field on; a test
+## points it at a directory of its own.
 static var punishments_file: String = ""
-
-## The `hs_bots` cvar, held so the tick does not look it up sixty times a second.
-var _bots: DotConVar = null
-
-## `mp_forcecamera`, kept so the deprecated `hs_spectate_camera` writes through it.
-var _force_camera_cvar: Object = null
-
-## How many stand-ins, from how many people: dot-server's one rule for every game. See
-## [method _keep_the_round_full].
-var _quota: DotBotQuota = null
-
-var _since_roster_check: float = 0.0
-
-## How many stand-ins this module has put in, so it can take them out again.
-var _bot_ids: Array[StringName] = []
-
-## The players' vote for the next map; null when it could not be built.
-var vote: HsVote = null
-
-## dot-workbench over the config and the block rules; null before the module loads.
-var workbench: DotGameWorkbench = null
-
-## The drawn ballot's notice topic. The client shell draws one menu per topic.
-const MAP_BALLOT_TOPIC := &"map_ballot"
 
 
 func _map_config_keys() -> Dictionary:
@@ -203,45 +147,7 @@ func _game_load() -> DotResult:
 	_add_tunables(world)
 	_build_vote(world)
 
-	# sv_falldamage and its tunables: dot-combat's, on by default in this game. Server-side
-	# only, so no REPLICATED: the damage is the server's and arrives as health.
-	var _fall := world.fall_rules.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY)
-
-	# dot-player-controller's mp_forceview (first or third person: the player's choice, or one
-	# held) and mp_solidplayers (players and stand-ins block each other, 1 by default).
-	# REPLICATED: the client places its own camera under the first and predicts its own
-	# player under the second.
-	var _views := world.view_rules.bind_cvars(
-		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
-	)
-	var _bodies := world.body_rules.bind_cvars(
-		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
-	)
-	# hs_ambient*: REPLICATED, because each client plays its own ambience under the server's intent; the directory cvar stays local.
-	var _ambient := world.ambient_rules.bind_cvars(
-		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED,
-		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
-	)
-	# Dead bodies: dot-player-char's sv_ragdoll* set. The server only picks each death's reaction
-	# from them; REPLICATED, because the clients draw the bodies (see the client's netcode).
-	var _ragdolls := world.ragdoll_rules.bind_cvars(
-		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
-	)
-	# The map's toys: dot-props' sv_toys* set. REPLICATED, because a client hides the toys the
-	# server took away and draws the rest.
-	var _toys := world.toy_rules.bind_cvars(
-		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
-	)
-
-	# mp_forcecamera, mp_freeroam, mp_freeroam_speed: dot-spectate's rules, so spectators
-	# free-roam unless an operator says otherwise. REPLICATED, because each client flies its
-	# own spectator camera under them (HsClient.toggle_roam).
-	for made: Object in world.spectate_rules.bind_cvars(
-		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
-	):
-		if str(made.get(&"name")) == DotSpectatorRules.CVAR_FORCE_CAMERA:
-			_force_camera_cvar = made
-
+	_bind_rule_cvars(world)
 	_bind_config(world)
 
 	# REPLICATED: each client draws (or not) the map's world pack under the server's choice.
@@ -282,6 +188,48 @@ func _game_load() -> DotResult:
 
 	log_info("the map is up", world.describe())
 	return DotResult.success(null)
+
+
+## The cvars of the rule sets this game runs under, each bound where it is declared.
+func _bind_rule_cvars(world: HsGame) -> void:
+	# sv_falldamage and its tunables: dot-combat's, on by default in this game. Server-side
+	# only, so no REPLICATED: the damage is the server's and arrives as health.
+	var _fall := world.fall_rules.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY)
+
+	# dot-player-controller's mp_forceview (first or third person: the player's choice, or one
+	# held) and mp_solidplayers (players and stand-ins block each other, 1 by default).
+	# REPLICATED: the client places its own camera under the first and predicts its own
+	# player under the second.
+	var _views := world.view_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	)
+	var _bodies := world.body_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	)
+	# hs_ambient*: REPLICATED, because each client plays its own ambience under the server's intent; the directory cvar stays local.
+	var _ambient := world.ambient_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED,
+		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+	)
+	# Dead bodies: dot-player-char's sv_ragdoll* set. The server only picks each death's reaction
+	# from them; REPLICATED, because the clients draw the bodies (see the client's netcode).
+	var _ragdolls := world.ragdoll_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	)
+	# The map's toys: dot-props' sv_toys* set. REPLICATED, because a client hides the toys the
+	# server took away and draws the rest.
+	var _toys := world.toy_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	)
+
+	# mp_forcecamera, mp_freeroam, mp_freeroam_speed: dot-spectate's rules, so spectators
+	# free-roam unless an operator says otherwise. REPLICATED, because each client flies its
+	# own spectator camera under them (HsClient.toggle_roam).
+	for made: Object in world.spectate_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	):
+		if str(made.get(&"name")) == DotSpectatorRules.CVAR_FORCE_CAMERA:
+			_force_camera_cvar = made
 
 
 ## The maps the SERVER names for this game, fetched and added to the catalogue. Returns how
