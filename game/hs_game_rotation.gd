@@ -11,10 +11,9 @@ var _rot_catalogue: DotMapCatalogue = null
 var _rot: DotMapRotation = null
 
 
-## Reads maps.yml (the game's shipped `res://maps.yml` under the server's
-## [member HsConfig.map_rotation_file], looked for in the `--config` directory too) and applies
-## it. A file that is present and unreadable is an ERROR and changes nothing: rotating every map
-## is a better failure than rotating none.
+## Reads maps.yml (`res://maps.yml`, and [member HsConfig.map_rotation_file] in the `--config`
+## directory) and applies it. An unreadable file is an ERROR and changes nothing: rotating
+## every map is a better failure than rotating none.
 func load_rotation() -> DotResult:
 	var stem := config.map_rotation_file if config != null else ""
 	var dir := DotMapRotationFile.config_dir_arg()
