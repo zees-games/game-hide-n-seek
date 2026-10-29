@@ -2,24 +2,9 @@ extends "hs_module_base.gd"
 ## The commands, the chat wiring, the map vote and the tunable cvars of [HsModule] (a middle layer, split off for size); never loaded on its own.
 
 
-## The maps the SERVER names for this game, fetched and added to the catalogue. Returns how
-## many documents they held.
-##
-## [b]The server's list, not this game's.[/b] A map pack used to be a `server_dependencies`
-## entry in `game.yml`, which travels in this game's own pack — so a new map meant a release
-## of the game, and a server owner could not choose which maps to run. The owner names them
-## now in their deployment's map config (dot-server-deploy's `cfg/content.yml`, which fills
-## [member DotGameDescriptor.maps]); [DotGameContent] fetches each pack and hands back its
-## `maps/` directory. A server that still names one under `server_dependencies` keeps working,
-## because DotGameContent reads those too.
-##
-## [b]Still server-only.[/b] The server sends the map it is playing in MAP, so a client never
-## needs a map file and none of these is in a client's content sync. With nothing named, this
-## game plays its built-in map.
-##
-## [b]Called after EVERY catalogue load[/b], not only the first: `load_from` forgets everything
-## read before, and a reload that did not come back here dropped every delivered map — which
-## is what mg-wipeout and mg-deathrun did until the three were moved onto DotGameContent.
+## The maps the SERVER names for this game (the deployment's map config), fetched and added to
+## the catalogue; returns how many documents they held. Server-only: clients get the map in MAP.
+## Called after EVERY catalogue load, because `load_from` forgets everything read before.
 func _add_delivered_maps(world: HsGame) -> int:
 	if server == null or world.catalogue == null:
 		return 0
@@ -50,12 +35,7 @@ func _cmd_catch(ctx: DotCmdContext) -> void:
 
 
 ## A number as an operator would type it: `34`, not `34.000000`.
-##
-## [b]Not `%g`, which GDScript's format strings do not have.[/b] It is accepted by the parser
-## and fails at RUNTIME with "unsupported format character" — inside `_game_load`, which is
-## the one place in the module sequence that unwinds everything above it. The symptom in
-## game-buses-from-hell was a server whose netcode came up, logged that it was ready, and
-## then reported that the game would not load.
+## Not `%g`: the parser accepts it and it fails at runtime with "unsupported format character".
 static func _number(value: float) -> String:
 	return "%d" % int(round(value)) if is_equal_approx(value, round(value)) else "%.3f" % value
 
@@ -77,12 +57,7 @@ func _tunable(
 
 
 ## Joins the bridge's chat seam to the services layer's router.
-##
-## [b]Here rather than in either of them, because this is the only object that holds
-## both.[/b] The bridge knows what arrived on the wire and nothing about what a line means;
-## the services layer knows the rules and nothing about the wire. That separation is why a
-## client cannot send a line with somebody else's name on it: what crosses is a channel id
-## and a string, and everything else is decided on this side.
+## Here because only this object holds both: what crosses is a channel id and a string, so a client cannot send a line under another name.
 func _wire_chat() -> void:
 	if bridge == null or services == null:
 		return
@@ -91,13 +66,8 @@ func _wire_chat() -> void:
 	services.connect("command_entered", _on_chat_command)
 
 
-## The players' vote for the next map, over dot-vote: `!vote`, `!rtv`, `!nominate`.
-##
-## [b]Opened [member HsVote.open_after_sec] into the last round on a map and applied when that
-## round ends[/b]; see [code]game/hs_vote.gd[/code]. A server owner turns it off or reshapes it
-## in `user://cfg/hideseek_vote.json` or `game.yml`'s `metadata: map_vote:`, keyed as dot-vote's
-## [DotVoteRules]. A vote that cannot be built is a WARN and the rotation alone, never a server
-## that will not start.
+## The players' vote for the next map over dot-vote: `!vote`, `!rtv`, `!nominate` (see `game/hs_vote.gd`).
+## A vote that cannot be built is a WARN and the rotation alone, never a server that will not start.
 func _build_vote(world: HsGame) -> void:
 	if world.catalogue == null:
 		return
@@ -242,11 +212,8 @@ func _on_say_requested(peer_id: int, channel_id: StringName, text: String) -> vo
 	bridge.call("notice", peer_id, said.error.message)
 
 
-## A `!command` typed into chat. Run through the console as the person who typed it.
-##
-## [b]As THEM, not as the server.[/b] `run_command_as_uid` builds a context with that
-## player's own flags, so `!kick` from somebody without the flag is refused by the same file
-## that refuses it at the console — rather than by this function having an opinion.
+## A `!command` typed into chat, run through the console as the person who typed it.
+## As them, not the server, so a `!kick` without the flag is refused by the same file as at the console.
 func _on_chat_command(peer_id: int, command: String, args: PackedStringArray) -> void:
 	if server == null:
 		return
