@@ -15,7 +15,7 @@ extends "headless_run_client.gd"
 
 const SECTIONS := 26
 
-const CHECKS := 151
+const CHECKS := 152
 
 
 func _ready() -> void:

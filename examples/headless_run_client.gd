@@ -1,6 +1,7 @@
 extends "headless_run_world.gd"
 ## The client, menu and fall-damage sections of [code]headless_run[/code] (a middle layer, split off for size); never run on its own.
 
+const HsFigure := preload("res://game/hs_figure.gd")
 
 
 func _test_the_client() -> void:
@@ -123,6 +124,17 @@ func _client_ragdoll(client: Node, world: HsGame) -> void:
 	else:
 		for k in 3:
 			_check(false, "a stand-in drawn to slay")
+	var fig := HsFigure.new()
+	add_child(fig)
+	fig.build(1.8, HsFigure.ATLASES[0], Color.RED)
+	await get_tree().process_frame
+	fig.pose(Vector3.ZERO, 0.0, 4.0)
+	await get_tree().process_frame
+	fig.pose(Vector3.ZERO, 0.0, 4.0)
+	# The wall-clock step kept a timestamp; game time leaves it alone.
+	_check(fig.person != null and fig.clip != &"" and fig._posed_at_usec == -1,
+		"a figure animates by game time (frame_delta), not the wall clock", str(fig._posed_at_usec))
+	fig.queue_free()
 	_check(_death_sounds_listed(), "the death sounds are in the game's catalogue")
 
 
