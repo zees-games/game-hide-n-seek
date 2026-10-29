@@ -149,20 +149,9 @@ func _advance_phase(delta: float) -> void:
 			_check_round(true)
 
 
-# --- Catching -------------------------------------------------------------------
-
 ## Who is caught this tick: by a touch, by being watched, or both, as the server is set.
-##
-## [b]A touch is two bodies within [member HsConfig.tag_range] of each other with no wall
-## between.[/b] Horizontal distance between the capsules' axes, and feet within
-## [constant TAG_HEIGHT] of each other, so a seeker on the floor below a hider standing on a
-## shelf above their head has not touched them. The wall test is what stops a tag through a
-## thin partition, which two capsules either side of one would otherwise pass.
-##
-## [b]Being watched is a meter, not a moment.[/b] A seeker who glimpses a hider across a room
-## for a frame has not caught them; one who keeps them in view for
-## [member HsConfig.sight_seconds] has. The meter drains when nobody is watching, so breaking
-## line of sight is the hider's answer and a chase is still a chase.
+## A touch is two capsules within tag_range with no wall between (the wall test stops a tag through a partition).
+## Being watched is a meter that drains when nobody watches, so breaking line of sight is the answer.
 func _advance_catching(delta: float) -> void:
 	if phase != Phase.SEEK:
 		return
@@ -226,11 +215,9 @@ func _toucher(hider: HsPlayer, hunting: Array[HsPlayer]) -> HsPlayer:
 	return null
 
 
-## A seeker who can see [param hider] now, or null: within range, inside their view cone, and
-## nothing solid between their eyes and the hider's head or chest.
-##
-## [b]The furniture blocks sight; the people do not.[/b] Hiding behind a sofa is the game, and
-## a seeker standing between another seeker and a hider is a seeker who has seen them too.
+## A seeker who can see [param hider] now, or null: in range, inside their view cone, nothing solid
+## between their eyes and the hider's head or chest. Furniture blocks sight, people do not, so a
+## seeker standing in front of another seeker has seen the hider too.
 func _watcher(hider: HsPlayer, hunting: Array[HsPlayer]) -> HsPlayer:
 	var half := deg_to_rad(config.sight_fov * 0.5)
 	var crouched := hider.controller.state.crouch_fraction > 0.5
@@ -260,10 +247,7 @@ func _watcher(hider: HsPlayer, hunting: Array[HsPlayer]) -> HsPlayer:
 
 ## [param id] is caught: by [param by] (a seeker, or empty for a fall), [param how] one of the
 ## CAUGHT_ constants. Server side; public so a suite and an admin can do it directly.
-##
-## [b]A caught hider becomes a seeker where they stand[/b], held still for
-## [member HsConfig.caught_freeze_seconds] so they cannot pass the catch straight on to
-## whoever was hiding beside them. On a server where the caught are out, they watch instead.
+## A caught hider becomes a seeker where they stand, held still so they cannot pass the catch on.
 func catch(id: StringName, by: StringName, how: StringName) -> bool:
 	var hider: HsPlayer = players.get(id)
 
@@ -335,13 +319,9 @@ func _advance_holds() -> void:
 				var _let_go := player.controller.remove_modifier(HsController.HOLD)
 
 
-# --- Doors ----------------------------------------------------------------------
-
-## Everybody's hand on the doors: a use is the use key going down in front of one, and then
-## every door is posed for this tick, before anybody moves against it.
-##
-## [b]An edge, made here from the held state,[/b] as mg-deathrun makes its button presses: the
-## key rides in every input packet, so a use is never a round trip behind the key that made it.
+## Everybody's hand on the doors: a use is the use key going down in front of one, made an edge
+## here from the held state (the key rides in every input packet, so a use is never a round trip
+## behind it), and every door is posed for this tick before anybody moves against it.
 func _advance_doors() -> void:
 	if map == null or map.doors == null or map.doors.count() == 0:
 		return
@@ -427,8 +407,6 @@ func use_door(index: int, by: StringName) -> bool:
 	return true
 
 
-# --- Toys ----------------------------------------------------------------------
-
 ## The toy [param player] is looking at within reach, or -1. Both ends: the client asks it
 ## for the use prompt.
 func toy_aimed(player: HsPlayer) -> int:
@@ -498,8 +476,6 @@ func apply_door(index: int, open: bool, flip: bool, tick: int) -> void:
 	if map != null and map.doors != null:
 		map.doors.apply(index, open, flip, tick)
 
-
-# --- Taunts ---------------------------------------------------------------------
 
 ## A hider taunts, by choice. [param taunt_id] empty picks one. Server side.
 func taunt(id: StringName, taunt_id: StringName = &"") -> bool:
@@ -637,8 +613,6 @@ func _respawn_the_fallen() -> void:
 		if spectate != null:
 			spectate.on_spawned(id)
 
-
-# --- Reacting ---------------------------------------------------------------
 
 func _on_player_died(player: HsPlayer, damage: DotDamage) -> void:
 	var by := entities.key_for_id(damage.attacker)

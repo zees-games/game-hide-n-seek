@@ -84,8 +84,6 @@ func taunt_ids() -> Array[StringName]:
 	return taunts.order if taunts != null else ([] as Array[StringName])
 
 
-# --- Players ----------------------------------------------------------------
-
 static func make_fall_rules() -> DotFallDamageRules:
 	var rules := DotFallDamageRules.new()
 	rules.enabled = true
@@ -155,12 +153,9 @@ func players_on(side: int) -> Array[HsPlayer]:
 			out.append(players[id])
 
 	return out
-
-
 ## Whether a player's client is still behind its loading cover: `func(player_key: StringName) -> bool`.
-## The server module fills it from dot-game's roster; unset (offline, a suite, a bot) nobody is
-## loading, so every offline suite is unchanged. A covered client froze itself and cannot see, so
-## it is neither caught nor drawn to seek nor allowed to catch; it still counts as alive.
+## Unset (offline, a suite, a bot) nobody is loading; a covered client is neither caught nor drawn
+## to seek nor allowed to catch, but still counts as alive.
 var loading_fn: Callable = Callable()
 
 
@@ -191,8 +186,6 @@ func sides_are_playable() -> bool:
 
 	return players.size() >= 2
 
-
-# --- The round --------------------------------------------------------------
 
 func start() -> void:
 	if not authoritative:
@@ -243,12 +236,8 @@ static func _names(of: Array[HsPlayer]) -> PackedStringArray:
 	for player in of:
 		out.append(player.display_name)
 	return out
-
-
-## The next map, built.
-## Every map this server plays, as the map menu (M) lists them: `{id, name, detail, current}`,
-## the blurb under the name. Solo the client's list, online the server's (the module hands it
-## to dot-vote's map menu), so both say the same.
+## Every map this server plays, as the map menu (M) lists them: `{id, name, detail, current}`.
+## Solo the client's list, online the server's, so both say the same.
 func map_rows() -> Array:
 	var out: Array = []
 	if catalogue == null:
@@ -390,13 +379,9 @@ func rounds_left_on_map() -> int:
 func hide_limit() -> float:
 	var asked := float(map_doc.get("hide_seconds", 0.0))
 	return minf(asked, config.hide_seconds) if asked > 0.0 else config.hide_seconds
-
-
 ## How many seekers a round of [param players] starts with: the server's rule, or the map's
-## when it asks for more. A map names the number of players one seeker can search for
-## ([code]players_per_seeker[/code]), because a building on three storeys is more than one seeker
-## clears in a round whatever the lobby (a 50 by 60 m restaurant: the hiders won 24 rounds of 24).
-## It can only ask for more seekers than the server's rule gives, never fewer.
+## `players_per_seeker` when it asks for more (a three-storey building is more than one seeker
+## clears in a round); a map can only ask for more seekers than the rule gives, never fewer.
 func seekers_for(players: int) -> int:
 	var asked := float(map_doc.get("players_per_seeker", 0.0))
 	if asked > 0.0 and asked < config.players_per_seeker:
@@ -520,8 +505,6 @@ func decide_death(player: HsPlayer, damage: DotDamage) -> DotPlayerDeath:
 		DotPlayerDeath.seed_of(player.entity_id, _tick)
 	)
 
-
-# --- Reporting --------------------------------------------------------------
 
 func seconds_left() -> float:
 	match phase:
