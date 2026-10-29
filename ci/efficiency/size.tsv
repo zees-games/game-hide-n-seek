@@ -13,9 +13,9 @@ examples/headless_run.gd	1280
 examples/headless_run.gd::_test_doors	92
 examples/headless_run.gd::_test_toys	91
 examples/headless_workshop.gd::_test	98
-game/hs_bots.gd	1897
+game/hs_bots.gd	1241
 game/hs_bots.gd::_seek	92
-game/hs_bots.gd::_walk_to	138
+game/hs_bots.gd::_walk_to	137
 game/hs_bots.gd::_watch_for_seekers	81
 game/hs_catalogue.gd::practice	110
 game/hs_client.gd	1163
