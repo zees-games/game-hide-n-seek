@@ -68,7 +68,7 @@ func build(doc: Dictionary) -> void:
 		add_child(body)
 
 		if physics != null:
-			var _applied := physics.apply_to(body, &"world")
+			DotLog.result(CHANNEL, "a door panel's collision layers", physics.apply_to(body, &"world"), DotLog.Level.WARN)
 
 		if draw_world:
 			_draw(body, raw, size)
