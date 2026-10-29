@@ -14,7 +14,6 @@ examples/headless_run.gd::_test_toys	88
 examples/headless_workshop.gd::_test	98
 game/hs_bots.gd::_seek	92
 game/hs_catalogue.gd::practice	110
-game/hs_client.gd	1163
 game/hs_hud.gd::_build	111
 game/hs_map_doc.gd::validate	119
 game/hs_vote.gd::setup	85

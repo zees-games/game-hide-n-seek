@@ -15,8 +15,6 @@ const HsHud := preload("hs_hud.gd")
 const HsPaths := preload("hs_paths.gd")
 const HsPlayer := preload("hs_player.gd")
 
-const CHANNEL := "hs.client"
-
 ## How far behind a player the camera hangs in third person.
 const CHASE_BACK := 3.0
 const CHASE_UP := 0.8
