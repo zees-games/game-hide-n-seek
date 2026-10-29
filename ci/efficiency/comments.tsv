@@ -9,8 +9,6 @@ examples/headless_climb.gd::long_block	3
 examples/headless_maps.gd::long_block	3
 examples/headless_net.gd::banner	2
 examples/headless_net.gd::long_block	4
-examples/headless_run.gd::banner	3
-examples/headless_run.gd::history	1
 examples/headless_run.gd::long_block	1
 examples/headless_workshop.gd::long_block	1
 game/hs_audio.gd::long_block	2

@@ -9,9 +9,8 @@ examples/headless_bots.gd::_round	151
 examples/headless_bots.gd::_run	148
 examples/headless_maps.gd::_test_map	120
 examples/headless_net.gd::_build	88
-examples/headless_run.gd	1280
 examples/headless_run.gd::_test_doors	92
-examples/headless_run.gd::_test_toys	91
+examples/headless_run.gd::_test_toys	88
 examples/headless_workshop.gd::_test	98
 game/hs_bots.gd	1241
 game/hs_bots.gd::_seek	92
