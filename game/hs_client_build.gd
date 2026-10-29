@@ -27,9 +27,8 @@ func _ragdoll_sound(id: StringName, at: Vector3, volume: float) -> void:
 
 
 ## [param who]'s body falls the way the server picked ([member HsPlayer.death]), copied from the
-## figure this client draws; the figure itself stays hidden while they are dead
-## ([method HsPlayer.present_body]). Nobody's figure, nothing: a first-person player who never
-## had one drawn here. Called from [method _on_death], solo and connected alike.
+## figure this client draws; the figure itself stays hidden ([method HsPlayer.present_body]).
+## No figure drawn here (a first-person player) means no body. Called from [method _on_death].
 func _fall(who: HsPlayer) -> void:
 	if who == null or ragdolls == null or who.figure == null or not who.figure.is_inside_tree():
 		return
@@ -250,10 +249,9 @@ func _build_settings() -> void:
 	platform.chat = chat
 	platform.look_position_fn = _look_position
 	platform.board_snapshot_fn = board_snapshot
-	# M: the map list. Solo a choice changes the map here at once; connected the server decides,
-	# by the owner's `sv_map_menu_flag`, and anybody without it gets a vote instead (dot-vote's
-	# map menu, wired in [HsModule]). Its choice goes to the map menu, never to the taunt
-	# list's `picked` handler.
+	# M: the map list. Solo it changes the map at once; connected the server decides by
+	# `sv_map_menu_flag` and anybody without it votes (wired in [HsModule]). Its choice goes
+	# to the map menu, never to the taunt list's `picked` handler.
 	platform.maps_rows_fn = func() -> Array: return game.map_rows() if game != null else []
 	platform.maps_change_fn = func(id: StringName) -> DotResult: return game.change_map_now(id)
 	DotLog.result(CHANNEL, "the platform", platform.setup())

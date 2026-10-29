@@ -136,12 +136,9 @@ func spectate_step(direction: int) -> void:
 		chat.notice(moved.error.message)
 
 
-## Everything a frame draws that a tick does not, in this order: the netcode's interpolation,
-## then every player in their side's colour, then every beacon. Returns how many are
-## shown. Static so the net suite drives exactly this and not a copy of it.
-##
-## [param first_person] is whether [param own]'s camera is behind their eyes, which hides their
-## own body.
+## Everything a frame draws that a tick does not: the netcode's interpolation, every player in
+## their side's colour, then every beacon. Returns how many are shown. Static so the net suite
+## drives this and not a copy. [param first_person] hides [param own]'s body.
 static func present_frame(
 	p_net: DotNetManager,
 	p_game: HsGame,
@@ -156,12 +153,9 @@ static func present_frame(
 	if networked:
 		p_net.interpolate_frame(alpha)
 
-	# Your own player is drawn at the clock's render alpha, not the engine's fraction: the
-	# clock stretches and shrinks its ticks while it settles on the server, so a physics frame
-	# now and then runs no tick or two, and drawn at the engine's fraction the eye stood still
-	# on one frame and moved double on the next. `DotFpsController.render_state` reads it from
-	# `render_clock` (dot-player-controller); by name both ways, so a shell older than either
-	# draws as before. Null offline, where every physics frame is one tick.
+	# Own player is drawn at the clock's render alpha, not the engine's fraction: the clock
+	# stretches its ticks while settling on the server, so the eye would stall then jump.
+	# Looked up by name so an older shell draws as before; null offline.
 	if own != null and own.controller != null:
 		own.controller.set(&"render_clock", p_net.clock if networked else null)
 

@@ -1,7 +1,5 @@
 # comments
 # Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
-examples/dedicated.gd::history	1
-examples/dedicated.gd::long_block	9
 examples/headless_bots.gd::long_block	4
 examples/headless_climb.gd::banner	1
 examples/headless_climb.gd::history	2
@@ -17,8 +15,7 @@ game/hs_bindings.gd::history	2
 game/hs_bindings.gd::long_block	1
 game/hs_catalogue.gd::banner	1
 game/hs_catalogue.gd::long_block	2
-game/hs_client.gd::banner	9
-game/hs_client.gd::long_block	6
+game/hs_client.gd::long_block	2
 game/hs_config.gd::banner	11
 game/hs_config.gd::long_block	6
 game/hs_controller.gd::long_block	2
