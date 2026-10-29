@@ -19,7 +19,6 @@ game/hs_bots.gd::_walk_to	137
 game/hs_bots.gd::_watch_for_seekers	81
 game/hs_catalogue.gd::practice	110
 game/hs_client.gd	1163
-game/hs_game.gd	1806
 game/hs_hud.gd::_build	111
 game/hs_map_doc.gd::validate	119
 game/hs_vote.gd::setup	85
