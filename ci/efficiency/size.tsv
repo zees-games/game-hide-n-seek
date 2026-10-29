@@ -22,7 +22,6 @@ game/hs_client.gd	1163
 game/hs_hud.gd::_build	111
 game/hs_map_doc.gd::validate	119
 game/hs_vote.gd::setup	85
-game/net/hs_net_bridge.gd	1402
 game/net/hs_net_bridge.gd::_on_event	121
 game/net/hs_net_bridge.gd::attach	93
 tools/measure_props.gd::_initialize	124

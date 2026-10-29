@@ -28,8 +28,8 @@ game/hs_doors.gd::banner	3
 game/hs_doors.gd::long_block	3
 game/hs_figure.gd::history	1
 game/hs_figure.gd::long_block	1
-game/hs_game.gd::banner	11
-game/hs_game.gd::long_block	12
+game/hs_game.gd::banner	3
+game/hs_game.gd::long_block	5
 game/hs_hud.gd::history	1
 game/hs_hud.gd::long_block	2
 game/hs_map.gd::banner	2
