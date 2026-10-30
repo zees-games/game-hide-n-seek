@@ -5,7 +5,7 @@ extends "dedicated_client.gd"
 ## cvars and the stand-ins are a deployment's own. The only suite where [HsModule] loads.
 
 const SECTIONS := 15
-const CHECKS := 113
+const CHECKS := 114
 
 func _ready() -> void:
 	DotLog.set_level(DotLog.Level.ERROR)
@@ -154,6 +154,8 @@ func _test_the_module_loads() -> void:
 	_check(loaded.ok, "the module loads into the server", loaded.error.message if not loaded.ok else "")
 
 	var module := _module()
+	_check(game != null and game.progress != null and game.progress.durable_key_fn.is_valid(),
+		"progress is filed under dot-game's stable stats key")
 	_check(module != null and module.get("net") != null and module.get("bridge") != null,
 		"with its netcode and the game's bridge")
 
