@@ -3,11 +3,7 @@ extends DotNetInput
 const HsNetCommand := preload("hs_net_command.gd")
 
 ## One tick of a player's intent, on the wire: a movement command and nothing else.
-##
-## [b]Nobody here holds anything.[/b] A seeker catches by touching or by watching, both of which
-## the server measures from where it has the bodies, so there is no button a catch could ride
-## on and nothing a client could claim with one. A game that hands seekers something later
-## adds its button here, in [member DotFpsCommand.buttons], for the reason a jump is there.
+## Nobody here holds anything: a catch is measured by the server from the bodies, so there is no button to ride on. A game that hands seekers something adds its button in [member DotFpsCommand.buttons].
 
 var move: DotFpsCommand = DotFpsCommand.new()
 

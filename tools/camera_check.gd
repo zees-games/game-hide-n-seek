@@ -1,18 +1,7 @@
 extends Node
 
-## The cameras and bodies the first play test caught, in the real offline game:
-##
-## - the third-person and spectator chase cameras flown round the start and every
-##   checkpoint of the course (dot-core's DotCameraCheck): never inside, armed by the
-##   unprotected camera being in or behind the course on some frames;
-## - the player walked (the forward action held) into another player held still: with
-##   `mp_solidplayers 1` their capsules never overlap; with 0 they do (the armed half: the
-##   play test's face filling the screen);
-## - with `--render`, that moment from the player's eyes before (pass-through, no fade) and
-##   after, and both views.
-##
-##   tools/camera_check.sh            # headless; exit 1 on a failure
-##   tools/camera_check.sh --render   # and the frames, in screenshots/cameras/
+## The cameras and bodies the first play test caught, in the real offline game: the chase cameras flown round the course (dot-core's DotCameraCheck, armed by the unprotected camera being inside); a player walked into another held still, whose capsules never overlap with `mp_solidplayers 1` and do with 0; and with `--render`, that moment from the player's eyes.
+##   tools/camera_check.sh [--render]   # headless, exit 1 on a failure; frames in screenshots/cameras/
 
 const HsClient := preload("../game/hs_client.gd")
 const HsGame := preload("../game/hs_game.gd")
@@ -73,12 +62,8 @@ func _fly(game: HsGame) -> void:
 		_check(DotCameraCheck.passed(total), "%s round %d places in the house: %s" % [name, pivots.size(), DotCameraCheck.summary(total)])
 
 
-## Walks the player (the real input path: the forward action held) into another player held
-## still, with players passing through each other and then solid. Returns
-## [code][pass_through_closest, solid_closest][/code], in metres between the capsules' axes.
-## Deterministic: the other player is put back on its spot every frame, so its own brain
-## cannot steer it away; and the walk is one the pass-through run proved clear (a spot whose
-## way in is blocked by a wall or a start gate proves nothing, and is skipped).
+## Walks the player (the real input path) into another player held still, passing through and then solid. Returns [code][pass_through_closest, solid_closest][/code] in metres between capsule axes.
+## Deterministic: the other player is put back every frame so its brain cannot steer away, and a spot whose way in is blocked proves nothing and is skipped.
 func _bodies(game: HsGame) -> Array:
 	var me: HsPlayer = _client.get("player")
 	var space := _client.get_viewport().world_3d.direct_space_state
@@ -151,10 +136,7 @@ func _views(game: HsGame) -> void:
 	_client.call("toggle_view")
 	await _seconds(0.3)
 
-	# The play test's face at the lens: a stand-in on the player's eye, where walking through
-	# them put it. Before: nothing hides it. After: the fade does (and solid bodies keep it
-	# from getting there at all, which the check above measures). Re-placed every frame,
-	# because its own brain moves it on.
+	# The play test's face at the lens: a stand-in on the player's eye. Before, nothing hides it; after, the fade does. Re-placed every frame, because its own brain moves it on.
 	var fade: DotCameraFade = _client.get("_fade")
 	var camera: Camera3D = _client.get("camera")
 	var bot: HsPlayer = null

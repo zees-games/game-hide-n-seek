@@ -4,25 +4,9 @@ const HsNetCommand := preload("hs_net_command.gd")
 const HsPlayer := preload("../hs_player.gd")
 const HsController := preload("../hs_controller.gd")
 
-## What a networked player replicates: the movement state, their health, and the numbers a
-## hider needs about itself.
-##
-## [b]The movement half is dot-player-controller's own table and is not written here.[/b]
-## [DotFpsNetSync.state_specs] is what the controller says its state is, in the
-## quantisation it says it wants; a game that listed the fields itself would be a second
-## copy to drift — and the type names in that table are STRINGS precisely so the addon can
-## describe a dot-net layout without naming dot-net.
-##
-## [b]The game fields are not derivable from the movement.[/b] Health decides whether a body
-## is drawn at all; sitting a round out and being given away by the beacon are the server's
-## decisions about a player, and a client that worked them out for itself would be running a
-## second copy of the rules.
-##
-## [b]Which side somebody is on is deliberately NOT here.[/b] It changes once a round at
-## most, and a per-tick field for it would send the same three bits sixty-four times a
-## second for ever to carry a fact that arrives reliably in a JOIN and a TEAM. The rule this
-## game follows: a per-tick property for what changes per tick, an event for what changes on
-## a decision.
+## What a networked player replicates: the movement state, their health, and the numbers a hider needs about itself.
+## The movement half is [DotFpsNetSync.state_specs], dot-player-controller's own table (type names are STRINGS so the addon can describe a layout without naming dot-net). The game fields are the server's decisions about a player, which a client must not work out for itself.
+## Which side somebody is on is not here: it changes once a round, and arrives reliably in a JOIN and a TEAM. A per-tick property for what changes per tick, an event for what changes on a decision.
 
 var player: HsPlayer = null
 var bridge: Node = null
@@ -36,11 +20,7 @@ var net_flags: int = 0
 var net_modifiers: int = 0
 
 ## Hit points, and the one field with a hard cap on the wire.
-##
-## [b]Sent against 0..1000 rather than against the player's own maximum.[/b] A server that
-## raised `player_health` mid-round would otherwise change what every previously sent number
-## MEANT, which is the quantisation version of the map-size bug: the value does not get less
-## precise, it becomes a different value.
+## Sent against 0..1000 rather than the player's own maximum: raising `player_health` mid-round would otherwise change what every number already sent MEANT.
 var net_health: float = 100.0
 
 ## What full health is, for the HUD.
@@ -68,7 +48,6 @@ var net_held: bool = false
 ## Sitting this round out, having joined after it started.
 var net_watching: bool = false
 
-# --- An administrator's marks, from the live tools ---------------------------
 
 ## `HsPlayer.blinded`. Owner only: see [method _register_net_vars].
 var net_blind: bool = false
@@ -116,20 +95,9 @@ func _register_net_vars() -> void:
 	var _held := replicate(&"net_held", DotNetVar.Type.BOOL).to_owner_only()
 	replicate(&"net_caught", DotNetVar.Type.BOOL)
 
-	# [b]Per-player state rather than an event, and that is what makes both of these survive
-	# what an event does not.[/b] A client that joins after the admin typed `beacon`, a
-	# snapshot lost on the way, a field re-laid at the top of a round: each is a baseline the
-	# next snapshot corrects, where an event sent once is simply missed. Two bits, and nothing
-	# at all on a tick where neither changed.
-	#
-	# The blind goes to its owner alone. Nobody else's screen changes, and an opponent who
-	# received it would know the moment somebody could not see — the same reason the meters
-	# above are the owner's.
-	#
-	# [b]No relevance change for a beacon, where game-arena makes one.[/b] Every player here
-	# is already always relevant (`HsNetBridge`: a map is a few rooms), so a beacon reaches
-	# every client however far away they are without asking — and a beacon turned OFF that
-	# set `always_relevant` back to false would take the player out of everybody's snapshot.
+	# Per-player state rather than an event, so both survive what an event does not: a client joining after the admin typed `beacon`, a lost snapshot, a field re-laid at the top of a round are baselines the next snapshot corrects.
+	# The blind goes to its owner alone, since an opponent receiving it would know the moment somebody could not see.
+	# No relevance change for a beacon, unlike game-arena: every player here is already always relevant (`HsNetBridge`), and setting `always_relevant` back to false would drop the player from every snapshot.
 	var _blind := replicate(&"net_blind", DotNetVar.Type.BOOL).to_owner_only()
 	replicate(&"net_beacon", DotNetVar.Type.BOOL)
 	replicate(&"net_marked", DotNetVar.Type.BOOL)
@@ -143,10 +111,7 @@ func _net_apply_input(input: DotNetInput, _tick: int) -> void:
 		last_move = command.move
 
 
-## On the authority the whole game ticks as one — every player moves, then the catches, the
-## taunts and the round are decided — so the first behaviour through drives the whole world and
-## the rest find it done. On a predicting client there is one predicted player, and simulating
-## it is the whole of what a client may compute.
+## On the authority the whole game ticks as one, so the first behaviour through drives the world and the rest find it done. A predicting client simulates its one predicted player, which is all a client may compute.
 func _net_simulate(tick: int, delta: float) -> void:
 	if player == null:
 		return
@@ -198,32 +163,14 @@ func _net_state_applied(tick: int) -> void:
 	DotFpsNetSync.push(self, player.controller.state)
 	_adopt()
 
-	# NOT the node, on a predicted entity: `receive_snapshot` calls this BEFORE the
-	# predictor reconciles, and reconcile's first act is to read the node as "what the
-	# client is showing". Moving it here makes the measured error the whole replay distance,
-	# and the correction rate then reads as if every snapshot snapped. Two games in this
-	# family shipped that line.
-	#
+	# NOT the node, on a predicted entity: `receive_snapshot` calls this BEFORE the predictor reconciles, which reads the node as "what the client is showing"; moving it here makes the measured error the whole replay distance.
 	if identity == null or not identity.is_predicted():
 		player.global_position = player.controller.state.position
 
 
 ## A teleport is not a movement, so the interpolator must not draw one.
-##
-## [b]A round start moves everybody across the map in one tick, and a watcher saw them
-## fly there.[/b] mg-smash-copter's finding. The interpolator blends between the two snapshots
-## either side of the render time, and when those are "where they were found" and "at the
-## start" the blend is a body sweeping across the map for a snapshot interval.
-##
-## So the server counts the times it PUT this player somewhere (`HsPlayer.place_at`), the
-## count replicates, and a mirror that sees it change drops the interpolator's track for this
-## entity before the new snapshot is added to it. A track with one sample answers with that
-## sample, so the body appears in its corner, one render delay early, rather than crossing
-## the sky to get there. Here, before the push, because this hook runs inside the snapshot
-## read and the manager adds the snapshot's values to the track just after it.
-##
-## Not on the predicted entity: nothing interpolates that, and its own camera is moved by
-## the prediction's rewind.
+## A round start moves everybody across the map in one tick, and the blend between "where they were found" and "the start" is a body sweeping across the map. The server counts times it PUT this player somewhere (`HsPlayer.place_at`); a mirror that sees it change drops the entity's interpolator track, here before the push because the manager adds the snapshot just after this hook.
+## Not on the predicted entity: nothing interpolates that.
 func _forget_the_path() -> void:
 	if identity == null or identity.is_authoritative or identity.is_predicted():
 		_seen_warp = net_warp

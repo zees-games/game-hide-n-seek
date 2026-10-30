@@ -3,12 +3,8 @@ extends Node
 const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
 
-## A headless dedicated world for tools/render_cover.gd to join: the boot examples/dedicated.gd
-## does (DotServer, the world, the module), left running.
-##
-## [codeblock]
-## godot --headless --path . res://tools/cover_server.tscn -- --port 27399
-## [/codeblock]
+## A headless dedicated world for tools/render_cover.gd to join: the boot examples/dedicated.gd does, left running.
+##   godot --headless --path . res://tools/cover_server.tscn -- --port 27399
 
 var server: DotServer = null
 var game: HsGame = null

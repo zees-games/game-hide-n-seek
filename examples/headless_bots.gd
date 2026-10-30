@@ -4,29 +4,9 @@ const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
 const HsPlayer := preload("../game/hs_player.gd")
 
-## Stand-ins play whole rounds against each other on the real maps, and the suite measures how
-## they hide and how they seek.
-##
-## [b]Why rounds, not a unit test.[/b] Christian's first play test watched bot hiders stand
-## together in the open and three be tagged inside one second. Whether a bot hides well is how
-## long it lasts against a seeker that searches, so this plays rounds (seven stand-ins, the game
-## drawing its own seekers by its default rules, one for seven, `bot_difficulty medium`) and holds the numbers to bands:
-##
-## - how long a hider lasts once the seekers are let go, on average (caught ones at the second
-##   they were caught, survivors at the round's end);
-## - the share of rounds the hiders win, somebody still hidden at the end, and the share of hiders
-##   never found: at medium a close game (20-60% of rounds, 10-40% of hiders), because a seeker
-##   that finds nobody is as broken as a hider that is found at once;
-## - that the hiders shut doors behind them;
-## - how far apart the hiders are when the seekers are let go, and how few stand within 3 m of
-##   another;
-## - that the seekers catch somebody at all in most rounds;
-## - that no stand-in stays stuck beside an open door's panel for long.
-##
-## Twenty-four rounds by default, four a map, about four minutes: a band on six rounds was a band
-## on noise. `-- --rounds N` plays another number, `-- --first N` starts
-## at the Nth round's map and seed, `-- --difficulty hard` plays another preset, and
-## `HS_BOTS_PROBE=1` prints where each survivor ends and whether the seekers can walk to it; `HS_BOTS_MAPS=a,b` plays other maps, `HS_BOTS_TRACE=1` prints where everybody is every two seconds and every catch (with what last sent the hider moving), and `HS_BOTS_FOLLOW=u903` one stand-in every half second (every tick with `HS_BOTS_EVERY=1`). `HS_CAUGHT_FROM`, `HS_BEACON_LEFT` and `HS_BEACON_SECONDS` set those rules for a measurement. Without `maps/` linked it plays the practice house.
+## Stand-ins play whole rounds against each other on the real maps, and the suite holds how they hide and seek to bands: how long a hider lasts, the share of rounds the hiders win (20-60% at medium; a seeker that finds nobody is as broken as a hider found at once), doors shut, hiders spread out, seekers catching, nobody stuck at a door.
+## Twenty-four rounds by default, about four minutes (a band on six rounds was a band on noise). Flags: `-- --rounds N`, `-- --first N`, `-- --difficulty hard`; env: `HS_BOTS_PROBE`, `HS_BOTS_MAPS=a,b`, `HS_BOTS_TRACE`, `HS_BOTS_FOLLOW=u903`, `HS_BOTS_EVERY`, `HS_CAUGHT_FROM`, `HS_BEACON_LEFT`, `HS_BEACON_SECONDS`.
+## Without `maps/` linked it plays the practice house.
 
 ## Maps the rounds rotate through, when `maps/` is there.
 const DEFAULT_MAPS := ["hs_manor", "hs_apartments", "hs_village", "hs_park", "hs_school", "hs_camp", "hs_restaurant"]
@@ -48,23 +28,13 @@ const MIN_MEAN_SURVIVAL := 90.0
 const HIDER_WINS := Vector2(0.20, 0.60)
 const NEVER_FOUND := Vector2(0.10, 0.40)
 
-## The longest any stand-in may spend walking and still within 1.5 m of one spot beside an open
-## door's panel, in seconds. A seeker spent about thirty pressed into the corner behind an open
-## fire door (`hns-bot-door-corner-1`), and a hider a whole hide against one at the top of a
-## stair, until a bot went round an open panel's free edge; then 18 s was left on 48 seeds
-## (panels spanning a corridor or a stair top, doors pinned to open towards a bot leaving).
-## Bots now step out of a swing to open or shut a door, shut a panel they linger at and go
-## somewhere else after 8 s, count a door only on their own storey, pass a corner only once the
-## way on is open, and the maps lost their panels with no way round (small rooms' doors slide).
+## The longest any stand-in may spend walking and still within 1.5 m of one spot beside an open door's panel, in seconds (`hns-bot-door-corner-1`).
+## Bots now step out of a swing, shut a panel they linger at and go elsewhere after 8 s, and pass a corner only once the way on is open.
 const MAX_STUCK := 9.0
 
-## What the review found wrong and how it is held. Hiders: this share ends the hide at
-## least [constant MOVED_FAR] metres from where they spawned and out of every seeker's sight.
-## Seeker: the first seeker's walk comes within [constant COVER_RADIUS] metres of at least
-## [constant MIN_COVERED] of the map's surveyed places inside [constant COVER_SECONDS] seconds,
-## and somebody is caught inside [constant FIND_WITHIN] seconds in [constant FIND_SHARE] of rounds.
-## The same measures on the review's stand-ins ([member HsBots.legacy]: hiders stand, the seeker
-## walks a line) must fail, or they measure nothing.
+## What the review found wrong and how it is held. Hiders: this share ends the hide at least [constant MOVED_FAR] metres from where they spawned and out of every seeker's sight.
+## Seeker: the first seeker's walk covers [constant MIN_COVERED] of the surveyed places within [constant COVER_RADIUS] m inside [constant COVER_SECONDS] s, and somebody is caught inside [constant FIND_WITHIN] s in [constant FIND_SHARE] of rounds.
+## The same measures on [member HsBots.legacy] (hiders stand, the seeker walks a line) must fail, or they measure nothing.
 const MOVED_FAR := 8.0
 const MIN_MOVED := 0.80
 const MIN_UNSEEN := 0.80
@@ -79,13 +49,8 @@ const ARMED_ROUNDS := 2
 
 const SECTIONS := 3
 
-## The annotator's hiding spots against the random survey they replaced. Each hider's place when
-## the seek begins is scored `(1 - exposure) * 2 + enclosure * 1.5` (the share of the map's
-## watchers that see a crouched head there, and how tucked in it is, both measured by the same
-## [method HsBots.quality] for every place), and the mean must beat what the old survey's best
-## picks scored on the same map by [constant MIN_QUALITY_GAIN]. The hiders that stood where they
-## spawned (they spawn in a hide room: they would pass) and hiders at random places on the floor must fail it. And every map has a round with a catch: a map on which the seekers never
-## find anybody is unwinnable.
+## The annotator's hiding spots against the random survey they replaced: each hider's place scores `(1 - exposure) * 2 + enclosure * 1.5` by [method HsBots.quality], and the mean must beat the old survey's best picks by [constant MIN_QUALITY_GAIN].
+## Hiders standing where they spawned and hiders at random places must fail it, and every map needs a round with a catch (a map the seekers never find anybody on is unwinnable).
 const MIN_QUALITY_GAIN := 0.15
 
 var _entered := 0

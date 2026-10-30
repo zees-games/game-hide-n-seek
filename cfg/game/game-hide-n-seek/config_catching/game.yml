@@ -44,11 +44,11 @@
 # --- The beacon
 # Every hider still hidden is beaconed once this few are left. 0 never. [0..32]
 # beacon_hiders_left: 1
-# Every hider still hidden is beaconed once this few seconds are left. 0 never, the default: with it at 30 th... [0.0..600.0]
+# Every hider still hidden is beaconed once this few seconds are left. 0 never, the default: at 30 the bots' ... [0.0..600.0]
 # beacon_seconds_left: 0.0
 # Seconds between a beacon's pings. [0.25..10.0]
 # beacon_period: 2.0
-# Seconds between the beacon showing the last hiders, and for how long each time. 0 shows them the whole time. [0.0..120.0]
+# Seconds between the beacon showing the last hiders, and for how long each time. 0 shows them the whole time... [0.0..120.0]
 # beacon_every: 10.0
 #  [0.25..30.0]
 # beacon_reveal: 2.0

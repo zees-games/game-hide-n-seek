@@ -3,28 +3,8 @@ extends RefCounted
 const HsMaterials := preload("hs_materials.gd")
 
 ## What a map IS: a JSON document, checked here before anything is built.
-##
-## [b]A map is a document, not a scene[/b], for mg-wipeout's reason, which every map-driven game
-## in this family has taken since: a scene per map is content to import, to rebase inside a
-## mounted pack and to keep in step across a server and every client; a document is a few tens
-## of kilobytes the server reads off disk and SENDS to each client when the map changes. A
-## client needs no map files, a server gets a new map by having a file dropped in a directory,
-## and the two ends cannot disagree about where a wall or a chair is, because there is one copy
-## and it travelled.
-##
-## [b]What is in one:[/b] boxes (the building: floors, walls, ceilings, glass, a pool), props
-## (the furniture a player hides among, by catalogue id), lights, doors (see HsDoors), optionally `terrain` (a converted map's
-## displacement ground as dot-map's heightfield, which the boxes cannot be), the
-## two sides' spawns, and how the sky and the sun look. Every length is metres, every angle degrees. A box's `at`
-## is its CENTRE; a prop's `at` is the middle of its footprint ON the floor, so a mapper places
-## a chair by where it stands.
-##
-## [b]Normalised into plain arrays, never vectors.[/b] What a server encodes is what this
-## returned, and a vector's float32 components come back out of JSON as `0.300000011920929`:
-## twice the bytes for a map of a thousand boxes and a document whose digest moves when nothing
-## did. Rounded to the millimetre here, once.
-##
-## `maps/README.md` in hide-n-seek-maps is the mapper's copy of this.
+## A document, not a scene: a few tens of kilobytes the server reads off disk and SENDS to each client, so a client needs no map files, a new map is a dropped file, and the two ends cannot disagree about a wall. Contents: boxes, props (by catalogue id), lights, doors (see HsDoors), optional `terrain`, the two sides' spawns, and the sky and sun. Metres and degrees; a box's `at` is its CENTRE, a prop's the middle of its footprint ON the floor.
+## Normalised into plain arrays, never vectors, rounded to the millimetre once: float32 components come back out of JSON as `0.300000011920929`, doubling the bytes and moving the digest. `maps/README.md` in hide-n-seek-maps is the mapper's copy.
 
 
 ## The format this build reads. A document written for a later one is refused rather than
@@ -325,11 +305,8 @@ static func _prop(raw: Variant) -> Dictionary:
 	return out
 
 
-## A door: a panel that a player opens and shuts with the use key. `at` is the middle of the
-## panel SHUT and `size` is its width, height and thickness, turned by `yaw` like a box; it
-## swings about its `hinge` edge (left is the panel's own -x) by `angle` degrees (the sign is
-## the side it opens to), slides that way by its width, or lifts by its height. Every field but
-## `at` and `size` has a default, so a hand-written door is two lines.
+## A door: a panel a player opens and shuts with the use key. `at` is the middle of the panel SHUT, `size` its width, height and thickness, turned by `yaw`.
+## It swings about its `hinge` edge by `angle` degrees (the sign is the side it opens to), slides by its width, or lifts by its height. Every field but `at` and `size` has a default.
 static func _door(raw: Variant) -> Dictionary:
 	if not (raw is Dictionary):
 		return {}
@@ -418,7 +395,6 @@ static func digest(doc: Dictionary) -> String:
 	return JSON.stringify(doc, "", true).sha256_text().substr(0, 12)
 
 
-# --- Small readers ----------------------------------------------------------
 
 static func v3(value: Variant) -> Vector3:
 	if value is Vector3:

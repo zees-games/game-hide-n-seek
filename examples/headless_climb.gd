@@ -6,18 +6,8 @@ const HsPlayer := preload("../game/hs_player.gd")
 const HsMapDoc := preload("../game/hs_map_doc.gd")
 
 ## The maps' ways UP and ways IN, walked by a body rather than read from a document.
-##
-## [b]Why this exists apart from `headless_maps`.[/b] A flight of stairs is a dozen slabs the
-## builder lines up with a storey, and a crawl space is a lid at a height; both are right on
-## paper and wrong by a few centimetres in a way only the motor notices. A stairwell whose
-## landing is a step too high is a floor nobody reaches and every check of the document passes.
-## So here somebody stands at the foot of each one that matters, holds forward for a few
-## seconds, and the suite asks how high they got; and somebody tries a play tube standing (and
-## is refused) and then crouched (and gets through).
-##
-## Every coordinate is hide-n-seek-maps' `tools/build_maps.py`; a map moved there is a climb
-## that fails here, which is the point. Without `maps/` linked in (CI clones this repository
-## alone) there is nothing to climb, and it says so.
+## A stairwell whose landing is a step too high is a floor nobody reaches, right on paper and wrong by a few centimetres only the motor notices. Somebody holds forward at the foot of each, and tries a play tube standing (refused) and crouched (through).
+## Coordinates come from hide-n-seek-maps' `tools/build_maps.py`. Without `maps/` linked (CI clones this repository alone) there is nothing to climb, and it says so.
 
 ## map, where to stand, which way to face (the game's yaw: 0 looks along -Z), seconds of
 ## running, how high their feet must end up, and what it is.
@@ -168,10 +158,8 @@ const GARDEN := [
 	[&"nature_climbtree_fork", Vector3(-25.0, 0.0, -25.0)],
 ]
 
-## The climbing trees (`tools/climb_trees.py`), where a run at one jumps onto a limb: the prop's
-## position, the game's yaw it runs along, how near its middle it jumps, whether it tucks its
-## legs (crouch-jumps), how high the feet must end, and what that is. Found by `_search`
-## (`HS_CLIMB_SEARCH=nature_climbtree_oak`, `HS_CLIMB_NOTUCK=1` for plain jumps).
+## The climbing trees (`tools/climb_trees.py`), where a run at one jumps onto a limb: position, yaw, how near its middle it jumps, whether it tucks its legs, and how high the feet must end.
+## Located by `_search` (`HS_CLIMB_SEARCH=nature_climbtree_oak`, `HS_CLIMB_NOTUCK=1` for plain jumps).
 const TREE_CLIMBS := [
 	[Vector3(-25.0, 0.0, 0.0), 0.0, 2.2, false, 1.15, "a plain jump lands on the climbing oak's first limb, 1.2 m up"],
 	[Vector3(-25.0, 0.0, 0.0), 120.0, 1.6, true, 1.8, "a crouch-jump lands on its second limb, 1.75 m up"],
@@ -211,7 +199,7 @@ func _test_props() -> void:
 		"%.2f m from the trunk's middle" % gap)
 
 	# The commonest tree on the maps has stubby branches either side of its trunk, 1.1 m and
-	# 1.5 m up. Run at one, jump (tucking the legs up), and stand on it. Found by `_search`.
+	# 1.5 m up. Run at one, jump (tucking the legs up), and stand on it. Located by `_search`.
 	var low := await _jump_onto(game, body, Vector3(0.0, 0.05, 5.0), 0.0, Vector3.ZERO, 2.2)
 	_check(low.y > 0.9 and body.controller.state.mode == DotFpsState.Mode.GROUND,
 		"a jump lands on a tree's low branch, and the player stands on it", "feet at %.2f" % low.y)
@@ -275,17 +263,8 @@ func _search(prop: StringName) -> void:
 	print("searched")
 
 
-## Somebody hops into the corner between a wall and every swinging door of [constant DOOR_MAP]
-## left open, and comes down (`[hns-door-wedge-1]`).
-##
-## A seeker bot that walked into the 80 degree corner behind the school's open fire door and
-## hopped to get unstuck hung 0.6 m up for the rest of the round, falling ever faster and never
-## moving: the rest query beside the wall named the wall for a push that the panel stopped, so
-## the slide never met the panel and found no way down. dot-player-controller's
-## `surf_physics_selftest` holds the motor's way out; this holds every real door of a map against it.
-## Each body stands a little off the corner, walks into it for a second (so it ends up touching
-## both faces, as the bot did), then jumps still pushing, and must be standing on the floor
-## again within a second and a half.
+## Somebody hops into the corner between a wall and every swinging door of [constant DOOR_MAP] left open, and comes down (`[hns-door-wedge-1]`).
+## A bot that hopped in the 80 degree corner behind an open fire door hung 0.6 m up for the round: the rest query named the wall for a push the panel stopped. Each body walks into the corner for a second, jumps still pushing, and must be on the floor within a second and a half.
 const DOOR_MAP := "hs_school"
 
 
@@ -366,7 +345,6 @@ func _jump_onto(game: HsGame, body: HsPlayer, start: Vector3, yaw: float, centre
 	return body.controller.state.position
 
 
-# --- Helpers --------------------------------------------------------------------
 
 func _world(map_id: String) -> HsGame:
 	var config := HsConfig.new()

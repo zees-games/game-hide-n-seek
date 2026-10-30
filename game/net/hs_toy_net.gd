@@ -1,22 +1,8 @@
 extends DotNetBehaviour
 
-## One of the map's toys on the wire (dot-props' [DotPropToy]): where its moving part is and
-## how it is turned, whether it is on, and how often it has been used.
-##
-## [b]The server's physics, never predicted[/b]: Godot's rigid-body solver is not the same on two
-## machines, so a client that simulated a ball would disagree with the server within a second.
-## The client's toy is frozen and posed from these ([method DotPropToy.show_state]), so a
-## see-saw a person stands on there is the plank the server tipped, an interpolation behind.
-## game-playground's prop behaviour is the same decision for spawned props.
-##
-## [b]Paired by index[/b]: both ends build the same toys in the same order from the map document,
-## so the TOYS event carries only the map's id and the net ids, in toy order, and nothing here
-## says which toy it is. A client's has no [member toy] until that map is built here: it is
-## registered anyway, because a snapshot is read no further than its first unknown entity.
-##
-## [b]Use count, not a use event[/b]: a honk, a switch and a bounce each move [member net_count]
-## by one, and a client plays the sound when it sees it move, so a joiner and a lost packet cost
-## nothing but a late sound. Eight bits; it wraps.
+## One of the map's toys on the wire (dot-props' [DotPropToy]): where its moving part is and how it is turned, whether it is on, and how often it has been used.
+## The server's physics, never predicted: rigid-body solvers differ across machines, so the client's toy is frozen and posed from these ([method DotPropToy.show_state]). Paired by index: both ends build the same toys in map order, so TOYS carries only net ids; a client registers a toy before its map is built because a snapshot is read no further than its first unknown entity.
+## Use count, not a use event: a honk or bounce moves [member net_count] by one (eight bits, wraps) and the client plays the sound when it moves, so a lost packet costs a late sound.
 
 var toy: DotPropToy = null
 

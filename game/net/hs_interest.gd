@@ -3,22 +3,9 @@ extends DotNetInterest
 const HsGame := preload("../hs_game.gd")
 const HsPlayer := preload("../hs_player.gd")
 
-## Who a client is told about: everybody, except that a seeker is told nothing about the
-## hiders while they hide.
-##
-## [b]The blindfold, made true on the wire.[/b] The HUD draws a seeker's screen black while the
-## hiders hide, and a client that skipped drawing it would watch every hider pick its spot. dot-net's
-## own note on interest management is the reason this exists: a client that is never told where
-## somebody is cannot draw them, whatever it does to its renderer, and every other defence is a
-## delaying action. So during the hide a seeker's snapshots carry no hider at all, and no toy (a ball
-## rolling away from a hider's path is the hider); their mirrors stand where the round put them
-## until the seeking starts.
-##
-## [b]Evaluated every snapshot, and nothing lingers.[/b] The default caches an answer for a
-## quarter of a second and keeps sending an entity that has left interest for a while, both to
-## save work on big servers; here the answer changes at a phase boundary and a hider that kept
-## being sent for a second after the hide began would be a second of where everybody ran.
-## Two dozen players is not a set worth caching.
+## Who a client is told about: everybody, except that a seeker is told nothing about the hiders while they hide.
+## The blindfold made true on the wire: a client never told where somebody is cannot draw them, whatever it does to its renderer. During the hide a seeker's snapshots carry no hider and no toy (a ball rolling from a hider's path is the hider); their mirrors stand where the round put them.
+## Evaluated every snapshot, nothing lingers: the default caches for a quarter second and keeps sending a departed entity, which would be a second of where everybody ran. Two dozen players is not worth caching.
 
 ## The world whose phase and sides this reads. Set by the bridge.
 var game: HsGame = null

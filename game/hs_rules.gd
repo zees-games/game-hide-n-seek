@@ -1,17 +1,8 @@
 extends DotMatchRules
 
 ## A round ends when the game says so, and the game says who won.
-##
-## [b]dot-match's elimination rule nearly fits, and nearly is the problem.[/b] It ends a round
-## when a side has nobody alive — but a player who joined mid-round is benched rather than
-## dead, the hiding half of a round must never end on a count, and the clock's winner is a
-## server setting rather than "whoever has more people up". What decides is [HsGame],
-## which knows all of that, and [DotMatchRules] is documented as the place a mode dot-match
-## does not ship goes, with the state machine left alone.
-##
-## [b]The answer is read, never computed here.[/b] dot-match's rules are meant to be pure
-## functions of what they are handed; this one is a pure function of what the game decided,
-## and a game that has not decided returns NONE every tick.
+## dot-match's elimination rule nearly fits: a mid-round joiner is benched rather than dead, the hide must never end on a count, and the clock's winner is a server setting. [HsGame] knows all that, and [DotMatchRules] is where a mode dot-match does not ship goes.
+## The answer is read, never computed here: a pure function of what the game decided, NONE every tick until it has.
 
 ## `func() -> Dictionary`: `{decided: bool, winner: int}`. Set by [HsGame].
 var decision_fn: Callable = Callable()
@@ -24,10 +15,7 @@ static func make() -> DotMatchRules:
 	rules.id = &"hideseek"
 	rules.display_name = "Hide & Seek"
 	rules.score_limit = 0
-	# The round keeps its own clock; this one is the BACKSTOP, set by [HsGame] to the
-	# hiding, the seeking and a minute more. A round the game somehow never decided — a
-	# rule with a hole in it — ends on it as a draw rather than running for ever, and dot-match
-	# stops warning at every boot that nothing but a custom outcome can end a round.
+	# The round keeps its own clock; this is the BACKSTOP, set by [HsGame] to the hiding, the seeking and a minute more, so an undecided round ends as a draw rather than running for ever, and dot-match stops warning at every boot.
 	rules.time_limit_sec = 600.0
 	rules.rounds_to_win = 999
 	rules.respawn_disabled = true

@@ -6,16 +6,7 @@ const HsFigure := preload("hs_figure.gd")
 const HsAvatars := preload("hs_avatars.gd")
 
 ## One person: how they move, which side they are on, and how close they are to being caught.
-##
-## [b]Everybody is themselves.[/b] A hider is their own avatar with the hiders' blue on the
-## torso, a seeker the same with the seekers' orange; nobody turns into anything. What changes
-## when a hider is caught is the side, and the body stays where it was.
-##
-## [b]No hitboxes and no weapons.[/b] Nothing here is shot: a seeker catches by touching, or by
-## watching (see [member HsConfig.catch_mode]), and both are distances and rays the server
-## measures between bodies. Health is kept for the two things that still take it away — a
-## fall below the map, and an administrator's slay — so dot-moderation's god, buddha and slap
-## mean what they mean everywhere else.
+## Everybody is themselves: the side is a torso tint, and a caught hider changes side in place. No hitboxes or weapons: a catch is a distance or ray the server measures (see [member HsConfig.catch_mode]). Health remains for a fall below the map and an admin's slay, so dot-moderation's god, buddha and slap mean what they do elsewhere.
 
 ## Metres above a player's feet that their eyes are.
 const EYE_HEIGHT := 1.6
@@ -265,7 +256,6 @@ func is_alive() -> bool:
 	return health == null or health.alive
 
 
-# --- Drawing (client side) --------------------------------------------------
 
 ## Draws the beacon at [param at], from the admin's flag or the rule's. Returns whether it
 ## pinged.
@@ -291,11 +281,8 @@ func present_beacon(delta: float, at: Vector3, local_view: bool, period: float) 
 	return beacon_marker.advance(delta)
 
 
-## Draws this player for one frame at [param at], in [param team_colour]. Returns whether
-## anything was shown.
-##
-## [b]A side change rebuilds the figure[/b], because the colour is painted into its torso: a
-## hider caught in front of somebody turns orange on the next frame.
+## Draws this player for one frame at [param at], in [param team_colour]. Returns whether anything was shown.
+## A side change rebuilds the figure, because the colour is painted into its torso.
 func present_body(hidden: bool, at: Vector3, team_colour: Color) -> bool:
 	var shown := not hidden and is_alive() and not watching
 

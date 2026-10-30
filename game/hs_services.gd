@@ -4,16 +4,8 @@ const HsGame := preload("hs_game.gd")
 const HsNetBridge := preload("net/hs_net_bridge.gd")
 const HsPlayer := preload("hs_player.gd")
 
-## Chat, voice and moderation, wired to this game's sides.
-##
-## [b]Seventy lines, because [DotGameServices] holds the other five hundred.[/b] The five
-## games written before that base each carry their own copy — 557 to 718 lines, differing in
-## the channels, the rules and a voice range. What is left here is what is genuinely this
-## game's: who can hear whom, and where somebody is standing.
-##
-## [b]The team channel matters more here than in most games, and it is the one that must not
-## leak.[/b] The seekers talk about which room they have cleared; the hiders about where the
-## seekers are. A hider who could read the seekers' channel would know where not to stand.
+## Chat, voice and moderation, wired to this game's sides; [DotGameServices] holds the rest.
+## The team channel must not leak: a hider who could read the seekers' channel would know where not to stand.
 
 # No `const CHANNEL`: [DotGameServices] declares one and GDScript refuses a redeclaration,
 # which is the right refusal — one layer, one channel an operator can turn up.
@@ -40,14 +32,7 @@ func _chat_rules() -> Object:
 
 
 ## The same rules, as a static a CLIENT can ask for without building a services layer.
-##
-## [b]Static because the other end needs them and must not instantiate this.[/b] A services
-## layer is a [Node] with a moderation store and a router under it; a client that called
-## `new()` on one to read two numbers off it would build all of that, leak it, and — inside
-## a delivered pack — fail to compile, because a script whose base class lives in the HOST
-## build cannot hand its return type to a script in the mount. Both were measured in
-## game-buses-from-hell: seven leaked objects in a suite, and a client scene that would not
-## load at all on a real server.
+## Static because `new()` on a services layer builds a moderation store and a router, leaks them, and inside a delivered pack fails to compile (a script whose base class is in the HOST build cannot hand its return type to a script in the mount).
 static func chat_rules() -> DotChatRules:
 	var rules := DotChatRules.new()
 	rules.max_length = 140
@@ -123,10 +108,7 @@ static func chat_channels() -> Array[DotChatChannel]:
 
 
 ## The voice format, which both ends must agree on exactly.
-##
-## Static, because the CLIENT builds one too and a sample rate that differs between two peers
-## is a stream of packets the router refuses for being the wrong length, counted and said to
-## nobody. [method DotVoiceConfig.format_fingerprint] exists for that reason.
+## Static because the client builds one too, and a differing sample rate makes the router refuse every packet as the wrong length, counted and said to nobody ([method DotVoiceConfig.format_fingerprint]).
 static func voice_format() -> DotVoiceConfig:
 	var config := DotVoiceConfig.new()
 	config.sample_rate = 16000
@@ -149,17 +131,13 @@ func _voice_config() -> Object:
 
 
 ## Voice goes to the team, because the two sides are the game.
-##
-## mg-buses-from-hell's reasoning, and the same: a hider saying "I'm behind the fridge" on an
-## open channel is a hider who is caught. Everybody voice is a key away.
+## A hider saying "I'm behind the fridge" on an open channel is a hider who is caught. Everybody voice is a key away.
 func _voice_default_channel() -> int:
 	return DotVoiceRouter.Channel.TEAM
 
 
 ## Which side somebody is on, for the team channel and for team voice.
-##
-## [b]Read off the game rather than cached, because sides change between rounds.[/b] Anything
-## holding a team id would put a player in the conversation they were in last round.
+## Read off the game, not cached, because sides change between rounds.
 func _team_of(peer_id: int) -> int:
 	var player := _player_of(peer_id)
 	return (game as HsGame).team_of(player.player_id) if player != null else 0
@@ -168,10 +146,7 @@ func _team_of(peer_id: int) -> int:
 func _position_of(peer_id: int) -> Vector3:
 	var player := _player_of(peer_id)
 
-	# [b]The simulated state, not the node.[/b] The node is wherever the last frame drew
-	# them, which on an interpolating client is between two ticks; the state is where the
-	# tick that is being resolved put them — and a proximity channel resolved against a
-	# rendered position is one whose range is a frame's worth of walking out.
+	# The simulated state, not the node: on an interpolating client the node is between ticks, and a proximity channel resolved against a rendered position is a frame's walking out of range.
 	return player.controller.state.position if player != null else Vector3.ZERO
 
 
@@ -187,18 +162,10 @@ func _player_of(peer_id: int) -> HsPlayer:
 	return (game as HsGame).players.get(HsNetBridge.player_key(session_id))
 
 
-# --- dot-moderation's live tools ---------------------------------------------
 
 ## What the admin set means here, one callable per ability. See `DotGameServices`.
-##
-## [b]Noclip is how a stuck player gets looked at, freeze how a griefer is stopped, and respawn
-## puts somebody back at their side's start[/b] — alive, mid-round, which is an admin's call to
-## make and is said in the log. Give and strip are refused: nobody here carries
-## anything.
-##
-## [b]Blind and beacon are the two about a SCREEN rather than a body[/b], and each is one flag
-## on [HsPlayer] that `HsPlayerNet` replicates — the blind to its owner alone, the beacon to
-## everybody — and that the client draws.
+## Respawn puts somebody back at their side's start, alive and mid-round, which is an admin's call said in the log. Give and strip are refused: nobody here carries anything.
+## Blind and beacon are about a SCREEN: one flag each on [HsPlayer] that `HsPlayerNet` replicates (blind to its owner, beacon to everybody) and the client draws.
 func _mod_abilities() -> Dictionary:
 	return {
 		"noclip": func(id: StringName, args: Dictionary) -> DotResult:
@@ -287,11 +254,7 @@ func _mod_unsupported() -> Dictionary:
 
 
 ## Toggles that outlive a new body here, beyond dot-moderation's own god and buddha.
-##
-## [b]Blind and beacon are about the person, not the body.[/b] A noclip or a freeze ends with
-## the round because starting a round noclipped is the round broken; a player an admin blinded
-## or wanted the room to watch is still that player next round, and being found is exactly
-## what somebody being punished would otherwise use to end it.
+## Blind and beacon are about the person: a noclip or freeze ends with the round, but a player an admin blinded is still that player next round.
 const PERSIST_ON_RESPAWN: Array[String] = ["blind", "beacon"]
 
 
@@ -382,11 +345,7 @@ func _mod_hurt(id: StringName, amount: float) -> DotResult:
 
 
 ## A round is everybody's new body: a noclip or a freeze from last round ends, god carries.
-##
-## [b]And a new map is a new map.[/b] Every `return` point is a place on some map, and a round
-## on a different one has its floors somewhere else, so `return` would drop a player inside a
-## wall. The history is cleared when the map changes and kept when it does not
-## (`[modtools-return-1]`).
+## A new map clears the `return` history, since a return point on another map would drop a player inside a wall (`[modtools-return-1]`).
 func _on_round_began_for_tools(_number: int, layout: StringName) -> void:
 	for key: StringName in (game as HsGame).players:
 		mod_player_respawned(StringName(String(key).trim_prefix("u")))
@@ -401,9 +360,7 @@ var _tools_layout: StringName = &""
 
 
 ## The team seam dot-chat and dot-voice both ask for, which the base cannot wire.
-##
-## [DotGameServices] knows nothing about teams — a lobby has none — so the two `team_fn`
-## hooks are set here, after the base has built each router.
+## [DotGameServices] knows nothing about teams, so the two `team_fn` hooks are set here after the base has built each router.
 func setup(p_server: DotServer, p_game: Object, p_link: Object) -> DotResult:
 	var ready_now: DotResult = await super.setup(p_server, p_game, p_link)
 

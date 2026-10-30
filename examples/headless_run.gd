@@ -1,16 +1,7 @@
 extends "headless_run_client.gd"
 
-## The simulation, headless: the prop catalogue and the map documents, the draw, the hide,
-## catching by a touch and by being watched, what happens to the caught, taunts, falls, the
-## beacon, and how a round is decided.
-##
-## [b]Counts sections AND checks, and the second is the one that matters.[/b] A script error
-## inside a section aborts that function and the section counter is already satisfied,
-## because the section announced itself on the way in. dot-settings has the story.
-##
-## Every number about the map here is the built-in practice house's
-## ([method HsCatalogue.practice]), whose comment lists where everything is: the wall between
-## the rooms at x 0 with its door at z -1..0.8, the kitchen east of it, the living room west.
+## The simulation, headless: the prop catalogue and map documents, the draw, the hide, catching by touch and by being watched, the caught, taunts, falls, the beacon, and how a round is decided.
+## Counts sections AND checks: a script error aborts a section after it announced itself. Map numbers are the practice house's ([method HsCatalogue.practice]): the wall at x 0 with its door at z -1..0.8, kitchen east, living room west.
 
 
 const SECTIONS := 26

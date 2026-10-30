@@ -1,18 +1,8 @@
 extends "headless_net_base.gd"
 
-## The real path minus the socket: two worlds, two managers, two bridges, two links with the
-## RPC replaced by a queue, so the codec, the seal, the snapshots, the prediction and the
-## reconciliation all run, in one process, in two physics worlds.
-##
-## [b]What this suite is for is the claims the game rests on over a wire.[/b] The blindfold is
-## true on the wire: a seeker's snapshots carry no hider while the hiders hide (`HsInterest`),
-## so a client that skipped drawing the black screen would still see nothing. A catch is the
-## server's and the client is told: the side, the flag, and a hold its own prediction applies
-## on exactly the ticks the server does, so a hider just caught is not predicted walking off
-## while the server holds them. The sight meter is its owner's and nobody else's. Then
-## everything else that crosses: the map document, the sides, a taunt, the result.
-##
-## Sections and checks are both counted; mg-smash-copter's notes say why the second matters.
+## The real path minus the socket: two worlds, managers, bridges and links with the RPC replaced by a queue, so the codec, seal, snapshots, prediction and reconciliation run in one process.
+## It checks the claims the game rests on over a wire: the blindfold is true on the wire (a seeker's snapshots carry no hider while they hide, `HsInterest`), a catch is the server's and the client's prediction holds on the same ticks, and the sight meter is its owner's alone.
+## Sections and checks are both counted.
 
 const SECTIONS := 16
 const CHECKS := 88
@@ -52,7 +42,6 @@ func _run() -> void:
 	_report_sections(_sections_entered, _sections_finished, SECTIONS, CHECKS)
 
 
-# --- The codec ------------------------------------------------------------------
 
 ## Every encoder against its decoder. Nothing checks that two ends of a serialisation are
 ## inverses for you: dot-moderation once wrote "voice muted" and read back a warning.
@@ -98,10 +87,8 @@ func _test_the_codec() -> void:
 		and absf(float(clock["seek_elapsed"]) - 40.25) < 0.1 and int(clock["hiders"]) == 3
 		and int(clock["seekers"]) == 1, "CLOCK", str(clock))
 
-	# A kind goes out in a fixed field the writer masks without a word, so one past it aliases a
-	# smaller kind: game-zombie-zone sent HURT and AMMO as HELLO and MAP that way.
-	# The largest MAP a reader accepts survives the event's own body cap. At 4096 a 4100-byte map
-	# went out whole and was read back as no bytes, silently (hs_park with its toys).
+	# A kind goes out in a fixed field the writer masks without a word, so one past it aliases a smaller kind.
+	# The largest MAP a reader accepts must survive the event's own body cap: at 4096 a 4100-byte map was read back as no bytes, silently.
 	var biggest := PackedByteArray()
 	biggest.resize(HsEvents.MAP_BYTES)
 	var outgoing := HsEvent.new(HsEvents.Kind.MAP, HsEvents.write_map(biggest))
@@ -123,7 +110,6 @@ func _test_the_codec() -> void:
 	_finished()
 
 
-# --- Bringing both halves up ---------------------------------------------------------
 
 func _build() -> bool:
 	_section("bringing both halves up")
@@ -157,10 +143,7 @@ func _build() -> bool:
 
 	_server_net = _make_manager(true, &"server", 1, server_side, SERVER_TICK_RATE)
 	_client_net = _make_manager(false, &"client", CLIENT_PEER, client_side, CLIENT_ENGINE_TICK_RATE)
-	# This harness stamps every command itself (`_tick + INPUT_LEAD`), not from the client's
-	# clock, so the client must not ask for dot-net's input-lead report: steered by reports
-	# about commands it never stamped, the clock runs away from them (only dot-net's cap
-	# holds it). By the constant map, so this parses against a dot-net from before the report.
+	# This harness stamps every command itself (`_tick + INPUT_LEAD`), so the client must not ask for dot-net's input-lead report: steered by reports about commands it never stamped, the clock runs away. By the constant map, so it parses against a dot-net from before the report.
 	var lead_bit := int((DotNetMessageRegistry as Script).get_script_constant_map().get("FEATURE_INPUT_LEAD", 0))
 	_client_net.messages.features &= ~lead_bit
 
@@ -396,11 +379,7 @@ func _test_the_toys_cross() -> void:
 	_finished()
 
 
-## A client whose MAP never came (one past a browser socket's buffer, or a format behind) still
-## reads every snapshot. dot-net stops reading one at the first entity a client does not know,
-## so the TOYS for a map it has not built are registered as mirrors anyway, and paired with
-## its toys when the map arrives. Armed: registering them only once the map was built here
-## froze every player seated after the toys.
+## A client whose MAP never came still reads every snapshot: dot-net stops at the first entity a client does not know, so the TOYS for an unbuilt map are registered as mirrors anyway and paired when the map arrives. Armed: registering them only once built froze every player seated after the toys.
 func _test_a_client_without_the_map() -> void:
 	_section("a client without the server's map still follows every player, and pairs the toys when it comes")
 	_server_game._set_phase(HsGame.Phase.SEEK)

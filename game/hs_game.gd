@@ -1,23 +1,8 @@
 extends "hs_game_play.gd"
 
 ## The simulation. Headless, authoritative, and the only thing that decides anything.
-##
-## [b]A round is hiding and then seeking.[/b] At the top of each round one or two players are
-## drawn as seekers and everybody else hides. For [member HsConfig.hide_seconds] the hiders run
-## off and find somewhere while the seekers stand blindfolded and held where they started. Then
-## the seekers are let go to catch them — by touching them, by default, or by watching them
-## long enough, as the server decides — and every hider caught becomes a seeker where they
-## stand. Every hider caught is the seekers' round; any hider still hidden when the clock runs
-## out is the hiders'.
-##
-## [b]What it owns and what it borrows.[/b] The round, the sides and the scoreboard are
-## dot-match's (decided through [HsRules]); who seeks first is dot-team's [DotTeamRotation];
-## the taunts are dot-props' [DotPropTaunts]; health (for falls and the admin tools) is
-## dot-combat's. The map, the furniture, catching and the rules of this game are its own.
-##
-## [b]A catch is measured by the server between two bodies it simulates.[/b] Nothing is shot
-## and nothing is claimed: a client cannot say "I touched them", only move, and the server
-## looks at where it has both of them every tick (see [method _advance_catching]).
+## A round is hiding and then seeking: one or two players are drawn as seekers, the hiders hide for [member HsConfig.hide_seconds] while the seekers are held blindfolded, then seekers catch hiders (a touch, or watching them, as the server decides) and each caught hider seeks where they stand. The round, sides and scoreboard are dot-match's (via [HsRules]); seeker rotation, taunts and health are dot-team's, dot-props' and dot-combat's.
+## A catch is measured by the server between two bodies it simulates: a client cannot say "I touched them" (see [method _advance_catching]).
 
 
 
@@ -35,10 +20,7 @@ func _local_permit(actor: Variant, _flag: String) -> bool:
 
 
 func _init() -> void:
-	# This game's pick: people pass through people (see `_build_physics`). Measured, not
-	# assumed: with bodies solid, headless_bots' stand-in hiders lost 6 rounds of 6, crowded
-	# out of their spots. The camera fade keeps a body that walks through you out of the lens;
-	# an owner who wants bodies sets `mp_solidplayers 1`.
+	# This game's pick: people pass through people (see `_build_physics`). With bodies solid, headless_bots' stand-in hiders lost 6 rounds of 6; the camera fade keeps a body out of the lens, and `mp_solidplayers 1` restores them.
 	body_rules.solid = false
 
 
@@ -89,12 +71,8 @@ func _ready() -> void:
 	DotLog.info(CHANNEL, "world ready", config.describe())
 
 
-## The `<pack>/<subdir>` directories of the map packs a host running this game with no server
-## has mounted for it: the client shell's Solo play, which fetches the packs a server owner
-## would name (dot-server-deploy's `client/solo.json`) because a tab has no server to name
-## them. Read the way the module reads its server's ([DotGameContent]). Empty everywhere else:
-## a server, a suite, a run from the repository. Looked up by name and duck-typed, because a
-## delivered game may not name a host's class.
+## The `<pack>/<subdir>` directories of the map packs a host running this game with no server has mounted for it (the client shell's Solo play, `client/solo.json`), read as the module reads its server's ([DotGameContent]). Empty elsewhere.
+## Looked up by name and duck-typed, because a delivered game may not name a host's class.
 static func solo_map_dirs(subdir: String) -> PackedStringArray:
 	var host: Object = DotRegistry.get_service(SOLO_SERVICE)
 	if host == null or not host.has_method(&"map_dirs"):
@@ -107,7 +85,6 @@ func _exit_tree() -> void:
 		DotRegistry.unregister_instance(SERVICE, self)
 
 
-# --- Building ---------------------------------------------------------------
 
 ## The player's motor mask under `mp_solidplayers`, and the standing hull the others stop at
 ## (a player's body has no shape of its own). With the rule on, a stand-in stops at your
@@ -128,15 +105,7 @@ func _on_body_rules_changed() -> void:
 
 
 ## Three layers: the building, the people, and the furniture.
-##
-## [b]People do not collide with people in the layout.[/b] Two players shoving is a race
-## decided by who walked into whom, drawn in the past on every client; a hider who could be
-## pinned in a corner by a seeker's body, or block a doorway with their own, would be
-## playing a different game. So `mp_solidplayers` is 0 here by default (`_init`); the first
-## play test's stand-in walking into the camera is handled by the camera fade, which hides a
-## body at the lens. An owner who sets 1 gets each player's motor mask and hull; a touch is a
-## distance the server measures (`tag_range` 1.2 m, past the 0.7 m two bodies keep), so
-## tagging works either way.
+## People do not collide with people: shoving is a race decided by who walked into whom, drawn in the past on every client, and a hider pinned by a seeker's body would be playing a different game. So `mp_solidplayers` is 0 by default (`_init`); a touch is a distance the server measures (`tag_range` 1.2 m, past the 0.7 m two bodies keep), so tagging works either way.
 func _build_physics() -> void:
 	physics = DotPhysicsLayout.custom(&"hideseek", [&"world", &"player", &"prop", &"toy", &"footprint"])
 
@@ -367,11 +336,7 @@ func _build_taunts() -> void:
 
 
 ## Puts somebody in the world. [param wanted_side] is a side, or 0 to be placed.
-##
-## [b]Somebody who joins while the seekers are out seeks.[/b] A hider dropped into a round that
-## is half over has had no time to hide, and benching them would leave them watching for
-## minutes; a seeker more is a round that ends a little sooner, which is what a seeker
-## is for.
+## Somebody who joins while the seekers are out seeks: a hider dropped into a half-over round has had no time to hide, and benching them leaves them watching for minutes.
 func add_player(
 	player_id: StringName,
 	display_name: String,
@@ -504,7 +469,6 @@ func remove_player(player_id: StringName) -> void:
 	player_removed.emit(player_id)
 
 
-# --- The tick ---------------------------------------------------------------
 
 func _physics_process(delta: float) -> void:
 	if not authoritative or match_node == null or external_tick:
@@ -561,7 +525,6 @@ func _step(delta: float) -> void:
 	match_node.tick(_tick)
 
 
-# --- Bots ------------------------------------------------------------------
 
 ## What every stand-in presses this tick: [code]hs_bots.gd[/code].
 func _drive_bots() -> void:

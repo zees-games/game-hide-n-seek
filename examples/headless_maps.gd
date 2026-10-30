@@ -4,20 +4,8 @@ const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
 const HsMapDoc := preload("../game/hs_map_doc.gd")
 
-## Every map the game can be sent, built the way a server builds it and looked over for the
-## mistakes a map document makes without any error: a spawn inside a wall or over nothing, a
-## prop the catalogue does not have (built as nothing), a prop sunk into a wall or floating
-## over the floor, too little to hide behind, a door that opens into a wall or a wardrobe,
-## and a doorway something stands in, and a document too big to send.
-##
-## [b]Why this exists apart from `headless_run`.[/b] The maps are generated in
-## hide-n-seek-maps by `tools/build_maps.py`, a few hundred boxes and props each, and none of
-## those mistakes stops a round: a prop floating a hand's width over a table is a prop every
-## seeker looks at first, and a spawn inside a locker is a player stuck for the round. The
-## renders find the ugly ones; this finds the rest, on every map, every time.
-##
-## Sections and checks are both counted; mg-smash-copter's notes say why the second matters.
-## Adding a map adds a section and CHECKS_PER_MAP checks.
+## Every map the game can be sent, built the way a server builds it and looked over for mistakes a document makes without any error: a spawn inside a wall, a prop the catalogue lacks, a prop sunk or floating, too little to hide behind, a door into a wall, a blocked doorway, a document too big to send.
+## None of those stops a round (a spawn inside a locker is a player stuck for it), so this checks every map every time. Sections and checks are both counted; adding a map adds a section and CHECKS_PER_MAP checks.
 
 const MAPS := ["hs_practice", "hs_apartments", "hs_warehouse", "hs_manor", "hs_village", "hs_park", "hs_school", "hs_mall", "hs_ship", "hs_castle", "hs_camp", "hs_museum", "hs_restaurant", "hs_apartment", "hs_frontyard", "hs_hotel"]
 const CHECKS_PER_MAP := 14
@@ -29,10 +17,7 @@ const ROOF_SLACK := 1.5
 ## A drawn, non-solid box thicker than this is not floor paint, water or a decal.
 const PAINT_THICKNESS := 0.3
 
-## The maps actually checked: all of MAPS, or only the practice house where `maps/` is not
-## linked in (CI, which clones this repository alone). As mg-deathrun's headless_courses
-## does: the delivered maps are checked wherever they are present, which is every machine
-## that has run dot-bootstrap. Sections and checks are counted against this list.
+## The maps actually checked: all of MAPS, or only the practice house where `maps/` is not linked in (CI clones this repository alone). Sections and checks are counted against this list.
 var _maps: Array = []
 
 ## A person's capsule, for "is this spawn clear".
@@ -401,13 +386,8 @@ func _world(id: StringName, drawn := false) -> HsGame:
 	return game
 
 
-## dot-core's [DotCollisionAudit] over the map as a client draws it: visible geometry with no
-## shape near it, which a player walks through. Fails on any finding. The audit is the lenient
-## one (a shape anywhere under the map that the mesh touches covers it), because the map keeps
-## its drawing in `Drawn` and its shapes in `Solid`. The exact half is in the document: a
-## visible box that is not solid is drawn and walked through by definition, and the map opts
-## those batches out, so this also holds that to paint: a non-solid box thicker than
-## PAINT_THICKNESS must sit inside a solid one (embers in a hearth), never be a wall or a crate.
+## dot-core's [DotCollisionAudit] over the map as a client draws it: visible geometry with no shape near it, which a player walks through. Lenient (a shape anywhere under the map that the mesh touches covers it), because drawing is in `Drawn` and shapes in `Solid`.
+## The exact half: a visible non-solid box thicker than PAINT_THICKNESS must sit inside a solid one (embers in a hearth), never be a wall or a crate.
 func _audit_colliderless(id: StringName, doc: Dictionary) -> void:
 	var drawn := await _world(id, true)
 	var res := DotCollisionAudit.audit(drawn.map, true)

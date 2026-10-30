@@ -1,30 +1,10 @@
 extends "hs_module_cmds.gd"
 
-## This game, as a module a dedicated server loads.
+## This game, as a module a dedicated server loads: [DotGameModule] holds the netcode, bridge, roster and teardown; this holds the cvars, console commands, map vote and minimum-players rule.
 ##
-## [b]A hundred and forty lines, against the five hand-written modules' 837 to 1,816.[/b]
-## [DotGameModule] holds the netcode and its four load-bearing constants, the bridge, the
-## message seal, the identity layer, the roster, the authoritative tick and a teardown in
-## the reverse order. Two of those five hand-written copies had the same line wrong and
-## nobody could ever join those servers. What is left here is what is actually this game's:
-## the cvars an operator turns between rounds, the console commands, the map vote, and the rule
-## that keeps enough people in a round for one to happen.
-##
-## [b]No `class_name`, and that is a requirement rather than a style.[/b]
-## [method DotModuleHost.load_module] takes a PATH and constructs the module itself — it
-## must, because that is the shape that lets an operator name one in a config file — and a
-## module delivered inside a dot-cloud pack cannot have a `class_name` at all: a mounted
-## pack's globals are not registered in the host.
-##
-## [codeblock]
-## server.modules.load_module("res://game/hs_module.gd")
-## [/codeblock]
+## No `class_name`: [method DotModuleHost.load_module] takes a path, and a module inside a dot-cloud pack cannot have one (a mounted pack's globals are not registered in the host).
 
-# [b]No `const CHANNEL` here, and its absence is the point.[/b] [DotGameModule] already
-# declares one and GDScript refuses to let a subclass redeclare it — which is the right
-# refusal: a module logs through [method DotModule.log_info], which stamps the module's own
-# name, so a second channel would split one module's records across two places an operator
-# has to know to turn up separately.
+# No `const CHANNEL`: [DotGameModule] declares one and a subclass may not redeclare it, which is right, since a second channel would split this module's records.
 
 ## Where the services keep punishments (empty: [DotGameServices]'s default store). Static because
 ## dot-server constructs the module from a path, so there is no instance to set a field on; a test
@@ -57,11 +37,7 @@ func _game_missing_hint() -> String:
 
 
 ## The netcode's numbers, which are the game's and not the addon's.
-##
-## Tick rate from the world, so `sv_tickrate` reaches it: the server sets the engine's
-## physics rate from that cvar at boot, the world is built after the server and reads it,
-## and this reads the world. A number written here instead would be a netcode running at a
-## rate the operator did not choose, silently.
+## Tick rate comes from the world so `sv_tickrate` reaches it; a number written here would run at a rate the operator did not choose.
 func _net_config() -> DotNetConfig:
 	var config := DotNetConfig.new()
 	config.tick_rate = (game as HsGame).tick_rate
@@ -82,12 +58,7 @@ func _make_bridge() -> Node:
 
 
 ## Chat, voice and moderation, over [DotGameServices].
-##
-## [b]The bridge is handed over as the link, and that is the whole of the wiring.[/b] A chat
-## line goes out through `send_chat` and a voice frame through `send_voice`, both on this
-## game's own wire. [DotGameModule] does the rest: it assigns the bridge's `voice_relay_fn`,
-## checks `check_admission` before seating anybody, and tells the roster to follow this layer
-## so a leaver is forgotten by the rate limiter and the voice router together.
+## The bridge is handed over as the link; [DotGameModule] assigns `voice_relay_fn`, checks `check_admission` before seating anybody, and makes the roster follow this layer.
 func _make_services() -> Node:
 	var services := HsServices.new()
 	services.bridge = bridge
@@ -95,15 +66,8 @@ func _make_services() -> Node:
 	return services
 
 
-## Profiles, avatars and admission: dot-platform's [DotPlatformIdentity] over this game's
-## one-slot schema. [DotGameModule] builds it before the services and loads dot-platform's
-## own module beside it.
-##
-## [b]Authentication is not here and was never this game's.[/b] Whether a player is proven
-## to be somebody is the host's `dot_auth_server`, the same for every game it runs; what
-## this layer does is everything after — a scoped profile, the name on it, and a face.
-## With authentication off everybody is a guest with a profile of their own, which is what
-## a LAN server is.
+## Profiles, avatars and admission: dot-platform's [DotPlatformIdentity] over this game's one-slot schema.
+## Authentication is the host's `dot_auth_server`, the same for every game; this layer is a scoped profile, a name and a face. With authentication off everybody is a guest.
 func _make_identity() -> Node:
 	var identity_layer := DotPlatformIdentity.new()
 	identity_layer.avatar_schema = HsAvatars.schema()
@@ -162,19 +126,11 @@ func _game_load() -> DotResult:
 		"Automatic stand-ins: 1 keeps as many as bot_quota and bot_quota_mode say, 0 none at all."
 	)
 
-	# [b]How many is dot-server's [DotBotQuota], so `bot_quota` and `bot_quota_mode` mean the
-	# same thing on every server in the family.[/b] The default is this game's own minimum
-	# (`minimum_players`, from the config file) in fill mode, which is the rule it ran before
-	# the policy was shared: stand-ins top the round up to that many players, a person who
-	# joins takes a stand-in's place, and the stand-in comes back when they leave. `hs_bots`
-	# stays the switch it always was, so a server config that sets it means what it meant.
+	# [DotBotQuota] is dot-server's, so `bot_quota` and `bot_quota_mode` mean the same on every server.
+	# The default is this game's `minimum_players` in fill mode; `hs_bots` stays the switch it was.
 	_quota = DotBotQuota.install(self, world.config.minimum_players)
 
-	# [b]Started here and not in the world's own `_ready`.[/b] `start()` builds the map and puts
-	# everybody on it, and a world that did that before the bridge existed would have built a
-	# map with nothing listening to `world_rebuilt` — one the server knows about and no client
-	# is ever told about. Invisible floors: a player stands on nothing and the server says they
-	# are fine.
+	# Started here, not in the world's `_ready`: `start()` builds the map, and before the bridge exists nothing hears `world_rebuilt`, so no client is told of the map (invisible floors).
 	var _delivered: int = await _add_delivered_maps(world)
 	# A rotation file's wildcards match what is installed, so match again with the delivered maps.
 	world.apply_rotation()
@@ -196,10 +152,8 @@ func _bind_rule_cvars(world: HsGame) -> void:
 	# only, so no REPLICATED: the damage is the server's and arrives as health.
 	var _fall := world.fall_rules.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY)
 
-	# dot-player-controller's mp_forceview (first or third person: the player's choice, or one
-	# held) and mp_solidplayers (players and stand-ins block each other, 1 by default).
-	# REPLICATED: the client places its own camera under the first and predicts its own
-	# player under the second.
+	# dot-player-controller's mp_forceview and mp_solidplayers, REPLICATED: the client places its own
+	# camera and predicts its own player from them.
 	var _views := world.view_rules.bind_cvars(
 		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
 	)
@@ -247,12 +201,7 @@ func _wire_identity() -> void:
 
 
 ## What a session looks like: what dot-platform resolved for them, or the stock person.
-##
-## [b]Through the platform module's `player_for`, and never the hub by a key made here.[/b]
-## The hub keys a player by their scoped profile key, which only admission knows; a lookup
-## by `u<session>` finds nobody, every time, and falls through to stock — which reads as
-## "this player has no avatar" rather than as a wrong key. Duck-typed, because a server
-## without dot-platform is a configuration.
+## Through the platform module's `player_for`, never the hub by a key made here: the hub keys players by their scoped profile key, which only admission knows, so `u<session>` finds nobody. Duck-typed, since a server without dot-platform is a configuration.
 func _avatar_for(session_id: int) -> DotAvatar:
 	var session := server.session_by_userid(session_id) if server != null else null
 	var platform: Object = server.modules.get_module("platform") \
@@ -281,14 +230,8 @@ func _on_profile(event: DotEvent) -> void:
 	link.refresh_player(session_id, session.display_name, _avatar_for(session_id))
 
 
-## The numbers an operator is actually going to want to change, as cvars.
-##
-## [b]Live, and each one writes through to the configuration the world already reads.[/b] A
-## server owner finds their server's balance by moving one of them between rounds with people
-## watching; a JSON file and a restart is a balance nobody tunes.
-##
-## [b]What is NOT here is anything the round has already decided.[/b] `hs_players_per_seeker`
-## changes how many are drawn for the NEXT round; it does not make anybody a seeker now.
+## The numbers an operator will want to change, as cvars.
+## Live, each writing through to the configuration the world reads. `hs_players_per_seeker` changes the NEXT round's draw, not the current seekers.
 func _add_tunables(world: HsGame) -> void:
 	var config := world.config
 
@@ -427,11 +370,7 @@ func _workbench_lines() -> PackedStringArray:
 	return PackedStringArray(["workbench    off (workbench.enabled in cfg/server.yml)"])
 
 
-## [b]Nothing to undo.[/b] The commands are the module's own and [DotModule] removes them;
-## the netcode, the bridge and the roster are [DotGameModule]'s and it tears them down in
-## the reverse order it built them. The world is NOT this module's to free: it was in the
-## tree before the module loaded, and a server can unload and reload a game module without
-## the map going away, which is what `module reload` is for.
+## Nothing to undo: the commands are removed by [DotModule], and the netcode, bridge and roster are [DotGameModule]'s. The world predates the module and survives `module reload`, so it is not freed here.
 func _game_unload() -> void:
 	if workbench != null:
 		workbench.queue_free()
@@ -456,14 +395,8 @@ func _game_hibernation(hibernating: bool) -> void:
 
 
 ## Keeps enough people in the round for there to be one.
-##
-## [b]A seeker and a hider, or nothing happens at all.[/b] A round ends the moment a side has
-## nobody alive, and a side with nobody AT ALL satisfies that on the first tick — so a server
-## with one person on it would start a round, end it and start another for as long as nobody
-## else joined. Every one of those rounds is decided correctly, which is why nothing errors.
-##
-## A stand-in is removed the moment a person takes their place. They are here to make the
-## game exist, not to take the fun half from the people who came to play it.
+## A seeker and a hider, or nothing happens: a side with nobody satisfies "round over" on the first tick, so one person alone would loop start/end rounds, each decided correctly and never erroring.
+## A stand-in is removed the moment a person takes their place.
 func _game_tick(_tick: int, delta: float) -> void:
 	if vote != null:
 		vote.advance(delta)
@@ -495,10 +428,7 @@ func _keep_the_round_full() -> void:
 	if world == null or bridge == null or _quota == null:
 		return
 
-	# People only. A stand-in is not one, and neither is a bot somebody put in by hand through
-	# the bridge (a test, an admin): those are never in `_bot_ids` either, so they are left
-	# alone and outside the count. A leaver is gone from `players` the moment the bridge
-	# removes them, so nobody half-disconnected is counted.
+	# People only: a stand-in or a bot added by hand through the bridge is never in `_bot_ids`, so it stays outside the count. A leaver is gone from `players` once the bridge removes them.
 	var humans := 0
 
 	for id: StringName in world.players:
@@ -555,10 +485,7 @@ func _wire_map(world: HsGame) -> void:
 
 
 ## An achievement is told to the one person who earned it.
-##
-## [b]As a notice, which a client already draws in its chat box[/b], rather than a new event
-## kind: an unlock is text for one player, which is exactly what a notice is — and a stand-in
-## never earns one, because [HsProgress] does not count them.
+## As a notice, which a client already draws in its chat box, not a new event kind; a stand-in never earns one ([HsProgress] does not count them).
 func _wire_progress(world: HsGame) -> void:
 	if bridge == null:
 		return

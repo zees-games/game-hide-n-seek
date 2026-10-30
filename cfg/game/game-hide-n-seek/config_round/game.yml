@@ -14,7 +14,7 @@
 # timeout_winner: 1
 
 # --- The sides
-# One seeker for every this many players, rounded up, at least min_seekers and at most max_seekers — and neve... [1.0..64.0]
+# One seeker for every this many players, rounded up, at least min_seekers and at most max_seekers, never eve... [1.0..64.0]
 # players_per_seeker: 8.0
 #  [1..16]
 # min_seekers: 1

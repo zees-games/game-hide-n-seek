@@ -3,25 +3,9 @@ extends Node
 const HsAmbience := preload("hs_ambience.gd")
 const HsPaths := preload("hs_paths.gd")
 
-## What this game makes a noise about, and the noise, on the client.
-##
-## [b]In a hiding game the sounds ARE the game.[/b] A taunt is the loudest thing a hider can
-## do, so it is heard where the hider is, as loud as the server allows and no further; a catch
-## has a noise of its own, so a hider in the next room knows the seekers just grew by one; the
-## seekers' release is a horn every hider hears wherever they are.
-##
-## [b]A catalogue of ids and a table of stand-ins, which is the family's shape.[/b] dot-audio
-## decides what is audible, how many at once and how far; [method sound_catalogue] is those
-## decisions, naming paths under `audio/`, and [method sound_recipes] says which synthesised
-## voice stands in for each until a real `.ogg` is dropped in — [DotAudioSinkGodot] consults
-## the file before the stand-in.
-##
-## [b]Taunts are files, and they are played from the hider.[/b] They are CC0 voice lines and
-## jingles in `taunts/` (see its README), listed in `taunts/taunts.json`; a taunt is an
-## [AudioStreamPlayer3D] parented to the player who made it, so it moves with a hider that
-## runs.
-##
-## [b]Never on a server, and never deciding anything.[/b]
+## What this game makes a noise about, and the noise, on the client. Never on a server, and never deciding anything.
+## In a hiding game the sounds ARE the game: a taunt is heard where the hider is, a catch has its own noise, and the seekers' release is a horn every hider hears.
+## [method sound_catalogue] names the ids and paths under `audio/` and [method sound_recipes] the synthesised stand-in for each until an `.ogg` is dropped in ([DotAudioSinkGodot] consults the file first). Taunts are CC0 files in `taunts/`, played from an [AudioStreamPlayer3D] on the hider.
 
 const CHANNEL := "hs.audio"
 
@@ -177,10 +161,8 @@ func setup() -> DotResult:
 	manager.mixer = DotAudioMixer.new()
 	manager.register_as_service = false
 	manager.voices = 24
-	# Measured toward the family's -17 LUFS (dot-audio docs/loudness.md): a 40 s stand-in round
-	# read -27.1 LUFS with the beds and the steps in (mostly digital silence before them), -23.4 at +8, -20.9 at +11; after dot-audio's stand-in learnt to turn off walls it read
-	# -19.4 at +13 and -17.9 at +15. The
-	# bed level is dot-audio's default and the map document's ambient.level.
+	# Measured toward the family's -17 LUFS (dot-audio docs/loudness.md): a 40 s stand-in round read -27.1 LUFS, -19.4 at +13 and -17.9 at +15.
+	# The bed level is dot-audio's default and the map document's ambient.level.
 	manager.loudness_trim_db = 15.0
 	add_child(manager)
 

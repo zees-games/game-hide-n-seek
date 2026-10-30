@@ -1,18 +1,7 @@
 extends DotConfig
 
-## Every number this game has, layered like every other [DotConfig] in the family:
-## [code]exported defaults < JSON file < environment < command line[/code].
-##
-## [b]Metres and seconds.[/b] The maps are documents in the same units (see [HsMapDoc]), so a
-## length a mapper writes and a length this file tunes against are the same number.
-##
-## [b]Every rule the brief named is here, and its default is the brief's.[/b] How a hider is
-## caught (a touch, by default; being watched, or either, as a setting), whether a caught hider
-## joins the seekers, how many seekers a round starts with, how long the hide is, when a taunt
-## is forced, when the last hiders are given away: a server owner changes any of them in
-## `user://cfg/hideseek.json`, an environment variable (`HS_HIDE_SECONDS`) or a flag
-## (`--hs-hide-seconds`), and the commonly turned ones are cvars as well (see
-## `HsModule._add_tunables`).
+## Every number this game has, layered like every other [DotConfig]: [code]exported defaults < JSON file < environment < command line[/code].
+## Metres and seconds, the maps' units too (see [HsMapDoc]). Each rule the brief named is here at the brief's default; the commonly turned ones are cvars as well (see `HsModule._add_tunables`).
 
 ## How a seeker catches a hider. See [member catch_mode].
 enum Catch {
@@ -36,7 +25,6 @@ enum Pick {
 	FIRST_CAUGHT,
 }
 
-# --- The round -------------------------------------------------------------
 
 @export_group("The round")
 
@@ -57,15 +45,11 @@ enum Pick {
 ## [b]The hiders, because staying hidden until the clock runs out is their whole objective.[/b]
 @export_enum("draw", "hiders", "seekers") var timeout_winner: int = 1
 
-# --- The sides -------------------------------------------------------------
 
 @export_group("The sides")
 
-## One seeker for every this many players, rounded up, at least [member min_seekers] and at
-## most [member max_seekers] — and never everybody.
-##
-## [b]Few, by design.[/b] Unlike a game where the sides are even, a round starts with one or two
-## seekers and grows them out of the hiders they catch; eight players start with one.
+## One seeker for every this many players, rounded up, at least [member min_seekers] and at most [member max_seekers], never everybody.
+## Few by design: a round starts with one or two seekers and grows them from the hiders they catch.
 @export_range(1.0, 64.0, 0.5) var players_per_seeker: float = 8.0
 @export_range(1, 16, 1) var min_seekers: int = 1
 @export_range(1, 32, 1) var max_seekers: int = 3
@@ -76,7 +60,6 @@ enum Pick {
 ## Whether a player's own wish (`!seek`, `!hide`, `!any`) counts in the draw.
 @export var allow_side_choice: bool = true
 
-# --- Catching --------------------------------------------------------------
 
 @export_group("Catching")
 
@@ -96,9 +79,7 @@ enum Pick {
 @export_range(0.0, 15.0, 0.5) var caught_freeze_seconds: float = 3.0
 
 ## Where a caught hider starts seeking: 0 where they were caught, 1 at the seekers' start.
-## [b]0 hands the catch on[/b]: a hider caught knows where their friends hid, and stands up
-## seeking beside the next one. 1 sends them back to where the seekers counted, so each catch is
-## a seeker more without a free second one.
+## 0 hands the catch on: they stand up seeking beside the next hider. 1 sends them back, so each catch is not a free second seeker.
 @export_range(0, 1, 1) var caught_seek_from: int = CAUGHT_SEEK_HERE
 
 const CAUGHT_SEEK_HERE := 0
@@ -117,7 +98,6 @@ const CAUGHT_SEEK_START := 1
 ## in one second).
 @export_range(0.0, 10.0, 0.05) var sight_decay: float = 0.35
 
-# --- Taunts ----------------------------------------------------------------
 
 @export_group("Taunts")
 
@@ -146,34 +126,24 @@ const CAUGHT_SEEK_START := 1
 ## Metres a taunt carries.
 @export_range(5.0, 300.0, 1.0) var taunt_range: float = 60.0
 
-# --- Giving the last hiders away --------------------------------------------
 
 @export_group("The beacon")
 
 ## Every hider still hidden is beaconed once this few are left. 0 never.
 @export_range(0, 32, 1) var beacon_hiders_left: int = 1
 
-## Every hider still hidden is beaconed once this few seconds are left. 0 never, the default:
-## with it at 30 the bots' hiders won 6 rounds in 24 at medium instead of 10, because every
-## seeker there is by then walks to every hider still in, and a round the hiders had held for
-## three and a half minutes was lost in the last half minute. The last hider's beacon
-## ([member beacon_hiders_left]) is what ends a round nobody can find anybody in.
+## Every hider still hidden is beaconed once this few seconds are left. 0 never, the default: at 30 the bots' hiders won 6 rounds in 24 instead of 10, because every seeker then walks to every hider.
+## The last hider's beacon ([member beacon_hiders_left]) ends a round nobody can find anybody in.
 @export_range(0.0, 600.0, 1.0) var beacon_seconds_left: float = 0.0
 
 ## Seconds between a beacon's pings.
 @export_range(0.25, 10.0, 0.25) var beacon_period: float = 2.0
 
-## Seconds between the beacon showing the last hiders, and for how long each time. 0 shows them
-## the whole time.
-##
-## [b]A reveal now and then, not a marker held on them.[/b] Held, the last hider was walked to by
-## every seeker at once from anywhere on the map, and a round with one left was a round lost: at
-## medium the bots' hiders won 2 rounds in 24. Shown for two seconds in ten, the seekers learn
-## where and go, and the hider has eight seconds to be somewhere else: a chase, not a sentence.
+## Seconds between the beacon showing the last hiders, and for how long each time. 0 shows them the whole time.
+## A reveal now and then, not a marker held on them: held, every seeker walked straight to the last hider (2 wins in 24). Two seconds in ten lets the hider move on.
 @export_range(0.0, 120.0, 0.5) var beacon_every: float = 10.0
 @export_range(0.25, 30.0, 0.25) var beacon_reveal: float = 2.0
 
-# --- Points ----------------------------------------------------------------
 
 @export_group("Points")
 
@@ -186,7 +156,6 @@ const CAUGHT_SEEK_START := 1
 ## Points to every hider still hidden when the round ends.
 @export_range(0, 100, 1) var survive_points: int = 5
 
-# --- The players -----------------------------------------------------------
 
 @export_group("The players")
 
@@ -206,7 +175,6 @@ const CAUGHT_SEEK_START := 1
 @export var auto_bunny_hop: bool = false
 @export_range(0.0, 200.0, 1.0) var air_accelerate: float = 20.0
 
-# --- The maps --------------------------------------------------------------
 
 @export_group("The maps")
 
@@ -222,17 +190,13 @@ const CAUGHT_SEEK_START := 1
 ## Where map documents are read from, relative to this game's root.
 @export var map_directory: String = "maps"
 
-## The file that says which maps a server ROTATES: `cfg/maps.yml`, layered over the game's own
-## shipped `res://maps.yml` (dot-map's `DotMapRotationFile`: named rotations, `random` or
-## `cycle`, wildcards, command names). Empty, or no such file, rotates every map. A map the
-## active rotation leaves out stays installed (`hs_map <id>` queues it); it is only never drawn
-## or balloted. `sv_map_rotation_file`.
+## The file that says which maps a server ROTATES: `cfg/maps.yml` over the shipped `res://maps.yml` (dot-map's `DotMapRotationFile`). Empty or absent rotates every map.
+## A map the rotation leaves out stays installed (`hs_map <id>` queues it); it is only never drawn or balloted. `sv_map_rotation_file`.
 @export var map_rotation_file: String = "cfg/maps.yml"
 
 ## Seed every random choice is drawn from: the map, the seekers, the bots.
 @export var seed_value: int = 20261010
 
-# --- Bots ------------------------------------------------------------------
 
 @export_group("Bots")
 
@@ -243,14 +207,12 @@ const CAUGHT_SEEK_START := 1
 # map are dot-bot's `bot_*` settings, shared by every game (`bot_difficulty`, `bot_sight`,
 # `bot_fov`, `bot_hearing`, `bot_reaction`, `bot_map_knowledge`, ...).
 
-# --- Watching --------------------------------------------------------------
 
 @export_group("Watching")
 
 ## Who somebody who is out may watch: 0 anybody, 1 their own side, 2 nobody.
 @export_enum("anybody", "own side", "nobody") var spectate_camera: int = 0
 
-# --- Progress --------------------------------------------------------------
 
 @export_group("Progress")
 

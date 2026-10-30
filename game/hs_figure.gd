@@ -2,32 +2,9 @@ extends Node3D
 
 const HsPaths := preload("hs_paths.gd")
 
-## What somebody ELSE looks like: a Kenney blocky character, scaled to the player's hull,
-## wearing their side's colour on the torso and turned to where they are looking. Client
-## side only; a server never builds one.
-##
-## [b]This game drew no person at all until 2026-09-24.[/b] Every player's own view was
-## first person, and third person showed the platform rather than the player — so nobody had
-## needed a body until a networked client, whose other players were drawn as nothing. Their
-## node moved, their beacon marked them, and a platform leaned toward a patch of empty deck.
-## See `HsPlayer.present_body` for when one is shown.
-##
-## [b]Top level, and placed by its caller every frame.[/b] The player node is the
-## simulation's: on a remote player it is written by the interpolator once a frame, but on
-## the local player and on every offline stand-in it moves once a TICK, and a body hung off
-## it would step at the tick rate while the camera beside it is blended between ticks. So
-## `HsClient.present_frame` hands every body the position this frame draws — the node for a
-## remote player, `render_state()` for one this process simulates — and nothing here
-## computes one.
-##
-## [b]One of the family's people[/b] (dot-player-char's `DotHumanoidFigure`: animated, on the
-## rig every game's players, bots and NPCs share), because a seeker is somebody to see coming and
-## a capsule does not say which way somebody is facing from forty metres. Which person a player
-## is still comes from the blocky kit's atlas their avatar names (`HsAvatars`, [constant ATLASES]):
-## the atlas letter is a look (`DotHumanoidLook.from_letter`), so every document written before
-## the people arrived dresses the same person on every client. [b]The side is the shirt[/b]: the
-## top is the side's colour outright, and the face, hair and legs stay the player's own. The first
-## thing anybody needs to read off a body is whether to run from it.
+## What somebody ELSE looks like: a family humanoid figure scaled to the player's hull, with their side's colour as the shirt, turned to where they look. Client side only. See `HsPlayer.present_body` for when one is shown.
+## Top level, placed by its caller every frame: the player node moves once a TICK on a simulated player, and a body hung off it would step while the camera is blended. `HsClient.present_frame` hands it the position this frame draws.
+## Which person comes from the blocky kit's atlas the avatar names (`HsAvatars`, [constant ATLASES]; `DotHumanoidLook.from_letter`), so older documents dress the same person. The side is the shirt, the first thing anybody needs to read off a body.
 
 const CHANNEL := "hs.figure"
 

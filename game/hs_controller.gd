@@ -1,14 +1,7 @@
 extends DotFpsController
 
-## The first-person controller, with the one modifier this game adds: somebody held still — a
-## seeker while the hiders hide, and a hider just caught while they become a seeker.
-##
-## [b]A modifier, not a check in the game's loop.[/b] A modifier is part of the movement
-## state, so it travels in the snapshot and a predicting client applies it to its own seeker
-## on exactly the ticks the server does; a rule the game applied around the controller would be
-## skipped by every replayed tick, and a blindfolded seeker's client would predict them walking
-## off while the server held them. Registered in [method _register_extensions], on every
-## player on every machine and in the same order, because the id is what travels.
+## The first-person controller, with the one modifier this game adds: somebody held still (a seeker while the hiders hide, a hider just caught).
+## A modifier, not a check in the loop: it travels in the snapshot and a predicting client applies it on the same ticks as the server, where a rule applied around the controller would be skipped by every replayed tick. Registered in [method _register_extensions] in the same order everywhere, because the id travels.
 
 ## Held still and unable to jump or crouch.
 const HOLD := &"hs_hold"
@@ -54,12 +47,8 @@ func _on_pre_simulate(_tick: int, _delta: float) -> void:
 var carrier: Callable = Callable()
 
 
-## A roundabout's rider goes round with it, after the move, on every end that simulates this
-## person: a rotation about the hub, so a rider a metre out is a metre out after it. A client
-## carries its own player by the spin it measures from the poses it is shown, near enough the
-## server's that the correction is small. Written into the state as well as the body: the next
-## move starts from `state.position`, and a lift on the node alone would be undone by it. The
-## view is not turned: a command's yaw is the player's.
+## A roundabout's rider goes round with it, after the move, on every end that simulates this person: a rotation about the hub. Written into the state as well as the body, since the next move starts from `state.position`.
+## A client carries its own player by the spin it measures from the poses shown. The view is not turned: a command's yaw is the player's.
 func _on_post_simulate(_tick: int, delta: float) -> void:
 	if not carrier.is_valid() or not state.is_grounded():
 		return

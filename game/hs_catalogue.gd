@@ -4,14 +4,7 @@ const HsMapDoc := preload("hs_map_doc.gd")
 const HsPaths := preload("hs_paths.gd")
 
 ## Every map this server can play, and which one is next.
-##
-## [b]Two sources, and the built-in one is a floor rather than a feature.[/b] The maps are
-## documents read from [member HsConfig.map_directory] — `maps/`, a link to hide-n-seek-maps,
-## in a checkout; a directory in a delivered pack. A server whose directory is missing or empty
-## still has [method practice], so it plays rather than refusing to start.
-##
-## [b]A server reads documents; a client never does.[/b] The map travels in its own event (see
-## [HsMapDoc]), so nothing here runs on a connected client.
+## Maps are documents read from [member HsConfig.map_directory] (`maps/`, a link to hide-n-seek-maps, or a directory in a pack); a server with none still has the built-in [method practice] floor and plays. A client never reads them: the map travels in its own event (see [HsMapDoc]).
 
 const CHANNEL := "hs.catalogue"
 
@@ -337,15 +330,9 @@ func describe_lines() -> PackedStringArray:
 	return lines
 
 
-# --- The one built in -------------------------------------------------------
 
 ## A two-room house with a garden: enough furniture to hide among and a door between the rooms.
-##
-## [b]Written here rather than shipped as a file,[/b] so a server with no map directory at all
-## — a fresh clone, a suite — has something to play, and the suites have a map whose every
-## number is in front of them. They lean on these: the floor is x -10..10, z -8..8 at y 0; the
-## wall between the rooms is at x 0 with a 1.8 m door at z -1..0.8; the seekers start in the
-## east room, the hiders in the west; the garden is x 10..22, with its toys.
+## Written here, not shipped as a file, so a fresh clone or a suite has a map whose every number is in front of them: floor x -10..10, z -8..8; wall at x 0 with a 1.8 m door at z -1..0.8; seekers east, hiders west; garden x 10..22 with its toys.
 static func practice() -> Dictionary:
 	var boxes: Array = []
 	var height := 3.2

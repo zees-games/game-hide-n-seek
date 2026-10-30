@@ -4,28 +4,8 @@ const HsMapDoc := preload("hs_map_doc.gd")
 const HsMaterials := preload("hs_materials.gd")
 
 ## A map's doors: panels a player opens and shuts with the use key.
-##
-## [b]A door's pose is a pure function of the tick and of the last time it was used.[/b] The
-## same rule mg-deathrun's traps keep: the state of a door is `(open, since)`, the side it is
-## going to and the tick it set off on, and where the panel is on any tick follows from those
-## two numbers and the document. So the only thing that is ever sent is a use — `DOOR`, a door,
-## which way, and the tick — and a client that hears it late still poses the past correctly,
-## because the tick is part of the message. Nothing about a door is replicated per tick.
-##
-## [b]A static body moved through the physics server, not a kinematic one and not an
-## animation.[/b] mg-wipeout found that a kinematic body applies a new transform a physics step
-## late, and a body that is a step late is a door a player is predicted walking through on one
-## end and stopped by on the other. A static body written through `PhysicsServer3D` is where it
-## was put on the very next query.
-##
-## [b]On the world layer[/b], with the walls, so a shut door stops a body, a seeker's view and a
-## touch alike: the sight rule and the touch rule ask "is there a wall between", and a shut door
-## is one. A door left open is not.
-##
-## [b]A door never shuts on anybody.[/b] A use is refused while any body stands anywhere the
-## panel passes through on its way, because a static panel posed inside a capsule leaves the
-## controller to push its way out, and a hider pinned in a door frame by a seeker slamming it
-## would be the door deciding a catch.
+## A door's pose is a pure function of the tick and the last use, `(open, since)`, so only a use is sent (`DOOR`: which, which way, the tick) and a late client poses the past correctly.
+## A static body moved through `PhysicsServer3D`, not a kinematic one (a step late, so predicted through on one end and stopped on the other), on the world layer so a shut door stops a body, a view and a touch. A door never shuts on anybody: a use is refused while a body stands where the panel passes.
 
 const CHANNEL := "hs.doors"
 
@@ -43,13 +23,8 @@ var physics: DotPhysicsLayout = null
 var draw_world: bool = false
 var tick_rate: int = 64
 
-## One per door, in document order: `{spec, body, open, since, ticks, flip}`. `open` is the side
-## it is going to or is at; `since` is the tick it set off, or -1 for "at rest where it
-## started"; `flip` is whether a swinging door went the other way from the document's angle.
-##
-## [b]A swinging door opens away from whoever opens it[/b], unless the map says `away: false`.
-## One that always swung the same way would be a door nobody standing on that side could open,
-## because they would be standing in its way.
+## One per door, in document order: `{spec, body, open, since, ticks, flip}`; `since` is the tick it set off, or -1 at rest; `flip` is whether it swung the other way.
+## A swinging door opens away from whoever opens it unless the map says `away: false`, or nobody on that side could open it.
 var doors: Array[Dictionary] = []
 
 
@@ -124,7 +99,6 @@ func _draw(body: StaticBody3D, spec: Dictionary, size: Vector3) -> void:
 		body.add_child(handle)
 
 
-# --- State ------------------------------------------------------------------
 
 ## Every door back to how the map has it. The top of every round.
 func reset() -> void:
@@ -204,7 +178,6 @@ func flips_for(index: int, user: Vector3) -> bool:
 	return their_side != 0.0 and goes == their_side
 
 
-# --- Poses ------------------------------------------------------------------
 
 ## Where door [param index]'s panel is at [param f] of the way open, as a world transform.
 ## [param flip] -1 means "as the door is now".
@@ -265,14 +238,9 @@ static func _place(body: Node3D, at: Transform3D) -> void:
 		)
 
 
-# --- Asking -----------------------------------------------------------------
 
-## Which door somebody at [param eyes] looking along [param aim] would use: the nearest whose
-## panel, where it was last posed, is within reach and in front of them. -1 for none.
-##
-## [b]Where it was posed, not where the tick says[/b], because a client never ticks the world:
-## it poses the doors for its own input tick, and the HUD asking with any other tick would be
-## a prompt for a door somewhere it is not.
+## Which door somebody at [param eyes] looking along [param aim] would use: the nearest whose panel, where it was last posed, is within reach and in front of them. -1 for none.
+## Where it was posed, not where the tick says: a client poses doors for its own input tick, and the HUD asking with another would prompt for a door somewhere it is not.
 func door_for(eyes: Vector3, aim: Vector3, reach: float = REACH) -> int:
 	var best := -1
 	var closest := reach

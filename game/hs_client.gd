@@ -1,19 +1,7 @@
 extends "hs_client_view.gd"
 
 ## One local player, a camera and a HUD over a [HsGame] — offline, or against a server.
-##
-## [b]One client for both, and the offline half is not a demo mode.[/b] It is the same world
-## class with `authoritative` true, stand-ins on both sides, and nothing else different. What
-## changes is where the answers come from, and the whole of that difference is [HsNetBridge].
-##
-## [b]Which half runs is decided by whether there is a link in the registry.[/b] A dot-server
-## client publishes a [DotClientLink] under `dot_client_link` before the game scene loads; no
-## link means nobody connected us to anything, and the honest answer is a playable round.
-## `--offline` forces it.
-##
-## [b]First person for everybody[/b], because hide-and-seek is about what you can see from
-## where you are standing; F5 hangs the camera behind you instead, which is presentation only.
-## The simulation is the same either way.
+## One client for both: offline is the same world class with `authoritative` true and stand-ins on both sides; only [HsNetBridge] differs. Which runs depends on a `dot_client_link` in the registry (`--offline` forces it). First person for everybody; F5 hangs the camera behind, presentation only.
 
 
 func _ready() -> void:
@@ -68,14 +56,8 @@ func _ready() -> void:
 			_start_remote_workbench()
 
 
-## The load gate is [member DotGameClient.gate]: covered, and the local body and the input still,
-## until the level is built, the local player exists and its camera is current.
-##
-## [b]Without it the first frames showed a half-built world.[/b] Offline the body spawned and
-## fell in the tick the first map landed, a connected client drew a HUD with no player and no
-## camera until JOIN, and a map change tore the level down in front of a body that kept
-## falling. A frozen player is also skipped by [method HsPlayer.simulate], which the world
-## calls by name and `process_mode` does not stop.
+## The load gate is [member DotGameClient.gate]: covered, and the local body and the input still, until the level is built, the local player exists and its camera is current.
+## Without it the first frames showed a half-built world, and a map change tore the level down in front of a body that kept falling. A frozen player is skipped by [method HsPlayer.simulate], which the world calls by name.
 
 ## A map is built: held from the moment the old one starts to go, released once the new one
 ## stands. [signal HsGame.world_clearing] and [signal HsGame.world_rebuilt] fire for the first

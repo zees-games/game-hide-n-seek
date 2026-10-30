@@ -5,27 +5,9 @@ const HsPlayer := preload("hs_player.gd")
 const HsBindings := preload("hs_bindings.gd")
 const HsController := preload("hs_controller.gd")
 
-## What a player needs on screen: the clock and who it is counting for, which side they are on,
-## how close they are to being caught, and — while the hiders hide — a blindfold for the
-## seekers.
-##
-## [b]The blindfold is a screen, and the HUD is drawn over it.[/b] Seekers cannot see the map,
-## the hiders or each other while the hiders hide, but they can still see their HUD and use
-## the menus. So it is a black rect UNDER every widget here, with its own line saying how long
-## is left; the world behind it is not drawn at all. It does not depend on the client being
-## honest about drawing: a blindfolded seeker is also held still by a movement modifier the
-## server owns (see [HsController]), and the server tells them nothing about where anybody
-## went (see [HsInterest]).
-##
-## [b]The clock and the door prompt are dot-ui's glance pieces.[/b] The clock is a
-## [DotScoreStrip] with the hiders still hidden and the seekers as its two side plates, in the
-## sides' colours; the door prompt is a [DotKeyPrompt] under the crosshair with the use key
-## drawn as a key. The disc stays: it says which side you are on with a letter, and nobody in
-## this game has health.
-##
-## [b]The keys are read from the bindings, not written here.[/b] The hints in the corner say
-## the key each action is on NOW, from the same table the menu's Controls page edits, so a
-## rebound key is never a hint that lies.
+## What a player needs on screen: the clock and who it counts for, their side, how close they are to being caught, and a blindfold for the seekers while the hiders hide.
+## The blindfold is a black rect UNDER every widget, since seekers still see the HUD and menus; the world behind it is not drawn, and a blindfolded seeker is also held by a server-owned modifier (see [HsController], [HsInterest]) so it does not rely on an honest client.
+## The clock is a [DotScoreStrip] and the door prompt a [DotKeyPrompt]. Hints read the bindings table the Controls page edits, so a rebound key is never a lie.
 
 const BLIND_FADE_SEC := 0.25
 const BLIND_COLOUR := Color(0.01, 0.01, 0.015)
@@ -52,10 +34,8 @@ static func piece_theme() -> Theme:
 	return t
 
 
-## The Escape menu, whose theme this HUD follows (dot-menu's `follow_hud`): the menu sets the
-## theme on the HUD's root now and at every theme change, and applies the player's HUD size.
-## Christian's first play test (2026-10-11) asked for a darker HUD a player can restyle in
-## the menu. Duck-typed and called by name, for a client shell older than dot-menu 7.
+## The Escape menu, whose theme this HUD follows (dot-menu's `follow_hud`): the menu sets the theme on the HUD's root and applies the player's HUD size.
+## Duck-typed and called by name, for a client shell older than dot-menu 7.
 var _menu: Object = null
 
 
