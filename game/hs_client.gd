@@ -449,6 +449,8 @@ func _present_hide() -> void:
 func _present_effects(delta: float) -> void:
 	if audio != null:
 		audio.listen_from(camera.global_position)
+		if platform != null and platform.slide_sounds != null and audio.steps != null:
+			audio.steps.surf_rules = platform.slide_sounds.get(&"surf_rules")
 		audio.keep_walkers(game.players.values())
 
 	if game.effects != null:
