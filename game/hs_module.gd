@@ -152,6 +152,10 @@ func _bind_rule_cvars(world: HsGame) -> void:
 	# only, so no REPLICATED: the damage is the server's and arrives as health.
 	var _fall := world.fall_rules.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY)
 
+	# mp_friendlyfire (default off here, as the game builds its rules) and mp_teammate_passthrough.
+	if world.combat != null:
+		var _combat := world.combat.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED)
+
 	# dot-player-controller's mp_forceview and mp_solidplayers, REPLICATED: the client places its own
 	# camera and predicts its own player from them.
 	var _views := world.view_rules.bind_cvars(
