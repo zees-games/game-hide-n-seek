@@ -34,6 +34,8 @@ cvars:
   hs_catch_mode: "0"
   hs_bots: "1"
   bot_quota: "5"
+  # 1 files the players' stats with the backbone using the server's own ticket; 0 keeps them here.
+  stats_report: "0"
 
 # This game's maps are small documents the server sends each client, so a host fetches the
 # map packs its server owner names BEFORE the game loads (into the server-only packs)
