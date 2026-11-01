@@ -22,7 +22,7 @@ scene: scenes/hs_server.tscn
 client_scene: game/hs.tscn
 module: game/hs_module.gd
 
-# No maps pack is named here. Which maps a server runs is the server owner's choice, made in
+# No maps pack is required here (the suggested one is at the bottom). Which maps a server runs is the server owner's choice, made in
 # their deployment's map config (dot-server-deploy's cfg/content.yml, gamemann/hide-n-seek-maps
 # for the stock set); the module fetches what the server names. This game's own pack ships
 # only its built-in practice house.
@@ -42,3 +42,8 @@ cvars:
 # rather than on a map change: nobody is admitted to a server playing only the built-in map.
 metadata:
   maps_delivery: server
+
+# The stock maps pack the game suggests, not requires: a server offers it by default (suggested_maps: none turns that off)
+# and the Workshop mounts it for solo play unless the player opts out (--no-suggested, --suggested=none).
+suggested:
+  - maps=gamemann/hide-n-seek-maps
