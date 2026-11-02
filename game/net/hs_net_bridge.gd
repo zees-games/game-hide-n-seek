@@ -426,38 +426,11 @@ func _on_event(message: DotNetMessage) -> void:
 			game.remove_player(player_key(session_id))
 			roster_changed.emit(session_id)
 		HsEvents.Kind.TEAM:
-			var side := HsEvents.read_team(reader)
-
-			if bool(side["ok"]):
-				var id := player_key(int(side["player_id"]))
-				game.sides[id] = int(side["team"])
-
-				if game.players.has(id):
-					(game.players[id] as HsPlayer).team = int(side["team"])
-
-				roster_changed.emit(int(side["player_id"]))
+			_apply_team(reader)
 		HsEvents.Kind.CLOCK:
 			_apply_clock(reader)
 		HsEvents.Kind.ROUND:
-			var round_info := HsEvents.read_round(reader)
-
-			if bool(round_info["ok"]):
-				game.round_number = int(round_info["round"])
-
-				if bool(round_info["began"]):
-					game.phase_elapsed = 0.0
-					game.seek_elapsed = 0.0
-
-					# Every door home: the uses were last round's.
-					if game.map != null and game.map.doors != null:
-						game.map.doors.reset()
-
-				round_changed.emit(
-					int(round_info["round"]),
-					bool(round_info["began"]),
-					int(round_info["winner"]),
-					str(round_info["why"])
-				)
+			_apply_round(reader)
 		HsEvents.Kind.PHASE:
 			var moved := HsEvents.read_phase(reader)
 
@@ -467,18 +440,7 @@ func _on_event(message: DotNetMessage) -> void:
 
 				phase_received.emit(int(moved["phase"]))
 		HsEvents.Kind.DEATH:
-			var death := HsEvents.read_death(reader)
-
-			if bool(death["ok"]):
-				# The fall goes on the player before anybody hears of the death, so the client
-				# that draws it reads the server's pick.
-				var fell: HsPlayer = game.players.get(player_key(int(death["player_id"]))) \
-					if game != null else null
-				if fell != null and death.has("death"):
-					fell.death = death["death"]
-				death_received.emit(
-					int(death["player_id"]), int(death["by"]), death["why"]
-				)
+			_apply_death(reader)
 		HsEvents.Kind.CHAT:
 			var wire := HsEvents.read_chat(reader)
 
@@ -490,19 +452,7 @@ func _on_event(message: DotNetMessage) -> void:
 			if bool(text["ok"]):
 				notice_received.emit(str(text["text"]))
 		HsEvents.Kind.SPECTATE:
-			var view := HsEvents.read_spectate(reader)
-
-			if bool(view["ok"]) and game.spectate != null:
-				game.spectate.apply_view(
-					player_key(int(view["viewer"])),
-					int(view["mode"]),
-					player_key(int(view["target"])) if int(view["target"]) != 0 else &"",
-					player_key(int(view["killer"])) if int(view["killer"]) != 0 else &"",
-					view["death_at"]
-				)
-				spectate_received.emit(
-					int(view["viewer"]), int(view["mode"]), int(view["target"])
-				)
+			_apply_spectate(reader)
 		HsEvents.Kind.TAUNT:
 			var heard := HsEvents.read_taunt(reader)
 
@@ -524,6 +474,72 @@ func _on_event(message: DotNetMessage) -> void:
 					who.caught = true
 					who.sight_meter = 0.0
 				caught_received.emit(int(got["player_id"]), int(got["by"]), got["how"])
+
+func _apply_team(reader: DotNetReader) -> void:
+	var side := HsEvents.read_team(reader)
+
+	if bool(side["ok"]):
+		var id := player_key(int(side["player_id"]))
+		game.sides[id] = int(side["team"])
+
+		if game.players.has(id):
+			(game.players[id] as HsPlayer).team = int(side["team"])
+
+		roster_changed.emit(int(side["player_id"]))
+
+
+func _apply_round(reader: DotNetReader) -> void:
+	var round_info := HsEvents.read_round(reader)
+
+	if bool(round_info["ok"]):
+		game.round_number = int(round_info["round"])
+
+		if bool(round_info["began"]):
+			game.phase_elapsed = 0.0
+			game.seek_elapsed = 0.0
+
+			# Every door home: the uses were last round's.
+			if game.map != null and game.map.doors != null:
+				game.map.doors.reset()
+
+		round_changed.emit(
+			int(round_info["round"]),
+			bool(round_info["began"]),
+			int(round_info["winner"]),
+			str(round_info["why"])
+		)
+
+
+func _apply_death(reader: DotNetReader) -> void:
+	var death := HsEvents.read_death(reader)
+
+	if bool(death["ok"]):
+		# The fall goes on the player before anybody hears of the death, so the client
+		# that draws it reads the server's pick.
+		var fell: HsPlayer = game.players.get(player_key(int(death["player_id"]))) \
+			if game != null else null
+		if fell != null and death.has("death"):
+			fell.death = death["death"]
+		death_received.emit(
+			int(death["player_id"]), int(death["by"]), death["why"]
+		)
+
+
+func _apply_spectate(reader: DotNetReader) -> void:
+	var view := HsEvents.read_spectate(reader)
+
+	if bool(view["ok"]) and game.spectate != null:
+		game.spectate.apply_view(
+			player_key(int(view["viewer"])),
+			int(view["mode"]),
+			player_key(int(view["target"])) if int(view["target"]) != 0 else &"",
+			player_key(int(view["killer"])) if int(view["killer"]) != 0 else &"",
+			view["death_at"]
+		)
+		spectate_received.emit(
+			int(view["viewer"]), int(view["mode"]), int(view["target"])
+		)
+
 
 func _apply_hello(reader: DotNetReader) -> void:
 	var hello := HsEvents.read_hello(reader)

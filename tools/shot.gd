@@ -107,17 +107,7 @@ func _run() -> void:
 	var local = _client.get("player")
 	var seeker := _view in ["seeker", "blind"]
 
-	# The person at this keyboard on the side the view is about; stand-ins on the other, with
-	# at least one seeker among them.
-	var a_seeker := seeker
-	for id: StringName in game.players:
-		var side := HsGame.HIDERS
-		if game.players[id] == local:
-			side = HsGame.SEEKERS if seeker else HsGame.HIDERS
-		elif not a_seeker:
-			side = HsGame.SEEKERS
-			a_seeker = true
-		game._set_side(id, side)
+	_assign_sides(game, local, seeker)
 
 	game._place_everybody()
 	game._set_phase(HsGame.Phase.HIDE)
@@ -154,98 +144,19 @@ func _run() -> void:
 				local.place_at(_at, 0.0)
 			await _seconds_of(_seconds)
 		"door":
-			# A hider a step in front of the first door, facing it through their own camera, so
-			# the prompt is the one the client draws for that aim.
-			game._set_phase(HsGame.Phase.SEEK)
-			var frame := (game.map.doors.doors[0]["body"] as Node3D).global_transform
-			var size := HsMapDoc.v3((game.map.doors.doors[0]["spec"] as Dictionary)["size"])
-			var normal := frame.basis.z.normalized()
-			var feet := frame.origin + normal * 1.3 - Vector3(0.0, size.y * 0.5, 0.0)
-			local.place_at(feet, rad_to_deg(atan2(normal.x, normal.z)))
-			await _seconds_of(maxf(_seconds, 1.0))
+			await _view_door(game, local)
 		"spots":
-			# The annotator's spots, links and chokepoints over the map from above (dot-npc-ai's
-			# DotNpcAiNavDebug): a hiding spot in the middle of a room passes every count.
-			await _seconds_of(1.0)
-			var ann: DotNpcAiNavAnnotations = game.bots.annotations
-			if ann == null:
-				push_error("no annotations: the bake or annotation has not finished")
-			else:
-				var debug := DotNpcAiNavDebug.new()
-				game.map.add_child(debug)
-				debug.show_annotations(ann)
-				var sbox: AABB = game.map.bounds()
-				var sc := sbox.get_center()
-				_free_camera().look_at_from_position(sc + Vector3(0.0, maxf(sbox.size.x, sbox.size.z) * 0.9, 0.5), sc)
+			await _view_spots(game, local)
 		"bots":
 			await _view_bots(game)
 		"ragdoll":
-			# A stand-in slain in front of a free camera, and [member _seconds] of its fall:
-			# `--seconds=0.15`, `0.6` and `2` are the start, the drop and the body at rest.
-			game._set_phase(HsGame.Phase.SEEK)
-			await _seconds_of(0.6)
-			var victim: HsPlayer = null
-			for id: StringName in game.players:
-				var p: HsPlayer = game.players[id]
-				if p != local and p.is_alive() and p.figure != null and p.figure.visible:
-					victim = p
-					break
-			if victim == null:
-				print("nobody drawn to slay")
-				get_tree().quit(1)
+			if not await _view_ragdoll(game, local):
 				return
-			if _place != Vector3.INF:
-				victim.place_at(_place, 0.0)
-				await _seconds_of(0.3)
-			var feet: Vector3 = victim.controller.state.position
-			var camera := _free_camera()
-			camera.look_at_from_position(_at if _at != Vector3.INF else feet + Vector3(2.4, 1.6, 2.4), feet + Vector3(0.0, 0.7, 0.0))
-			var slay := DotDamage.make(0, victim.entity_id, victim.health.max_health * 10.0, null)
-			slay.tick = game._tick
-			slay.direction = (feet - camera.global_position) * Vector3(1, 0, 1)
-			var _applied: Variant = game.combat.apply_damage(slay)
-			print("slew %s at %s: %s" % [victim.display_name, feet.snapped(Vector3.ONE * 0.1), victim.death.describe() if victim.death != null else "no fall"])
-			await _seconds_of(_seconds)
 		"action":
-			await _until_uncovered()
-			# A stand-in playing an avatar action, from the front, early in the clip.
-			game._set_phase(HsGame.Phase.SEEK)
-			await _seconds_of(0.6)
-			var actor: HsPlayer = null
-			for id: StringName in game.players:
-				var p: HsPlayer = game.players[id]
-				if p != local and p.figure != null and p.figure.visible:
-					actor = p
-					break
-			if actor == null:
-				print("nobody drawn to act")
-				get_tree().quit(1)
+			if not await _view_action(game, local):
 				return
-			await _settle(actor)
-			var parts := _action.split(":")
-			var entry: Dictionary = DotAvatarActions.defaults().find(StringName(parts[0]), parts[1])
-			var ok: bool = actor.figure.body_node().play_action(StringName(parts[1]), bool(entry.get("loop", false)), 0.0)
-			print("action %s: played=%s" % [_action, ok])
-			var feet: Vector3 = actor.controller.state.position
-			var front := Vector3(-sin(deg_to_rad(actor.controller.state.yaw)), 0.0, -cos(deg_to_rad(actor.controller.state.yaw)))
-			_free_camera().look_at_from_position(feet + front * 3.0 + Vector3(0.0, 1.5, 0.0), feet + Vector3(0.0, 1.0, 0.0))
-			# Early and late frames of the clip: <out>_a.png now, the usual frame at the end.
-			await _pin_for(actor, 0.4)
-			await _save_extra("_a")
-			await _pin_for(actor, maxf(_seconds - 0.4, 0.1))
 		"mapmenu":
-			game._set_phase(HsGame.Phase.SEEK)
-			await _seconds_of(1.0)
-			var maps: Object = _client.get("settings").menu.maps
-			# The pack map first and a short list, so it is all on one page.
-			var rows: Array = maps.rows_fn.call()
-			for i in range(rows.size()):
-				if str((rows[i] as Dictionary)["id"]) == "ws_clubhouse":
-					rows.insert(0, rows.pop_at(i))
-					break
-			print("map rows: ", rows.map(func(r: Dictionary) -> String: return str(r["name"])))
-			maps.call("open_rows", rows.slice(0, 5), true, "solo")
-			await _seconds_of(0.6)
+			await _view_mapmenu(game, local)
 		"caught":
 			game._set_phase(HsGame.Phase.SEEK)
 			if _at != Vector3.INF:
@@ -264,13 +175,135 @@ func _run() -> void:
 		menu.handle_event(tab)
 
 	await _frames(3)
-	var image := get_viewport().get_texture().get_image()
 	var path := ProjectSettings.globalize_path(_out)
+	var saved := _save_png(path)
+	await DotShotSeq.new().record(get_tree(), path)
+	get_tree().quit(0 if saved == OK else 1)
+
+
+func _view_door(game: HsGame, local: HsPlayer) -> void:
+	# A hider a step in front of the first door, facing it through their own camera, so
+	# the prompt is the one the client draws for that aim.
+	game._set_phase(HsGame.Phase.SEEK)
+	var frame := (game.map.doors.doors[0]["body"] as Node3D).global_transform
+	var size := HsMapDoc.v3((game.map.doors.doors[0]["spec"] as Dictionary)["size"])
+	var normal := frame.basis.z.normalized()
+	var feet := frame.origin + normal * 1.3 - Vector3(0.0, size.y * 0.5, 0.0)
+	local.place_at(feet, rad_to_deg(atan2(normal.x, normal.z)))
+	await _seconds_of(maxf(_seconds, 1.0))
+
+
+func _view_spots(game: HsGame, local: HsPlayer) -> void:
+	# The annotator's spots, links and chokepoints over the map from above (dot-npc-ai's
+	# DotNpcAiNavDebug): a hiding spot in the middle of a room passes every count.
+	await _seconds_of(1.0)
+	var ann: DotNpcAiNavAnnotations = game.bots.annotations
+	if ann == null:
+		push_error("no annotations: the bake or annotation has not finished")
+	else:
+		var debug := DotNpcAiNavDebug.new()
+		game.map.add_child(debug)
+		debug.show_annotations(ann)
+		var sbox: AABB = game.map.bounds()
+		var sc := sbox.get_center()
+		_free_camera().look_at_from_position(sc + Vector3(0.0, maxf(sbox.size.x, sbox.size.z) * 0.9, 0.5), sc)
+
+
+func _view_ragdoll(game: HsGame, local: HsPlayer) -> bool:
+	# A stand-in slain in front of a free camera, and [member _seconds] of its fall:
+	# `--seconds=0.15`, `0.6` and `2` are the start, the drop and the body at rest.
+	game._set_phase(HsGame.Phase.SEEK)
+	await _seconds_of(0.6)
+	var victim: HsPlayer = null
+	for id: StringName in game.players:
+		var p: HsPlayer = game.players[id]
+		if p != local and p.is_alive() and p.figure != null and p.figure.visible:
+			victim = p
+			break
+	if victim == null:
+		print("nobody drawn to slay")
+		get_tree().quit(1)
+		return false
+	if _place != Vector3.INF:
+		victim.place_at(_place, 0.0)
+		await _seconds_of(0.3)
+	var feet: Vector3 = victim.controller.state.position
+	var camera := _free_camera()
+	camera.look_at_from_position(_at if _at != Vector3.INF else feet + Vector3(2.4, 1.6, 2.4), feet + Vector3(0.0, 0.7, 0.0))
+	var slay := DotDamage.make(0, victim.entity_id, victim.health.max_health * 10.0, null)
+	slay.tick = game._tick
+	slay.direction = (feet - camera.global_position) * Vector3(1, 0, 1)
+	var _applied: Variant = game.combat.apply_damage(slay)
+	print("slew %s at %s: %s" % [victim.display_name, feet.snapped(Vector3.ONE * 0.1), victim.death.describe() if victim.death != null else "no fall"])
+	await _seconds_of(_seconds)
+	return true
+
+
+func _view_action(game: HsGame, local: HsPlayer) -> bool:
+	await _until_uncovered()
+	# A stand-in playing an avatar action, from the front, early in the clip.
+	game._set_phase(HsGame.Phase.SEEK)
+	await _seconds_of(0.6)
+	var actor: HsPlayer = null
+	for id: StringName in game.players:
+		var p: HsPlayer = game.players[id]
+		if p != local and p.figure != null and p.figure.visible:
+			actor = p
+			break
+	if actor == null:
+		print("nobody drawn to act")
+		get_tree().quit(1)
+		return false
+	await _settle(actor)
+	var parts := _action.split(":")
+	var entry: Dictionary = DotAvatarActions.defaults().find(StringName(parts[0]), parts[1])
+	var ok: bool = actor.figure.body_node().play_action(StringName(parts[1]), bool(entry.get("loop", false)), 0.0)
+	print("action %s: played=%s" % [_action, ok])
+	var feet: Vector3 = actor.controller.state.position
+	var front := Vector3(-sin(deg_to_rad(actor.controller.state.yaw)), 0.0, -cos(deg_to_rad(actor.controller.state.yaw)))
+	_free_camera().look_at_from_position(feet + front * 3.0 + Vector3(0.0, 1.5, 0.0), feet + Vector3(0.0, 1.0, 0.0))
+	# Early and late frames of the clip: <out>_a.png now, the usual frame at the end.
+	await _pin_for(actor, 0.4)
+	await _save_extra("_a")
+	await _pin_for(actor, maxf(_seconds - 0.4, 0.1))
+	return true
+
+
+func _view_mapmenu(game: HsGame, local: HsPlayer) -> void:
+	game._set_phase(HsGame.Phase.SEEK)
+	await _seconds_of(1.0)
+	var maps: Object = _client.get("settings").menu.maps
+	# The pack map first and a short list, so it is all on one page.
+	var rows: Array = maps.rows_fn.call()
+	for i in range(rows.size()):
+		if str((rows[i] as Dictionary)["id"]) == "ws_clubhouse":
+			rows.insert(0, rows.pop_at(i))
+			break
+	print("map rows: ", rows.map(func(r: Dictionary) -> String: return str(r["name"])))
+	maps.call("open_rows", rows.slice(0, 5), true, "solo")
+	await _seconds_of(0.6)
+
+
+func _assign_sides(game: HsGame, local: HsPlayer, seeker: bool) -> void:
+	# The person at this keyboard on the side the view is about; stand-ins on the other, with
+	# at least one seeker among them.
+	var a_seeker := seeker
+	for id: StringName in game.players:
+		var side := HsGame.HIDERS
+		if game.players[id] == local:
+			side = HsGame.SEEKERS if seeker else HsGame.HIDERS
+		elif not a_seeker:
+			side = HsGame.SEEKERS
+			a_seeker = true
+		game._set_side(id, side)
+
+
+func _save_png(path: String) -> int:
+	var image := get_viewport().get_texture().get_image()
 	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 	var saved := image.save_png(path)
 	print("saved %s (%s): %s" % [_out, _view, error_string(saved)])
-	await DotShotSeq.new().record(get_tree(), path)
-	get_tree().quit(0 if saved == OK else 1)
+	return saved
 
 
 func _view_bots(game: HsGame) -> void:
