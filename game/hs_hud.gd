@@ -144,24 +144,7 @@ func _build() -> void:
 	_shout.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_shout.add_theme_color_override("font_color", Color(0.99, 0.86, 0.40))
 
-	# Bottom left: a disc in the side's colour with a letter on it, what you are, and what is
-	# happening to you.
-	# Above the chat box, which also draws bottom-left.
-	_disc = Panel.new()
-	_disc.name = "Disc"
-	_rect(_disc, Control.PRESET_BOTTOM_LEFT, 22.0, -300.0, 102.0, -220.0)
-	_disc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.add_child(_disc)
-
-	_disc_label = Label.new()
-	_disc_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_disc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_disc_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_disc_label.add_theme_font_size_override("font_size", 26)
-	_disc_label.add_theme_color_override("font_color", Color.WHITE)
-	_disc_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.6))
-	_disc_label.add_theme_constant_override("outline_size", 4)
-	_disc.add_child(_disc_label)
+	_build_disc()
 
 	_as = _label(17)
 	_rect(_as, Control.PRESET_BOTTOM_LEFT, 112.0, -296.0, 600.0, -266.0)
@@ -200,6 +183,31 @@ func _build() -> void:
 	prompt.visible = false
 	_root.add_child(prompt)
 
+	_build_crosshair()
+
+
+func _build_disc() -> void:
+	# Bottom left: a disc in the side's colour with a letter on it, what you are, and what is
+	# happening to you.
+	# Above the chat box, which also draws bottom-left.
+	_disc = Panel.new()
+	_disc.name = "Disc"
+	_rect(_disc, Control.PRESET_BOTTOM_LEFT, 22.0, -300.0, 102.0, -220.0)
+	_disc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_disc)
+
+	_disc_label = Label.new()
+	_disc_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_disc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_disc_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_disc_label.add_theme_font_size_override("font_size", 26)
+	_disc_label.add_theme_color_override("font_color", Color.WHITE)
+	_disc_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.6))
+	_disc_label.add_theme_constant_override("outline_size", 4)
+	_disc.add_child(_disc_label)
+
+
+func _build_crosshair() -> void:
 	# A dot, as before: no arms, no outline, no spread.
 	_crosshair = DotCrosshair.new()
 	_crosshair.name = "Crosshair"

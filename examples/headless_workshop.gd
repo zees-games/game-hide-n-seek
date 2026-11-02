@@ -68,20 +68,7 @@ func _test() -> void:
 	})
 	_check(added.ok and (added.value as Array).size() == 2, "the fixture pack is in the index")
 
-	# The world follows the shared index when it builds its catalogue, as a client shell's solo.
-	var config := HsConfig.new()
-	config.warmup_seconds = 0.0
-	config.minimum_players = 0
-	config.keep_progress = false
-	var game := HsGame.new()
-	game.config = config
-	game.tick_rate = 60
-	game.authoritative = true
-	game.draw_world = false
-	game.register_service = false
-	add_child(game)
-	game.set_physics_process(false)
-	await get_tree().physics_frame
+	var game := await _new_game()
 
 	var vote := HsVote.new()
 	vote.maps_fn = func() -> Array:
@@ -105,6 +92,44 @@ func _test() -> void:
 
 	_check(own != &"", "the game has a map of its own to keep")
 
+	_solo_checks(game, vote, own)
+
+	index.set_session(DotContentIndex.SESSION_ONLINE)
+	var online := _ids(game.catalogue.playable(PackedStringArray()))
+	_check(not online.has("ws_house"), "online: the catalogue does not offer the solo map")
+	_check(not vote.source.choices().any(func(c: DotVoteChoice) -> bool: return c.id == &"ws_house"), "online: the ballot does not offer the solo map")
+	_check(not game.change_map_now(&"ws_house").ok, "online: the solo map cannot be chosen")
+	_check(online.has(String(own)), "online: the game's own map is still offered")
+
+	index.set_session(DotContentIndex.SESSION_SOLO)
+	_check(_ids(game.catalogue.playable(PackedStringArray())).has("ws_house"), "back in solo: the pack map returns")
+
+	remove_child(vote)
+	vote.free()
+	remove_child(game)
+	game.free()
+	_sections_finished += 1
+
+
+func _new_game() -> HsGame:
+	# The world follows the shared index when it builds its catalogue, as a client shell's solo.
+	var config := HsConfig.new()
+	config.warmup_seconds = 0.0
+	config.minimum_players = 0
+	config.keep_progress = false
+	var game := HsGame.new()
+	game.config = config
+	game.tick_rate = 60
+	game.authoritative = true
+	game.draw_world = false
+	game.register_service = false
+	add_child(game)
+	game.set_physics_process(false)
+	await get_tree().physics_frame
+	return game
+
+
+func _solo_checks(game: HsGame, vote: HsVote, own: StringName) -> void:
 	var solo := _ids(game.catalogue.playable(PackedStringArray()))
 	_check(solo.has("ws_house"), "solo: the map menu's catalogue offers the pack map")
 	_check(not solo.has("ws_surf"), "solo: a kind the game does not accept is not in the catalogue")
@@ -132,22 +157,6 @@ func _test() -> void:
 	var changed := game.change_map_now(&"ws_house")
 	_check(changed.ok, "solo: the pack map can be chosen", "" if changed.ok else changed.error.message)
 	_check(str(game.map_doc.get("id", "")) == "ws_house", "solo: the chosen pack map is the one built", str(game.map_doc.get("id", "")))
-
-	index.set_session(DotContentIndex.SESSION_ONLINE)
-	var online := _ids(game.catalogue.playable(PackedStringArray()))
-	_check(not online.has("ws_house"), "online: the catalogue does not offer the solo map")
-	_check(not vote.source.choices().any(func(c: DotVoteChoice) -> bool: return c.id == &"ws_house"), "online: the ballot does not offer the solo map")
-	_check(not game.change_map_now(&"ws_house").ok, "online: the solo map cannot be chosen")
-	_check(online.has(String(own)), "online: the game's own map is still offered")
-
-	index.set_session(DotContentIndex.SESSION_SOLO)
-	_check(_ids(game.catalogue.playable(PackedStringArray())).has("ws_house"), "back in solo: the pack map returns")
-
-	remove_child(vote)
-	vote.free()
-	remove_child(game)
-	game.free()
-	_sections_finished += 1
 
 
 func _ids(list: Array) -> PackedStringArray:

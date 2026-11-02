@@ -85,16 +85,7 @@ func _run() -> void:
 	if at >= 0 and at + 1 < args.size():
 		first = maxi(0, int(args[at + 1]))
 	var linked := DirAccess.dir_exists_absolute(ProjectSettings.globalize_path("res://maps"))
-	var results: Array[Dictionary] = []
-
-	_section("%d rounds of stand-ins at %s%s" % [rounds, difficulty, "" if linked else " (no maps/: the practice house)"])
-	for r in range(first, first + rounds):
-		var map_id: String = MAPS[r % MAPS.size()] if linked else "hs_practice"
-		var result := await _round(map_id, r, difficulty)
-		results.append(result)
-		print("  round %2d %-14s %d seekers  caught %d of %d  mean last %5.1f s  first %5.1f s  spread %.1f m, %d within 3 m  survey %4.0f ms  %d doors shut  stuck %4.1f s (%s at %s)" % [
-			r + 1, map_id, result["seekers"], result["caught"], result["hiders"], result["mean_last"], minf(float(result["first"]), 999.0),
-			result["spread"], result["close"], result["survey_ms"], result["doors_shut"], result["stuck"], result["stuck_who"], str((result["stuck_at"] as Vector3).snapped(Vector3.ONE * 0.1))])
+	var results: Array[Dictionary] = await _play(first, rounds, difficulty, linked)
 	_completed += 1
 
 	_section("the bands")
@@ -141,46 +132,73 @@ func _run() -> void:
 			if f < 3.0:
 				none_at_once = false
 		_check(none_at_once, "nobody is caught in the first three seconds of a seek")
-		var moved := 0
-		var unseen := 0
-		var covered := 0.0
-		var found := 0
-		for result in results:
-			moved += int(result["moved"])
-			unseen += int(result["unseen"])
-			covered += float(result["covered"])
-			if float(result["first"]) <= FIND_WITHIN:
-				found += 1
-		var count := float(maxi(results.size(), 1))
-		print("  hiders end the hide %d of %d at least %.0f m from their spawn, %d of %d out of every seeker's sight; the first seeker covers %.0f%% of the surveyed places in %.0f s; somebody caught inside %.0f s in %d of %d rounds" % [
-			moved, hiders, MOVED_FAR, unseen, hiders, covered / count * 100.0, COVER_SECONDS, FIND_WITHIN, found, results.size()])
-		_check(float(moved) >= MIN_MOVED * float(hiders), "hiders walk off: %.0f%% end the hide at least %.0f m from where they spawned" % [MIN_MOVED * 100.0, MOVED_FAR], "%d of %d" % [moved, hiders])
-		_check(float(unseen) >= MIN_UNSEEN * float(hiders), "hiders hide: %.0f%% are out of every seeker's sight when the seek begins" % [MIN_UNSEEN * 100.0], "%d of %d" % [unseen, hiders])
-		_check(covered / count >= MIN_COVERED, "the seeker sweeps the map: %.0f%% of its surveyed places within %.0f m in %.0f s" % [MIN_COVERED * 100.0, COVER_RADIUS, COVER_SECONDS], "%.0f%%" % (covered / count * 100.0))
-		_check(float(found) >= FIND_SHARE * count, "the seeker finds a hider within %.0f s in %.0f%% of rounds" % [FIND_WITHIN, FIND_SHARE * 100.0], "%d of %d" % [found, results.size()])
+		_coverage(results, hiders)
 	if difficulty == "medium":
-		var q_new := 0.0
-		var q_old := 0.0
-		var by_map := {}
-		for result in results:
-			q_new += float(result["q_new"])
-			q_old += float(result["q_old"])
-			by_map[result["map"]] = int(by_map.get(result["map"], 0)) + (1 if int(result["caught"]) > 0 else 0)
-			if result["round"] < MAPS.size():
-				print("  %-14s %d links used, %d chokepoints, annotated in %.0f ms" % [result["map"], result["links"], result["chokes"], result["annotate_ms"]])
-		q_new /= float(maxi(results.size(), 1))
-		q_old /= float(maxi(results.size(), 1))
-		print("  a hider's place scores %.2f against %.2f for the old survey's best picks" % [q_new, q_old])
-		_check(q_new >= q_old + MIN_QUALITY_GAIN, "hiders' places beat the old survey's by %.2f" % MIN_QUALITY_GAIN, "%.2f against %.2f" % [q_new, q_old])
-		var unwinnable := PackedStringArray()
-		for m in by_map:
-			if int(by_map[m]) == 0:
-				unwinnable.append(m)
-		_check(unwinnable.is_empty(), "no map is unwinnable: the seekers catch somebody on every map played", ", ".join(unwinnable))
+		_quality(results)
 	_check(float(stuck_worst.get("stuck", 0.0)) <= MAX_STUCK, "no stand-in stays stuck beside an open door's panel more than %.1f s" % MAX_STUCK,
 		"%.1f s, %s at %s on %s" % [float(stuck_worst.get("stuck", 0.0)), stuck_worst.get("stuck_who", ""), str((stuck_worst.get("stuck_at", Vector3.ZERO) as Vector3).snapped(Vector3.ONE * 0.1)), stuck_worst.get("map", "")])
 	_completed += 1
 
+	await _armed(first, linked, difficulty)
+
+	_report_sections(_entered, _completed, SECTIONS)
+
+
+func _play(first: int, rounds: int, difficulty: String, linked: bool) -> Array[Dictionary]:
+	var results: Array[Dictionary] = []
+	_section("%d rounds of stand-ins at %s%s" % [rounds, difficulty, "" if linked else " (no maps/: the practice house)"])
+	for r in range(first, first + rounds):
+		var map_id: String = MAPS[r % MAPS.size()] if linked else "hs_practice"
+		var result := await _round(map_id, r, difficulty)
+		results.append(result)
+		print("  round %2d %-14s %d seekers  caught %d of %d  mean last %5.1f s  first %5.1f s  spread %.1f m, %d within 3 m  survey %4.0f ms  %d doors shut  stuck %4.1f s (%s at %s)" % [
+			r + 1, map_id, result["seekers"], result["caught"], result["hiders"], result["mean_last"], minf(float(result["first"]), 999.0),
+			result["spread"], result["close"], result["survey_ms"], result["doors_shut"], result["stuck"], result["stuck_who"], str((result["stuck_at"] as Vector3).snapped(Vector3.ONE * 0.1))])
+	return results
+
+
+func _coverage(results: Array[Dictionary], hiders: int) -> void:
+	var moved := 0
+	var unseen := 0
+	var covered := 0.0
+	var found := 0
+	for result in results:
+		moved += int(result["moved"])
+		unseen += int(result["unseen"])
+		covered += float(result["covered"])
+		if float(result["first"]) <= FIND_WITHIN:
+			found += 1
+	var count := float(maxi(results.size(), 1))
+	print("  hiders end the hide %d of %d at least %.0f m from their spawn, %d of %d out of every seeker's sight; the first seeker covers %.0f%% of the surveyed places in %.0f s; somebody caught inside %.0f s in %d of %d rounds" % [
+		moved, hiders, MOVED_FAR, unseen, hiders, covered / count * 100.0, COVER_SECONDS, FIND_WITHIN, found, results.size()])
+	_check(float(moved) >= MIN_MOVED * float(hiders), "hiders walk off: %.0f%% end the hide at least %.0f m from where they spawned" % [MIN_MOVED * 100.0, MOVED_FAR], "%d of %d" % [moved, hiders])
+	_check(float(unseen) >= MIN_UNSEEN * float(hiders), "hiders hide: %.0f%% are out of every seeker's sight when the seek begins" % [MIN_UNSEEN * 100.0], "%d of %d" % [unseen, hiders])
+	_check(covered / count >= MIN_COVERED, "the seeker sweeps the map: %.0f%% of its surveyed places within %.0f m in %.0f s" % [MIN_COVERED * 100.0, COVER_RADIUS, COVER_SECONDS], "%.0f%%" % (covered / count * 100.0))
+	_check(float(found) >= FIND_SHARE * count, "the seeker finds a hider within %.0f s in %.0f%% of rounds" % [FIND_WITHIN, FIND_SHARE * 100.0], "%d of %d" % [found, results.size()])
+
+
+func _quality(results: Array[Dictionary]) -> void:
+	var q_new := 0.0
+	var q_old := 0.0
+	var by_map := {}
+	for result in results:
+		q_new += float(result["q_new"])
+		q_old += float(result["q_old"])
+		by_map[result["map"]] = int(by_map.get(result["map"], 0)) + (1 if int(result["caught"]) > 0 else 0)
+		if result["round"] < MAPS.size():
+			print("  %-14s %d links used, %d chokepoints, annotated in %.0f ms" % [result["map"], result["links"], result["chokes"], result["annotate_ms"]])
+	q_new /= float(maxi(results.size(), 1))
+	q_old /= float(maxi(results.size(), 1))
+	print("  a hider's place scores %.2f against %.2f for the old survey's best picks" % [q_new, q_old])
+	_check(q_new >= q_old + MIN_QUALITY_GAIN, "hiders' places beat the old survey's by %.2f" % MIN_QUALITY_GAIN, "%.2f against %.2f" % [q_new, q_old])
+	var unwinnable := PackedStringArray()
+	for m in by_map:
+		if int(by_map[m]) == 0:
+			unwinnable.append(m)
+	_check(unwinnable.is_empty(), "no map is unwinnable: the seekers catch somebody on every map played", ", ".join(unwinnable))
+
+
+func _armed(first: int, linked: bool, difficulty: String) -> void:
 	_section("the checks, armed against the stand-ins that stood and walked a line")
 	var old: Array[Dictionary] = []
 	for r in range(first, first + ARMED_ROUNDS):
@@ -211,35 +229,11 @@ func _run() -> void:
 		"%.2f against %.2f" % [old_q_new / float(old.size()), old_q_old / float(old.size())])
 	_completed += 1
 
-	_report_sections(_entered, _completed, SECTIONS)
-
 
 ## One round on [param map_id]: seven stand-ins from a fresh world, played to its end.
 func _round(map_id: String, index: int, difficulty: String, legacy: bool = false) -> Dictionary:
-	var config := HsConfig.new()
-	config.warmup_seconds = 0.0
-	config.intermission_seconds = 0.0
-	config.minimum_players = 0
-	config.keep_progress = false
-	config.map_ids = PackedStringArray([map_id])
-	config.seed_value = 20261012 + index * 7919
-	if OS.has_environment("HS_CAUGHT_FROM"):
-		config.caught_seek_from = int(OS.get_environment("HS_CAUGHT_FROM"))
-	if OS.has_environment("HS_BEACON_LEFT"):
-		config.beacon_hiders_left = int(OS.get_environment("HS_BEACON_LEFT"))
-	if OS.has_environment("HS_BEACON_SECONDS"):
-		config.beacon_seconds_left = float(OS.get_environment("HS_BEACON_SECONDS"))
-
-	var game := HsGame.new()
-	game.name = "Bots_%d" % index
-	game.config = config
-	game.tick_rate = TICK_RATE
-	game.authoritative = true
-	game.register_service = false
-	add_child(game)
-	game.set_physics_process(false)
-	var _set := DotBotSettings.of(game).set_difficulty(difficulty)
-	await get_tree().physics_frame
+	var game := await _new_game(map_id, index, difficulty)
+	var config := game.config
 
 	for i in range(BOTS):
 		var bot := game.add_player(StringName("u%d" % (900 + i)), "Bot%d" % i)
@@ -306,26 +300,13 @@ func _round(map_id: String, index: int, difficulty: String, legacy: bool = false
 			spread = measured[0]
 			close = measured[1]
 			if OS.has_environment("HS_BOTS_TRACE"):
-				for p in game.players_on(HsGame.HIDERS):
-					var st: Dictionary = game.bots._state.get(p.player_id, {})
-					var spot: Dictionary = st.get("spot", {})
-					print("    %s at %s crouch %.1f spot %s exp %.2f mode %s" % [p.player_id, p.controller.state.position.snapped(Vector3.ONE * 0.1), p.controller.state.crouch_fraction,
-						str((spot.get("at", Vector3.ZERO) as Vector3).snapped(Vector3.ONE * 0.1)), float(spot.get("exposure", -1.0)), st.get("mode", "")])
+				_trace_hiders(game)
 		if seek_started >= 0.0 and game.phase != HsGame.Phase.SEEK:
 			break
 		if follow != &"" and (tick % (TICK_RATE / 2) == 0 or OS.has_environment("HS_BOTS_EVERY")) and game.players.has(follow):
 			_follow(game, follow)
 		if OS.has_environment("HS_BOTS_TRACE") and tick % (TICK_RATE * 2) == 0 and (seek_started >= 0.0 or OS.has_environment("HS_BOTS_HIDE")):
-			var line := "    %5.1f s" % game.seek_elapsed
-			for id: StringName in game.players:
-				var p: HsPlayer = game.players[id]
-				var st: Dictionary = game.bots._state.get(id, {})
-				line += "  %s%s%s %s" % [id.substr(3), "S" if game.team_of(id) == HsGame.SEEKERS else "h", String(st.get("mode", "")).substr(0, 4),
-					str(Vector2(p.controller.state.position.x, p.controller.state.position.z).snapped(Vector2.ONE))]
-				if game.team_of(id) == HsGame.SEEKERS and not (st.get("goal_place", {}) as Dictionary).is_empty():
-					var g: Vector3 = st["goal_place"]["at"]
-					line += "->%s" % str(Vector2(g.x, g.z).snapped(Vector2.ONE))
-			print(line)
+			_trace_line(game)
 
 	var seekers := BOTS - hiders.size()
 	var sum_last := 0.0
@@ -362,6 +343,55 @@ func _round(map_id: String, index: int, difficulty: String, legacy: bool = false
 	game.free()
 	await get_tree().process_frame
 	return result
+
+
+func _new_game(map_id: String, index: int, difficulty: String) -> HsGame:
+	var config := HsConfig.new()
+	config.warmup_seconds = 0.0
+	config.intermission_seconds = 0.0
+	config.minimum_players = 0
+	config.keep_progress = false
+	config.map_ids = PackedStringArray([map_id])
+	config.seed_value = 20261012 + index * 7919
+	if OS.has_environment("HS_CAUGHT_FROM"):
+		config.caught_seek_from = int(OS.get_environment("HS_CAUGHT_FROM"))
+	if OS.has_environment("HS_BEACON_LEFT"):
+		config.beacon_hiders_left = int(OS.get_environment("HS_BEACON_LEFT"))
+	if OS.has_environment("HS_BEACON_SECONDS"):
+		config.beacon_seconds_left = float(OS.get_environment("HS_BEACON_SECONDS"))
+
+	var game := HsGame.new()
+	game.name = "Bots_%d" % index
+	game.config = config
+	game.tick_rate = TICK_RATE
+	game.authoritative = true
+	game.register_service = false
+	add_child(game)
+	game.set_physics_process(false)
+	var _set := DotBotSettings.of(game).set_difficulty(difficulty)
+	await get_tree().physics_frame
+	return game
+
+
+func _trace_line(game: HsGame) -> void:
+	var line := "    %5.1f s" % game.seek_elapsed
+	for id: StringName in game.players:
+		var p: HsPlayer = game.players[id]
+		var st: Dictionary = game.bots._state.get(id, {})
+		line += "  %s%s%s %s" % [id.substr(3), "S" if game.team_of(id) == HsGame.SEEKERS else "h", String(st.get("mode", "")).substr(0, 4),
+			str(Vector2(p.controller.state.position.x, p.controller.state.position.z).snapped(Vector2.ONE))]
+		if game.team_of(id) == HsGame.SEEKERS and not (st.get("goal_place", {}) as Dictionary).is_empty():
+			var g: Vector3 = st["goal_place"]["at"]
+			line += "->%s" % str(Vector2(g.x, g.z).snapped(Vector2.ONE))
+	print(line)
+
+
+func _trace_hiders(game: HsGame) -> void:
+	for p in game.players_on(HsGame.HIDERS):
+		var st: Dictionary = game.bots._state.get(p.player_id, {})
+		var spot: Dictionary = st.get("spot", {})
+		print("    %s at %s crouch %.1f spot %s exp %.2f mode %s" % [p.player_id, p.controller.state.position.snapped(Vector3.ONE * 0.1), p.controller.state.crouch_fraction,
+			str((spot.get("at", Vector3.ZERO) as Vector3).snapped(Vector3.ONE * 0.1)), float(spot.get("exposure", -1.0)), st.get("mode", "")])
 
 
 ## The share of the surveyed places a walk came within [constant COVER_RADIUS] metres of (on the

@@ -72,37 +72,41 @@ func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
 		game.world_rebuilt.connect(_pair_pending_toys)
 
 	if net.is_server:
-		# See [HsInterest]: no hider in a seeker's snapshot while the hiders hide.
-		var interest := HsInterest.new()
-		interest.game = game
-		net.interest = interest
-
-		game.player_added.connect(_on_player_added)
-		game.player_removed.connect(_on_player_removed)
-		game.world_rebuilt.connect(_on_world_rebuilt)
-		game.round_began.connect(_on_round_began)
-		game.round_over.connect(_on_round_over)
-		game.phase_changed.connect(_on_phase_changed)
-		game.player_died.connect(_on_player_died)
-		game.side_changed.connect(func(id: StringName, side: int) -> void:
-			_broadcast(HsEvents.Kind.TEAM, HsEvents.write_team(session_of(id), side))
-		)
-		game.taunted.connect(func(id: StringName, taunt_id: StringName, forced: bool) -> void:
-			_broadcast(HsEvents.Kind.TAUNT, HsEvents.write_taunt(session_of(id), taunt_id, forced)))
-		game.door_used.connect(func(index: int, open: bool, flip: bool, tick: int, _by: StringName) -> void:
-			_broadcast(HsEvents.Kind.DOOR, HsEvents.write_door(index, open, flip, tick)))
-		game.caught.connect(func(id: StringName, by: StringName, how: StringName) -> void:
-			_broadcast(HsEvents.Kind.CAUGHT, HsEvents.write_caught(
-				session_of(id), session_of(by) if by != &"" else 0, how)))
-		# To the one who asked, never broadcast: a refusal is that person's business.
-		game.refused.connect(func(id: StringName, why: String) -> void:
-			var peer_id := peer_for_player(session_of(id))
-			if peer_id > 0:
-				notice(peer_id, why))
-		if game.spectate != null:
-			game.spectate.view_changed.connect(_on_spectate_changed)
+		_wire_server()
 
 	return DotResult.success(true)
+
+
+func _wire_server() -> void:
+	# See [HsInterest]: no hider in a seeker's snapshot while the hiders hide.
+	var interest := HsInterest.new()
+	interest.game = game
+	net.interest = interest
+
+	game.player_added.connect(_on_player_added)
+	game.player_removed.connect(_on_player_removed)
+	game.world_rebuilt.connect(_on_world_rebuilt)
+	game.round_began.connect(_on_round_began)
+	game.round_over.connect(_on_round_over)
+	game.phase_changed.connect(_on_phase_changed)
+	game.player_died.connect(_on_player_died)
+	game.side_changed.connect(func(id: StringName, side: int) -> void:
+		_broadcast(HsEvents.Kind.TEAM, HsEvents.write_team(session_of(id), side))
+	)
+	game.taunted.connect(func(id: StringName, taunt_id: StringName, forced: bool) -> void:
+		_broadcast(HsEvents.Kind.TAUNT, HsEvents.write_taunt(session_of(id), taunt_id, forced)))
+	game.door_used.connect(func(index: int, open: bool, flip: bool, tick: int, _by: StringName) -> void:
+		_broadcast(HsEvents.Kind.DOOR, HsEvents.write_door(index, open, flip, tick)))
+	game.caught.connect(func(id: StringName, by: StringName, how: StringName) -> void:
+		_broadcast(HsEvents.Kind.CAUGHT, HsEvents.write_caught(
+			session_of(id), session_of(by) if by != &"" else 0, how)))
+	# To the one who asked, never broadcast: a refusal is that person's business.
+	game.refused.connect(func(id: StringName, why: String) -> void:
+		var peer_id := peer_for_player(session_of(id))
+		if peer_id > 0:
+			notice(peer_id, why))
+	if game.spectate != null:
+		game.spectate.view_changed.connect(_on_spectate_changed)
 
 
 ## Opens the link under [param parent], whose NAME is half the RPC routing: a [DotServer] and a [DotClientLink] both called `Server`, this node under each.

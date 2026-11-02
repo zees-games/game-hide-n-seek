@@ -172,15 +172,7 @@ func _build() -> bool:
 	var _s := _server_net.start()
 	var _c := _client_net.start()
 
-	_client_bridge.map_received.connect(func(id: StringName) -> void:
-		_heard["map"] = id)
-	_client_bridge.taunt_received.connect(func(who: int, taunt_id: StringName, forced: bool) -> void:
-		_heard["taunt"] = [who, taunt_id, forced])
-	_client_bridge.caught_received.connect(func(who: int, by: int, how: StringName) -> void:
-		_heard["caught"] = [who, by, how])
-	_client_bridge.round_changed.connect(func(n: int, began: bool, winner: int, why: String) -> void:
-		if not began:
-			_heard["round_over"] = [n, winner, why])
+	_hear()
 
 	_stand_in = _server_bridge.add_bot("Stand-in")
 	_second = _server_bridge.add_bot("Second")
@@ -196,6 +188,18 @@ func _build() -> bool:
 	_check(not _server_game.map_doc.is_empty(), "the server lays its map out on start")
 	_finished()
 	return _failed == failed_before
+
+
+func _hear() -> void:
+	_client_bridge.map_received.connect(func(id: StringName) -> void:
+		_heard["map"] = id)
+	_client_bridge.taunt_received.connect(func(who: int, taunt_id: StringName, forced: bool) -> void:
+		_heard["taunt"] = [who, taunt_id, forced])
+	_client_bridge.caught_received.connect(func(who: int, by: int, how: StringName) -> void:
+		_heard["caught"] = [who, by, how])
+	_client_bridge.round_changed.connect(func(n: int, began: bool, winner: int, why: String) -> void:
+		if not began:
+			_heard["round_over"] = [n, winner, why])
 
 
 func _test_a_client_joins() -> void:

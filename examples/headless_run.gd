@@ -115,6 +115,13 @@ func _test_doors() -> void:
 	await _step(game, 4)
 	_check(not hider.caught, "and a touch through it")
 
+	await _doors_refuse(game, seeker, hider, used, refusals)
+	await _door_bot(game)
+	_finished()
+
+
+func _doors_refuse(game: HsGame, seeker: HsPlayer, hider: HsPlayer, used: Array, refusals: Array) -> void:
+	var doors := game.map.doors
 	# The seeker opens it, into the hider standing against it: refused, and the door stays.
 	_aim(seeker, GARDEN_DOOR_AT)
 	var before := used.size()
@@ -134,6 +141,9 @@ func _test_doors() -> void:
 	_check(not doors.is_open(GARDEN_DOOR) and doors.is_open(0), "a new round puts every door back as the map has it",
 		"garden %s, kitchen %s" % [doors.is_open(GARDEN_DOOR), doors.is_open(0)])
 
+
+func _door_bot(game: HsGame) -> void:
+	var doors := game.map.doors
 	# A stand-in walking out to the garden opens the door on its way.
 	var bot := game.add_player(&"u990", "DoorBot")
 	bot.is_bot = true
@@ -149,7 +159,6 @@ func _test_doors() -> void:
 			break
 	_check(bot.controller.state.position.x > 12.0, "a stand-in opens a shut door it walks into",
 		"at %s; the door is %s" % [bot.controller.state.position.snapped(Vector3.ONE * 0.1), "open" if doors.is_open(GARDEN_DOOR) else "shut"])
-	_finished()
 
 
 ## The practice house's garden toys (dot-props'): the beach ball at 16.5, -2.5, the football at
@@ -192,6 +201,20 @@ func _test_toys() -> void:
 	await _press(game, hider)
 	_check(lamp.on != was_lit and switch.count == 1, "the switch turns the lamp", "lit %s" % lamp.on)
 
+	await _toys_ride(game, hider)
+	var _off := game.toy_rules.set_cvar(DotPropToyRules.CVAR_ENABLED, "0")
+	_check(not toys.toy(0).visible and toys.toy(0).process_mode == Node.PROCESS_MODE_DISABLED, "sv_toys 0 takes the toys away")
+	var _on := game.toy_rules.set_cvar(DotPropToyRules.CVAR_ENABLED, "1")
+
+	await _end_round(game)
+	var home := toys.toy(1)
+	_check(home.body.global_position.distance_to(home.rest.origin) < 0.05, "a new round puts every toy home",
+		"%.2f m away" % home.body.global_position.distance_to(home.rest.origin))
+	_finished()
+
+
+func _toys_ride(game: HsGame, hider: HsPlayer) -> void:
+	var toys := game.map.toys
 	# A trampoline: landing on it throws a person up, from inside their movement (so a
 	# predicting client is thrown on the same tick), and counts the bounce for everybody to hear.
 	var placements: Array = (game.map_doc["toys"] as Array).duplicate()
@@ -232,13 +255,3 @@ func _test_toys() -> void:
 		"%.0f degrees in a second" % rad_to_deg(turned))
 	_check(absf(out - Vector2(before.x, before.z).length()) < 0.25, "and leaves them as far out as they stood",
 		"%.2f m from the hub, from %.2f" % [out, Vector2(before.x, before.z).length()])
-
-	var _off := game.toy_rules.set_cvar(DotPropToyRules.CVAR_ENABLED, "0")
-	_check(not toys.toy(0).visible and toys.toy(0).process_mode == Node.PROCESS_MODE_DISABLED, "sv_toys 0 takes the toys away")
-	var _on := game.toy_rules.set_cvar(DotPropToyRules.CVAR_ENABLED, "1")
-
-	await _end_round(game)
-	var home := toys.toy(1)
-	_check(home.body.global_position.distance_to(home.rest.origin) < 0.05, "a new round puts every toy home",
-		"%.2f m away" % home.body.global_position.distance_to(home.rest.origin))
-	_finished()

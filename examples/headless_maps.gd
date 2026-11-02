@@ -112,43 +112,9 @@ func _test_map(id: StringName) -> void:
 
 	_check(cover >= MIN_COVER, "it has enough to hide behind", "%d props a crouching person fits behind" % cover)
 
-	var spawns: Dictionary = doc.get("spawns", {})
-	var hiders_n := (spawns.get("hiders", []) as Array).size()
-	var seekers_n := (spawns.get("seekers", []) as Array).size()
-	_check(hiders_n >= MIN_HIDER_SPAWNS and seekers_n >= MIN_SEEKER_SPAWNS, "it has enough spawns",
-		"%d hiders, %d seekers" % [hiders_n, seekers_n])
+	_check_spawns(game, doc)
 
-	var bad_spawns: Array = []
-
-	for side: String in ["hiders", "seekers"]:
-		for seat in range((spawns.get(side, []) as Array).size()):
-			var at: Vector3 = game.map.spawn(side, seat)[0]
-			var why := _spawn_fault(game, at)
-			if why != "":
-				bad_spawns.append("%s %d at %s: %s" % [side, seat, at, why])
-
-	_check(bad_spawns.is_empty(), "every spawn stands on a floor with room for a person", "; ".join(bad_spawns))
-
-	var buried: Array = []
-	var floating: Array = []
-
-	for index in range(game.map.props.size()):
-		var prop: Dictionary = game.map.props[index]
-		var frame: Transform3D = prop["transform"]
-		var size: Vector3 = prop["size"]
-		var centre := frame * Vector3(0.0, size.y * 0.5, 0.0)
-
-		if _inside_world(game, centre):
-			buried.append("%s at %s" % [prop["id"], frame.origin])
-
-		# Hung from a ceiling, or floating on water (which is not solid), by design.
-		var hangs := String(prop["id"]).contains("ceiling") or String(prop["id"]).contains("lily")
-
-		if not hangs and not _rests_on_something(game, frame, size):
-			floating.append("%s at %s" % [prop["id"], frame.origin])
-
-	_check(buried.is_empty(), "no prop is sunk into a wall or a floor", "; ".join(buried.slice(0, 6)))
-	_check(floating.is_empty(), "every prop stands on something", "%d: %s" % [floating.size(), "; ".join(floating.slice(0, 6))])
+	_check_props(game)
 
 	var doors := game.map.doors
 	var swung_into: Array = []
@@ -173,6 +139,57 @@ func _test_map(id: StringName) -> void:
 		doors.apply(index, bool(spec["open"]), false, -1)
 		doors.pose_at(0)
 
+	await _check_toys(game, doc)
+
+	_check(swung_into.is_empty(), "every door swings into free space", "%d doors; %s" % [doors.count(), "; ".join(swung_into.slice(0, 6))])
+	_check(blocked.is_empty(), "every doorway is clear to walk through once its door is open", "; ".join(blocked.slice(0, 6)))
+	await _dispose(game)
+	_finished()
+
+
+func _check_spawns(game: HsGame, doc: Dictionary) -> void:
+	var spawns: Dictionary = doc.get("spawns", {})
+	var hiders_n := (spawns.get("hiders", []) as Array).size()
+	var seekers_n := (spawns.get("seekers", []) as Array).size()
+	_check(hiders_n >= MIN_HIDER_SPAWNS and seekers_n >= MIN_SEEKER_SPAWNS, "it has enough spawns",
+		"%d hiders, %d seekers" % [hiders_n, seekers_n])
+
+	var bad_spawns: Array = []
+
+	for side: String in ["hiders", "seekers"]:
+		for seat in range((spawns.get(side, []) as Array).size()):
+			var at: Vector3 = game.map.spawn(side, seat)[0]
+			var why := _spawn_fault(game, at)
+			if why != "":
+				bad_spawns.append("%s %d at %s: %s" % [side, seat, at, why])
+
+	_check(bad_spawns.is_empty(), "every spawn stands on a floor with room for a person", "; ".join(bad_spawns))
+
+
+func _check_props(game: HsGame) -> void:
+	var buried: Array = []
+	var floating: Array = []
+
+	for index in range(game.map.props.size()):
+		var prop: Dictionary = game.map.props[index]
+		var frame: Transform3D = prop["transform"]
+		var size: Vector3 = prop["size"]
+		var centre := frame * Vector3(0.0, size.y * 0.5, 0.0)
+
+		if _inside_world(game, centre):
+			buried.append("%s at %s" % [prop["id"], frame.origin])
+
+		# Hung from a ceiling, or floating on water (which is not solid), by design.
+		var hangs := String(prop["id"]).contains("ceiling") or String(prop["id"]).contains("lily")
+
+		if not hangs and not _rests_on_something(game, frame, size):
+			floating.append("%s at %s" % [prop["id"], frame.origin])
+
+	_check(buried.is_empty(), "no prop is sunk into a wall or a floor", "; ".join(buried.slice(0, 6)))
+	_check(floating.is_empty(), "every prop stands on something", "%d: %s" % [floating.size(), "; ".join(floating.slice(0, 6))])
+
+
+func _check_toys(game: HsGame, doc: Dictionary) -> void:
 	# The toys (dot-props'): all built, none standing in a wall, a prop or another toy, and two
 	# seconds of physics later every loose one still where the map put it, not through a floor
 	# or flung off by an overlap the solver pushed apart.
@@ -198,11 +215,6 @@ func _test_map(id: StringName) -> void:
 		if toy.body != null and toy.body.global_position.distance_to(toy.rest.origin) > 0.6:
 			strayed.append("%s %d: %s to %s" % [toy.def["id"], toy.index, toy.rest.origin.snapped(Vector3.ONE * 0.1), toy.body.global_position.snapped(Vector3.ONE * 0.1)])
 	_check(strayed.is_empty(), "two seconds on, every toy is still where the map put it", "; ".join(strayed.slice(0, 6)))
-
-	_check(swung_into.is_empty(), "every door swings into free space", "%d doors; %s" % [doors.count(), "; ".join(swung_into.slice(0, 6))])
-	_check(blocked.is_empty(), "every doorway is clear to walk through once its door is open", "; ".join(blocked.slice(0, 6)))
-	await _dispose(game)
-	_finished()
 
 
 ## What a toy's own shapes, lifted five centimetres off the floor it stands on, are inside of
