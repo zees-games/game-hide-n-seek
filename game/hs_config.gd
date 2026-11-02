@@ -51,8 +51,8 @@ enum Pick {
 ## One seeker for every this many players, rounded up, at least [member min_seekers] and at most [member max_seekers], never everybody.
 ## Few by design: a round starts with one or two seekers and grows them from the hiders they catch.
 @export_range(1.0, 64.0, 0.5) var players_per_seeker: float = 8.0
-@export_range(1, 16, 1) var min_seekers: int = 1
-@export_range(1, 32, 1) var max_seekers: int = 3
+@export_range(1, 255, 1) var min_seekers: int = 1
+@export_range(1, 255, 1) var max_seekers: int = 3
 
 ## How the first seekers are chosen each round: [enum Pick].
 @export_enum("random", "queue", "swap", "first caught") var seeker_pick: int = Pick.FIRST_CAUGHT
@@ -201,7 +201,7 @@ const CAUGHT_SEEK_START := 1
 @export_group("Bots")
 
 ## How many players the server keeps in the round by adding stand-ins.
-@export_range(0, 24, 1) var minimum_players: int = 5
+@export_range(0, 255, 1) var minimum_players: int = 5
 
 # How far a stand-in sees and hears, how fast it turns and notices, and how well it knows a
 # map are dot-bot's `bot_*` settings, shared by every game (`bot_difficulty`, `bot_sight`,

@@ -16,5 +16,5 @@
 # seed_value: 20261010
 
 # --- Bots
-# How many players the server keeps in the round by adding stand-ins. [0..24]
+# How many players the server keeps in the round by adding stand-ins. [0..255]
 # minimum_players: 5

@@ -48,8 +48,8 @@ func _net_config() -> DotNetConfig:
 	# own present, and rewinding them would be catching somebody where they were.
 	config.enable_lag_compensation = false
 	# Everybody playing, and nothing else: the furniture is the map document, not entities, so
-	# a snapshot is a full server's players and room to spare.
-	config.max_entities_per_snapshot = 64
+	# a snapshot is every player, uncapped.
+	config.max_entities_per_snapshot = 0
 	return config
 
 
