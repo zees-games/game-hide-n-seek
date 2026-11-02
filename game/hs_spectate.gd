@@ -25,6 +25,7 @@ func _init() -> void:
 	history_seconds = 0.0
 	prefer_own_side = true
 	name_fn = _name_of
+	guard_roam = true
 
 
 func _channel() -> String:
@@ -95,17 +96,3 @@ func on_died(
 		where = Vector3(at.x, deck_height + DROP_CAM_RISE - 2.0, at.z)
 
 	death(String(player_id), where, String(by), tick)
-
-
-## A mirror is told, not asked; and only somebody who is out can step.
-func toggle_roam(key: String) -> DotResult:
-	if manager == null:
-		return _unset()
-
-	if not authoritative:
-		return DotResult.fail(DotError.CODE_STATE, "A mirror is told, not asked.")
-
-	if not manager.is_spectating(key):
-		return DotResult.fail(DotError.CODE_STATE, "You are playing, not watching.")
-
-	return super(key)

@@ -311,6 +311,9 @@ func _test_free_roam() -> void:
 	var id := hider.player_id
 	_check(game.spectate_rules.roaming_permitted() and game.spectate.manager.rules == game.spectate_rules,
 		"the game's rules allow roaming and are the manager's own")
+	var playing := game.spectate.toggle_roam(id)
+	_check(not playing.ok and playing.error.code == DotError.CODE_STATE and not game.spectate.can_roam(id),
+		"a viewer who is still playing cannot roam")
 	_check(game.catch(id, seeker.player_id, HsGame.CAUGHT_TAG), "a hider is caught and sits out")
 	game.spectate.manager.set_mode(String(id), DotSpectatorView.Mode.CHASE)
 	_check(game.spectate.can_roam(id), "and may roam")
