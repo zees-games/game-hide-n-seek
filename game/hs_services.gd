@@ -240,7 +240,7 @@ func _mod_abilities() -> Dictionary:
 				p.health.invulnerable = false
 			p.place_at(spot[0], spot[1])
 			if field.spectate != null:
-				field.spectate.on_spawned(p.player_id)
+				field.spectate.spawned(String(p.player_id))
 			return DotResult.success(spot[0]),
 	}
 

@@ -27,11 +27,11 @@ func _on_player_died(player_id: StringName, by: StringName, why: StringName) -> 
 
 ## A view changed on the server. Told to its owner only, because who somebody is watching is private;
 ## a stand-in (peer zero) is told nothing, which `_tell` guarantees.
-func _on_spectate_changed(player_id: StringName) -> void:
+func _on_spectate_changed(player_id: String) -> void:
 	if game == null or game.spectate == null or game.spectate.manager == null:
 		return
 
-	var session_id := session_of(player_id)
+	var session_id := session_of(StringName(player_id))
 	var peer_id := peer_for_player(session_id)
 
 	if peer_id <= 0 or not _ready_peers.has(peer_id):

@@ -311,7 +311,8 @@ func build_map(doc: Dictionary) -> DotResult:
 	map_doc = map.doc
 
 	if spectate != null:
-		spectate.set_overviews(map.overview(), map.overview())
+		var views: Array[Transform3D] = [map.overview(), map.overview()]
+		spectate.set_overviews(views)
 
 	world_rebuilt.emit()
 	return built
@@ -335,7 +336,7 @@ func _place_everybody() -> void:
 		player.place_at(spot[0], spot[1])
 
 		if spectate != null:
-			spectate.on_spawned(player.player_id)
+			spectate.spawned(String(player.player_id))
 
 
 func _heal(player: HsPlayer) -> void:

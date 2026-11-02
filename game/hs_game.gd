@@ -277,12 +277,14 @@ func _build_spectate() -> void:
 	spectate.name = "Spectate"
 	spectate.players = players
 	spectate.sides = sides
-	spectate.phase_fn = func() -> int: return phase
+	spectate.authoritative = authoritative
+	spectate.tick_rate = tick_rate
+	spectate.rules = spectate_rules
 	add_child(spectate)
 
 	# The config's number is only the starting point: from here `mp_forcecamera` is the rule.
 	spectate_rules.force_camera = clampi(config.spectate_camera, 0, 2)
-	var ready_now := spectate.setup(authoritative, tick_rate, spectate_rules)
+	var ready_now := spectate.setup()
 
 	if not ready_now.ok:
 		DotLog.warn(CHANNEL, "spectating is off", {"why": ready_now.error.message})
@@ -431,7 +433,7 @@ func place_one(player: HsPlayer) -> void:
 	player.place_at(spot[0], spot[1])
 
 	if spectate != null:
-		spectate.on_spawned(player.player_id)
+		spectate.spawned(String(player.player_id))
 
 
 func remove_player(player_id: StringName) -> void:
@@ -461,7 +463,7 @@ func remove_player(player_id: StringName) -> void:
 	apply_pass_through()
 
 	if spectate != null:
-		spectate.on_left(player_id)
+		spectate.left(String(player_id))
 
 	if progress != null:
 		progress.leave(player_id)

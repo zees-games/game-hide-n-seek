@@ -12,7 +12,7 @@ func _watched_through_eyes() -> HsPlayer:
 	if mode != DotSpectatorView.Mode.FIRST_PERSON and mode != DotSpectatorView.Mode.FREEZE_CAM:
 		return null
 
-	return game.players.get(game.spectate.watching(player.player_id))
+	return game.players.get(StringName(game.spectate.watching(player.player_id)))
 
 
 func _drive_spectator_camera() -> bool:

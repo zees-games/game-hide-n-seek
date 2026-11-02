@@ -611,7 +611,7 @@ func _respawn_the_fallen() -> void:
 		player.place_at(spot[0], spot[1])
 
 		if spectate != null:
-			spectate.on_spawned(id)
+			spectate.spawned(String(id))
 
 
 func _on_player_died(player: HsPlayer, damage: DotDamage) -> void:
