@@ -150,6 +150,7 @@ var annotate_cached: bool = false
 
 ## Drop and jump-up links handed to the mesh.
 var links_used: int = 0
+var _islands_joined := false
 
 var _annotator: DotNpcAiNavAnnotator = null
 var _cached: DotNpcAiNavAnnotations = null

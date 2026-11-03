@@ -72,6 +72,10 @@ func _prepare() -> void:
 		_prepare()
 		return
 
+	if not _islands_joined:
+		_islands_joined = true
+		_join_islands()
+
 	# The annotation is a job: stepped a fixed number of slices each tick (never by the clock, so
 	# a seeded round plays the same), and the hiders wait for it as they waited for the bake.
 	if _job == null and not _job_done:
@@ -93,7 +97,7 @@ func _prepare() -> void:
 ## Bakes the navigation mesh for the map, and sets when to survey it (the server takes the mesh in on a later frame).
 func _bake_map(map: Node3D, doc: Dictionary, key: String) -> void:
 	_baked = key
-	_baked = key
+	_islands_joined = false
 	if not _narrowing:
 		_nav_radius = HsPlayer.BODY_RADIUS
 	_narrowing = false
@@ -257,7 +261,6 @@ func _finish_annotation(doc: Dictionary) -> DotNpcAiNavAnnotations:
 	# Drops and short jumps up: the mesh does not join a table top to the floor, the bot can.
 	# A gap is a running jump the stand-ins do not make.
 	var ride := 0
-	_jump_feet.clear()
 	for link in found.links:
 		var kind := int(link["kind"])
 		if kind == DotNpcAiNavAnnotations.LINK_DROP or kind == DotNpcAiNavAnnotations.LINK_JUMP_UP:
@@ -268,8 +271,22 @@ func _finish_annotation(doc: Dictionary) -> DotNpcAiNavAnnotations:
 			ride += 1
 			if kind == DotNpcAiNavAnnotations.LINK_JUMP_UP:
 				_jump_feet.append(link["from"])
-	links_used = ride
+	links_used = nav.rides().size()
 	return found
+
+
+## dot-bot's own drops, hops and stitches over the rims, which join the islands a bake leaves round stairs, steps and seams; a hop or stitch that climbs is jumped at its foot.
+func _join_islands() -> void:
+	_jump_feet.clear()
+	var _stats := DotBotLinks.new().join(nav)
+
+	for edge in nav.rides():
+		var id := int(edge["id"])
+		var is_jump := (id >= DotBotLinks.HOP_ID and id < DotBotLinks.LADDER_ID) or id >= DotBotLinks.STITCH_ID
+
+		if is_jump and float(edge["to"].y) - float(edge["from"].y) > HsPlayer.BODY_STEP:
+			_jump_feet.append(edge["from"])
+
 
 
 func _los(a: Vector3, b: Vector3) -> bool:

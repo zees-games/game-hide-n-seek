@@ -32,8 +32,8 @@ const MIN_SEEKER_SPAWNS := 3
 ## this wide. A map with fewer is a map where the only hiding place is a corner.
 const MIN_COVER := 12
 
-## Maps with hider spawns cut off from the seekers' on the bots' mesh (2026-11-03): hs_frontyard and hs_apartment are the two the bot bands could not take (hiders never found / caught in 8 s), hs_ship and hs_hotel are not banded. Each must stay cut off here until fixed, then leave this list.
-const CUT_OFF_BASELINE := ["hs_ship", "hs_apartment", "hs_frontyard", "hs_hotel"]
+## Maps whose hider spawns are known to be cut off from the seekers' on the bots' mesh; each must stay cut off here until fixed, then leave this list (empty since 2026-11-03).
+const CUT_OFF_BASELINE := []
 const COVER_HEIGHT := 0.8
 const COVER_WIDTH := 0.6
 
@@ -172,12 +172,14 @@ func _check_spawns(game: HsGame, doc: Dictionary) -> void:
 
 ## Every hider spawn must be joined, on the bots' walkable mesh, to the first seeker spawn: a hider cut off from the seekers survives every round whatever the bots do.
 func _check_reachable(game: HsGame, id: StringName) -> void:
-	game.bots.call("_prepare")
 	var nav: DotBotNav = game.bots.nav
 
-	for _i in range(240):
-		if nav.is_ready():
+	# The survey as a round runs it, up to the joins: the narrower re-bake and the island joins are part of it, the annotation is not.
+	for _i in range(600):
+		game.bots.call("_prepare")
+		if bool(game.bots.get("_islands_joined")) or str(game.bots.get("_surveyed")) != "":
 			break
+		game.set("_tick", int(game.get("_tick")) + 1)
 		await get_tree().process_frame
 
 	if not nav.is_ready():
