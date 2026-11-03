@@ -39,6 +39,7 @@ const COVER_WIDTH := 0.6
 
 var _sections_entered := 0
 var _sections_finished := 0
+var _section_started := 0
 
 
 func _ready() -> void:
@@ -116,7 +117,9 @@ func _test_map(id: StringName) -> void:
 	_check(cover >= MIN_COVER, "it has enough to hide behind", "%d props a crouching person fits behind" % cover)
 
 	_check_spawns(game, doc)
+	var nav_started := Time.get_ticks_msec()
 	await _check_reachable(game, id)
+	print("  (nav %.1f s)" % ((Time.get_ticks_msec() - nav_started) / 1000.0))
 
 	_check_props(game)
 
@@ -543,8 +546,10 @@ func _dispose(game: HsGame) -> void:
 
 func _section(name: String) -> void:
 	_sections_entered += 1
+	_section_started = Time.get_ticks_msec()
 	print(name)
 
 
 func _finished() -> void:
 	_sections_finished += 1
+	print("  (%.1f s)" % ((Time.get_ticks_msec() - _section_started) / 1000.0))

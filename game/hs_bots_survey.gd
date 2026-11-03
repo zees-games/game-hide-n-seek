@@ -275,10 +275,21 @@ func _finish_annotation(doc: Dictionary) -> DotNpcAiNavAnnotations:
 	return found
 
 
+## Links a map's bake joined, keyed by map and radius, so a later round on the same map skips the rim scan.
+static var _join_cache: Dictionary = {}
+
+
 ## dot-bot's own drops, hops and stitches over the rims, which join the islands a bake leaves round stairs, steps and seams; a hop or stitch that climbs is jumped at its foot.
 func _join_islands() -> void:
 	_jump_feet.clear()
-	var _stats := DotBotLinks.new().join(nav)
+	var cache_key := "%s@%.3f" % [_baked, _nav_radius]
+	if _join_cache.has(cache_key):
+		nav.clear_rides()
+		for edge in _join_cache[cache_key]:
+			nav.add_ride(edge["from"], edge["to"], int(edge["id"]), float(edge["cost"]))
+	else:
+		var _stats := DotBotLinks.new().join(nav)
+		_join_cache[cache_key] = nav.rides()
 
 	for edge in nav.rides():
 		var id := int(edge["id"])
