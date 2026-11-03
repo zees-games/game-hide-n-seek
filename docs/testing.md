@@ -34,3 +34,7 @@ dot-server-deploy's `examples/hideseek_client` boots the delivered pack, joins w
 ## Cut-off hider spawns (2026-11-03)
 
 `headless_maps` checks that every hider spawn is joined to the first seeker spawn on the bots' walkable mesh. `hs_ship`, `hs_apartment`, `hs_frontyard` and `hs_hotel` fail it and are held in `CUT_OFF_BASELINE` (the check fails if one becomes joined, so the entry is removed). `hs_frontyard` bots catch 2 of 4 hiders in every round (the other 2 are never found) and `hs_apartment` hiders last 7-13 s (below the 90 s band), so neither can join `headless_bots` DEFAULT_MAPS until their spawns are joined.
+
+## hs_frontyard and hs_apartment, measured 2026-11-03
+
+`headless_bots` rerun on a quiet box passes 18/0 (the 1500 s cap on a loaded box was load, not a regression). `HS_BOTS_MAPS=hs_frontyard,hs_apartment` with the maps' own `players_per_seeker 2.0` makes 3 seekers: apartment hiders last 16-35 s. With `players_per_seeker` 8.0 (apartment) and 4.0 (frontyard) and apartment `seeker_pace` 0.15 they last 66-138 s and frontyard 110-196 s, but the 24 rounds still fail five checks (hiders win 17 of 24, a catch at 1.3-1.5 s on frontyard, walk-off 94 of 127, a bot stuck 66.7 s at apartment (0.4, 0.3, 17.8), coverage armed round 19%), so neither joins `DEFAULT_MAPS`. Those values belong in the maps repository and are not applied.

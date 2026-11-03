@@ -104,6 +104,7 @@ var _place: Vector3 = Vector3.INF
 func _run() -> void:
 	var game: HsGame = _client.get("game")
 	await _until_a_round(game)
+	await _until_uncovered()
 	var local = _client.get("player")
 	var seeker := _view in ["seeker", "blind"]
 
