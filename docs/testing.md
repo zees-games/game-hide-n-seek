@@ -30,3 +30,7 @@ dot-server-deploy's `examples/hideseek_client` boots the delivered pack, joins w
 ## pieces.json was re-measured (2026-10-28)
 
 `props/pieces.json` is measured from the rebuilt models of passes 1 to 4 (`measure_props.gd -- --check` passes): a convex piece per decoration and re-cut furniture and trees (the climbing trees' roots and knot are stripped). The tighter hulls leave hiders less cover: over 72 rounds (`-- --first 0|24|48`) the hiders won 24 (6, 8, 10 per 24; was 12 of 24 on the first) and 18% were never found (15, 19, 21%; was 21%), so the bands' floors are 20% and 10% (were 30% and 15%), a measured shift and not a loosening: a hider that stands or a seeker that finds nobody still fails the armed rounds and the ceilings. Weakest maps: `hs_manor`, `hs_apartments`, `hs_village`, `hs_park` (hiders won 1 of 11, 2 of 11, 1 of 10, 1 of 10); `hs_camp`, `hs_school`, `hs_restaurant` favour them. `headless_climb` 47/0, `headless_bots` 18/0 on seed 0.
+
+## Cut-off hider spawns (2026-11-03)
+
+`headless_maps` checks that every hider spawn is joined to the first seeker spawn on the bots' walkable mesh. `hs_ship`, `hs_apartment`, `hs_frontyard` and `hs_hotel` fail it and are held in `CUT_OFF_BASELINE` (the check fails if one becomes joined, so the entry is removed). `hs_frontyard` bots catch 2 of 4 hiders in every round (the other 2 are never found) and `hs_apartment` hiders last 7-13 s (below the 90 s band), so neither can join `headless_bots` DEFAULT_MAPS until their spawns are joined.

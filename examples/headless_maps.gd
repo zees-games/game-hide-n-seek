@@ -8,7 +8,7 @@ const HsMapDoc := preload("../game/hs_map_doc.gd")
 ## None of those stops a round (a spawn inside a locker is a player stuck for it), so this checks every map every time. Sections and checks are both counted; adding a map adds a section and CHECKS_PER_MAP checks.
 
 const MAPS := ["hs_practice", "hs_apartments", "hs_warehouse", "hs_manor", "hs_village", "hs_park", "hs_school", "hs_mall", "hs_ship", "hs_castle", "hs_camp", "hs_museum", "hs_restaurant", "hs_apartment", "hs_frontyard", "hs_hotel"]
-const CHECKS_PER_MAP := 14
+const CHECKS_PER_MAP := 15
 ## Per map whose document names a world pack that is here (hide-n-seek-maps/world, linked; local only).
 const CHECKS_PER_WORLD := 3
 ## How far a drawn roof may stand above or below the boxes' top: boxes flatten a pitch, and a wall brush runs on into the sky.
@@ -31,6 +31,9 @@ const MIN_SEEKER_SPAWNS := 3
 ## Fewest props a map must have that a crouching person fits behind: at least this tall and
 ## this wide. A map with fewer is a map where the only hiding place is a corner.
 const MIN_COVER := 12
+
+## Maps with hider spawns cut off from the seekers' on the bots' mesh (2026-11-03): hs_frontyard and hs_apartment are the two the bot bands could not take (hiders never found / caught in 8 s), hs_ship and hs_hotel are not banded. Each must stay cut off here until fixed, then leave this list.
+const CUT_OFF_BASELINE := ["hs_ship", "hs_apartment", "hs_frontyard", "hs_hotel"]
 const COVER_HEIGHT := 0.8
 const COVER_WIDTH := 0.6
 
@@ -113,6 +116,7 @@ func _test_map(id: StringName) -> void:
 	_check(cover >= MIN_COVER, "it has enough to hide behind", "%d props a crouching person fits behind" % cover)
 
 	_check_spawns(game, doc)
+	await _check_reachable(game, id)
 
 	_check_props(game)
 
@@ -164,6 +168,35 @@ func _check_spawns(game: HsGame, doc: Dictionary) -> void:
 				bad_spawns.append("%s %d at %s: %s" % [side, seat, at, why])
 
 	_check(bad_spawns.is_empty(), "every spawn stands on a floor with room for a person", "; ".join(bad_spawns))
+
+
+## Every hider spawn must be joined, on the bots' walkable mesh, to the first seeker spawn: a hider cut off from the seekers survives every round whatever the bots do.
+func _check_reachable(game: HsGame, id: StringName) -> void:
+	game.bots.call("_prepare")
+	var nav: DotBotNav = game.bots.nav
+
+	for _i in range(240):
+		if nav.is_ready():
+			break
+		await get_tree().process_frame
+
+	if not nav.is_ready():
+		_check(false, "every hider spawn is joined to the seekers' on the walkable mesh", "the mesh never came ready")
+		return
+
+	var seeker: Vector3 = game.map.spawn("seekers", 0)[0]
+	var cut_off: Array = []
+
+	for seat in range((game.map_doc["spawns"]["hiders"] as Array).size()):
+		var at: Vector3 = game.map.spawn("hiders", seat)[0]
+		if not nav.joined(at, seeker):
+			cut_off.append("hider %d at %s" % [seat, at])
+
+	if CUT_OFF_BASELINE.has(String(id)):
+		_check(not cut_off.is_empty(), "known cut-off map still cut off (else drop it from CUT_OFF_BASELINE)", "all hider spawns are joined now")
+		return
+
+	_check(cut_off.is_empty(), "every hider spawn is joined to the seekers' on the walkable mesh", "; ".join(cut_off))
 
 
 func _check_props(game: HsGame) -> void:
