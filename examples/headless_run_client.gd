@@ -78,6 +78,58 @@ func _test_the_client() -> void:
 
 
 ## A darker HUD by default, restyled live by the menu's theme.
+func _test_spectate_tap() -> void:
+	_section("out, one tap or left click steps once, whether or not the engine emulates the mouse")
+	var game := await _world()
+	var a := game.add_player(&"u1", "Ada")
+	var others: Array[StringName] = []
+	for n in 3:
+		others.append(game.add_player(StringName("v%d" % n), "V%d" % n).player_id)
+	var id := a.player_id
+	a.watching = true
+	game.spectate.on_died(id, others[0], false, Vector3(0, 2, 0), 0.0, 0)
+	game.spectate.manager.set_mode(String(id), DotSpectatorView.Mode.CHASE)
+	var client: Node = (load("res://game/hs_client.gd") as GDScript).new()
+	client.set(&"game", game)
+	client.set(&"player", a)
+	_check(client.call(&"is_spectating"), "the client is out and spectating")
+
+	# Three live targets, so a double step lands on a different one from a single step.
+	var start: Variant = game.spectate.watching(id)
+	var touch := InputEventScreenTouch.new()
+	touch.pressed = true
+	client.call(&"_unhandled_input", touch)
+	var after_touch: Variant = game.spectate.watching(id)
+	_check(after_touch != start, "a real touch steps to the next target")
+
+	var emulated := InputEventMouseButton.new()
+	emulated.button_index = MOUSE_BUTTON_LEFT
+	emulated.pressed = true
+	emulated.device = InputEvent.DEVICE_ID_EMULATION
+	client.call(&"_unhandled_input", emulated)
+	_check(game.spectate.watching(id) == after_touch, "the mouse press the engine emulates from it steps nothing more")
+
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	client.call(&"_unhandled_input", click)
+	var after_click: Variant = game.spectate.watching(id)
+	_check(after_click != after_touch and after_click != start, "a real left click steps once")
+
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	client.call(&"_unhandled_input", release)
+	_check(game.spectate.watching(id) == after_click, "and a release steps nothing")
+
+	var right := InputEventMouseButton.new()
+	right.button_index = MOUSE_BUTTON_RIGHT
+	right.pressed = true
+	client.call(&"_unhandled_input", right)
+	_check(game.spectate.watching(id) == after_touch, "the right button still steps back")
+	client.free()
+	_finished()
+
+
 func _client_theme(client: Node, hud: Node, strip: DotScoreStrip) -> void:
 	var themed: DotMenu = (client.get("settings") as Node).get("menu")
 	var plate := strip.colour(&"plate")

@@ -4,9 +4,9 @@ extends "headless_run_client.gd"
 ## Counts sections AND checks: a script error aborts a section after it announced itself. Map numbers are the practice house's ([method HsCatalogue.practice]): the wall at x 0 with its door at z -1..0.8, kitchen east, living room west.
 
 
-const SECTIONS := 26
+const SECTIONS := 27
 
-const CHECKS := 153
+const CHECKS := 159
 
 
 func _ready() -> void:
@@ -44,6 +44,7 @@ func _run() -> void:
 	await _test_help_and_menu()
 	await _test_the_map_menu()
 	await _test_wheel_jump()
+	await _test_spectate_tap()
 
 	for world in _worlds.duplicate():
 		await _dispose(world)
