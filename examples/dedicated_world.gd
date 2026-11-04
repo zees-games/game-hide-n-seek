@@ -7,8 +7,8 @@ const HsPlayer := preload("../game/hs_player.gd")
 const HsNetLink := preload("../game/net/hs_net_link.gd")
 
 const SERVER_DIR := "user://hs_dedicated"
-const PORT := 28931
-const QUERY_PORT := 28932
+var PORT := HsTestPorts.free_port(2)
+var QUERY_PORT := PORT + 1
 const TICK_RATE := 60
 
 var server: DotServer = null
