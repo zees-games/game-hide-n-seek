@@ -32,7 +32,7 @@ const MIN_SEEKER_SPAWNS := 3
 ## this wide. A map with fewer is a map where the only hiding place is a corner.
 const MIN_COVER := 12
 
-## Maps whose hider spawns are known to be cut off from the seekers' on the bots' mesh; each must stay cut off here until fixed, then leave this list (empty since 2026-11-03).
+## Maps whose hider spawns are known to be cut off from the seekers' on the bots' mesh; each must stay cut off here until fixed, then leave this list.
 const CUT_OFF_BASELINE := []
 const COVER_HEIGHT := 0.8
 const COVER_WIDTH := 0.6
