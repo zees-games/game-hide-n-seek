@@ -91,6 +91,21 @@ func _sees(player: HsPlayer, other: HsPlayer) -> bool:
 	return head_seen or chest_seen
 
 
+## Door panel origins when shut, read once per door set: the scan in `_note_doorway` runs every tick for every bot.
+var shut_panels := PackedVector3Array()
+var _shut_panels_for: Object = null
+
+
+func _cache_shut_panels(doors: Object) -> void:
+	var total := int(doors.call("count"))
+	if _shut_panels_for == doors and shut_panels.size() == total:
+		return
+	_shut_panels_for = doors
+	shut_panels.resize(total)
+	for index in range(total):
+		shut_panels[index] = (doors.call("panel_transform", index, 0.0) as Transform3D).origin
+
+
 ## Remembers the doorway the hider is in and, once through and clear of the panel's sweep, decides whether to shut the door behind it:
 ## always when running from a seeker behind it. A shut door is a wall to a seeker's eye, and opening it costs the swing.
 func _note_doorway(player: HsPlayer, state: Dictionary, goal: Vector3) -> void:
@@ -101,8 +116,9 @@ func _note_doorway(player: HsPlayer, state: Dictionary, goal: Vector3) -> void:
 	var at := player.controller.state.position
 	var through: int = state.get("door_through", -1)
 	if through < 0:
-		for index in range(int(doors.call("count"))):
-			var panel: Vector3 = (doors.call("panel_transform", index, 0.0) as Transform3D).origin
+		_cache_shut_panels(doors)
+		for index in range(shut_panels.size()):
+			var panel: Vector3 = shut_panels[index]
 			if Vector2(panel.x - at.x, panel.z - at.z).length() < 0.9 and absf(panel.y - at.y) < 2.0:
 				state["door_through"] = index
 				state["door_side"] = at
