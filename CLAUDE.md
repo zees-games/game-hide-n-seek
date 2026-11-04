@@ -79,8 +79,9 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 
 ## Not yet done
 
-1. **Put it live.** The remotes are set; `zees-games/game-hide-n-seek` and `zees-games/hide-n-seek-maps` are not created on GitHub. Publish the maps pack before the game. Before publishing, the addons it needs (dot-props at least 6 for the toys (the roundabout's carry), dot-player-char at least 3 for the ragdolls, dot-team, dot-fx, dot-game and dot-ui at their current API levels, dot-ui at least 4, and dot-menu) must be tagged and in the client shell, and the maps pack published with its toys before the game.
-2. **Play it in a browser with people**: the hide's length, the touch's reach and the sight meter's speed are numbers only play settles.
+1. **Publishing**: `tools/publish.sh` is the recipe (id `game-hide-n-seek`, host addons, `maps`/`world` left out, `licence.json` at the root, lock `content.lock.json`); publish `hide-n-seek-maps` first, from a clean checkout of pushed HEAD.
+2. **Put it live.** The remotes are set; `zees-games/game-hide-n-seek` and `zees-games/hide-n-seek-maps` are not created on GitHub. Publish the maps pack before the game. Before publishing, the addons it needs (dot-props at least 6 for the toys (the roundabout's carry), dot-player-char at least 3 for the ragdolls, dot-team, dot-fx, dot-game and dot-ui at their current API levels, dot-ui at least 4, and dot-menu) must be tagged and in the client shell, and the maps pack published with its toys before the game.
+3. **Play it in a browser with people**: the hide's length, the touch's reach and the sight meter's speed are numbers only play settles.
 3. **Seeker items** found on a map, as the brief anticipates; copy the weapon plumbing back from mg-prop-hunt.
 4. **Stamina**: dot-player-controller has none (sprint is a flat `sprint_scale`); a modifier there would serve every game that sprints.
 

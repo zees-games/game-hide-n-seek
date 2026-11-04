@@ -1,0 +1,5 @@
+[
+  {"paths": [""], "licence": "MIT", "author": "TMC", "url": "https://github.com/zees-games/game-hide-n-seek", "title": "game-hide-n-seek (original content; addons are the host's)"},
+  {"paths": ["assets/kenney", "assets/props", "taunts"], "licence": "CC0-1.0", "author": "Kenney", "url": "https://kenney.nl", "title": "Kenney kits, rebuilt props, voiceover and jingles"},
+  {"paths": ["assets/surfaces"], "licence": "CC0-1.0", "author": "Lennart Demes and contributors (ambientCG)", "url": "https://ambientcg.com", "title": "ambientCG PBR surfaces"}
+]
