@@ -24,6 +24,14 @@ func _init() -> void:
 	button_up.connect(_send.bind(false))
 
 
+## The action ids on the layout, in order.
+static func actions() -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for b in LAYOUT:
+		ids.append(b["id"])
+	return ids
+
+
 ## A touch sampler on a touch device (it still reads keys), else the plain one.
 static func new_sampler(tunables: DotFpsTunables) -> DotFpsSampler:
 	if not DotPlatform.has_touch():
