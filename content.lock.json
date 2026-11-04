@@ -1,0 +1,15 @@
+{
+	"format": 1,
+	"mirrors": [],
+	"origin": "https://dotgames.org/content",
+	"packs": [
+		{
+			"id": "gamemann/game-hide-n-seek",
+			"into": "",
+			"kind": "pack",
+			"manifest_sha256": "0909d56f5b3a35f1e42a6d6be604776a77b622090eff47a16c95e94e43b3eea1",
+			"optional": false,
+			"version": "1.0.0"
+		}
+	]
+}
