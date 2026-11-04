@@ -140,7 +140,11 @@ func pull() -> void:
 		net_max_health = player.health.max_health
 
 	net_points = clampi(player.points, 0, 65535)
-	net_ping = clampi(player.ping_ms, 0, 1023)
+	# pull() also runs on a predicting client, which knows neither: its own ping_ms and warps would overwrite the server's and read as a mismatch.
+	var authoritative := identity == null or identity.is_authoritative
+
+	if authoritative:
+		net_ping = clampi(player.ping_ms, 0, 1023)
 	net_watching = player.watching
 	net_taunt_meter = player.taunt_meter
 	net_sight_meter = player.sight_meter
@@ -149,7 +153,9 @@ func pull() -> void:
 	net_blind = player.blinded
 	net_beacon = player.beacon or player.marked
 	net_marked = player.marked and not player.beacon
-	net_warp = player.warps & 0xF
+
+	if authoritative:
+		net_warp = player.warps & 0xF
 
 
 ## The server's answer, adopted wholesale. On the owner it is the rewind half of
