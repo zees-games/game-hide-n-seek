@@ -200,6 +200,14 @@ func _build_hud() -> void:
 	add_child(hud)
 
 
+## The phone's buttons, on the HUD's layer, only where a finger is the input.
+func _build_touch() -> void:
+	if not DotPlatform.has_touch():
+		return
+	touch = HsTouch.new()
+	hud.add_child(touch)
+
+
 ## The key an action is on, as the player has it bound.
 func _key(action: StringName) -> String:
 	if settings != null and settings.bindings != null:
@@ -295,6 +303,10 @@ func _suspend_input(suspended: bool) -> void:
 
 	if player != null and player.sampler != null:
 		player.sampler.suspended = suspended
+
+	if touch != null:
+		touch.visible = not suspended
+		touch.release_all()
 
 
 ## Whether the pointer is the game's: captured. A menu frees it and the platform takes it back.

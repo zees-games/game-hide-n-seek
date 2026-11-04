@@ -5,6 +5,7 @@ const HsAudio := preload("hs_audio.gd")
 const HsBindings := preload("hs_bindings.gd")
 const HsFigure := preload("hs_figure.gd")
 const HsSettings := preload("hs_settings.gd")
+const HsTouch := preload("hs_touch.gd")
 const HsServices := preload("hs_services.gd")
 const HsNetBridge := preload("net/hs_net_bridge.gd")
 
@@ -58,6 +59,8 @@ var third_person: bool = false
 
 var _offline: bool = true
 var _sampler: DotFpsSampler = null
+## The on-screen buttons, only where a finger is the input.
+var touch: HsTouch = null
 
 ## The spectator's free camera while roaming, and the mouse motion not yet turned into a look.
 var _free_cam: DotSpectatorFreeCam = null
