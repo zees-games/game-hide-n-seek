@@ -92,6 +92,8 @@ def palette():
     PAL["pumpkin"] = mat("pumpkin", (0.72, 0.28, 0.03), 0.0, 0.55)
     PAL["pumpkinDark"] = mat("pumpkinDark", (0.5, 0.17, 0.02), 0.0, 0.6)
     PAL["stem"] = mat("stem", (0.2, 0.26, 0.07), 0.0, 0.8)
+    PAL["screen"] = mat("screen", (0.02, 0.04, 0.09), 0.0, 0.15)
+    PAL["glow"] = mat("glow", (0.1, 0.35, 0.55), 0.0, 0.3)
     PAL["capRed"] = mat("capRed", (0.62, 0.08, 0.06), 0.0, 0.5)
     PAL["melonFlesh"] = mat("melonFlesh", (0.6, 0.12, 0.1), 0.0, 0.5)
     # books() draws from these names.
@@ -126,12 +128,20 @@ OVERRIDES = {"cardboardBoxClosed": {"wood": "kraft", "woodDark": "kraftDark"}, "
              "chairRounded": {"wood": "sage"}, "chairCushion": {"wood": "oakDark", "carpet": "mustard"},
              "cabinetTelevision": {"wood": "oakDark"}, "loungeChairRelax": {"carpet": "teal", "wood": "oak", "metal": "copper"},
              "benchCushionLow": {"wood": "oakDark", "carpet": "sage"},
+             "computerScreen": {"metalDark": "ink", "metal": "steel"}, "televisionModern": {"metalDark": "ink", "metal": "steel"},
+             "tableCloth": {"wood": "oakDark", "carpet": "teal"}, "loungeChair": {"carpet": "teal", "wood": "oakDark"},
+             "toilet": {"carpetWhite": "tileWhite", "metalLight": "steel", "metalDark": "ink", "_defaultMat": "oakDark"},
+             "bedBunk": {"wood": "oakDark", "carpetWhite": "linen", "carpet": "sage"},
+             "kitchenFridge": {"metalLight": "sage", "metalDark": "ink", "metal": "steel", "glass": "ink"},
+             "lampRoundTable": {"metal": "copper", "lamp": "cream"},
              "kitchenStove": {"metal": "steel", "wood": "oakDark", "metalDark": "ink", "carpetWhite": "tileWhite", "glass": "ink"}}
 
 def reskin(o, overrides=None):
     overrides = overrides or {}
     for i, s in enumerate(o.material_slots):
         k = s.material.name.split(".")[0]
+        if s.material in PAL.values():
+            continue
         o.material_slots[i].material = PAL[overrides.get(k, SWAP.get(k, "oak"))]
 
 def bevel(o, width=0.004):
@@ -696,6 +706,95 @@ def do_kitchenStove(by):
     feet(o, lo, hi, 0.01, 0.015)
 
 
+# ---- pass 11: screens, cloth table, toilet, armchair, bunk bed, fridge, lamp ------------------------------
+
+def screen_face(o, lo, hi, pad, z0):
+    """A dark glass panel with a lit desktop on the front (-Y) face of a monitor or television."""
+    y = lo.y - 0.0015
+    add_box(o, (lo.x + pad, y, lo.z + z0), (hi.x - pad, lo.y + 0.002, hi.z - pad), "screen")
+    w, h = hi.x - lo.x - 2 * pad, hi.z - lo.z - z0 - pad
+    add_box(o, (lo.x + pad, y - 0.0005, lo.z + z0), (hi.x - pad, lo.y + 0.001, lo.z + z0 + h * 0.1), "teal")
+    add_box(o, (lo.x + pad + w * 0.08, y - 0.0005, lo.z + z0 + h * 0.3), (lo.x + pad + w * 0.5, lo.y + 0.001, lo.z + z0 + h * 0.85), "glow")
+    add_box(o, (lo.x + pad + w * 0.56, y - 0.0005, lo.z + z0 + h * 0.5), (hi.x - pad - w * 0.08, lo.y + 0.001, lo.z + z0 + h * 0.85), "mustard")
+    add_box(o, (hi.x - pad - 0.016, y - 0.0005, lo.z + z0 - 0.02), (hi.x - pad - 0.008, lo.y + 0.001, lo.z + z0 - 0.014), "red")
+
+def do_computerScreen(by):
+    o = by["computerScreen(Clone)"]
+    lo, hi = world_box([o])
+    screen_face(o, lo, hi, 0.014, 0.075)
+    add_cyl(o, ((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, lo.z + 0.004), 0.05, 0.008, "steel", verts=20)
+
+def do_televisionModern(by):
+    o = by["televisionModern(Clone)"]
+    lo, hi = world_box([o])
+    screen_face(o, lo, hi, 0.01, 0.075)
+    add_box(o, (-0.06, lo.y + 0.01, lo.z + 0.062), (0.06, hi.y - 0.01, lo.z + 0.076), "ink")
+
+def do_tableCloth(by):
+    o = by["tableCloth(Clone)"]
+    lo, hi = world_box([o])
+    c = (lo + hi) / 2
+    for dy in (lo.y + 0.03, hi.y - 0.03):
+        add_box(o, (lo.x + 0.04, dy - 0.01, hi.z - 0.001), (hi.x - 0.04, dy + 0.01, hi.z + 0.002), "cream")
+    add_box(o, (lo.x + 0.04, c.y - 0.02, hi.z - 0.001), (hi.x - 0.04, c.y + 0.02, hi.z + 0.002), "mustard")
+    add_cyl(o, (c.x, c.y, hi.z - 0.002), 0.11, 0.006, "copper", verts=20)
+    for dx, dy, key in ((-0.04, 0.0, "apple"), (0.04, 0.02, "orange"), (0.0, -0.04, "mustard")):
+        add_cyl(o, (c.x + dx, c.y + dy, hi.z), 0.032, 0.006, key, verts=12)
+    feet(o, lo, hi, 0.01, 0.02)
+
+def do_toilet(by):
+    o, lid = by["toilet(Clone)"], by["cover"]
+    lo, hi = world_box([o])
+    cx = (lo.x + hi.x) / 2
+    add_box(o, (cx - 0.03, hi.y - 0.075, hi.z - 0.003), (cx + 0.03, hi.y - 0.045, hi.z), "steel")
+    add_cyl(o, (cx, hi.y - 0.06, hi.z - 0.006), 0.016, 0.014, "steel", verts=10)
+    add_box(o, (lo.x + 0.03, lo.y + 0.03, lo.z), (hi.x - 0.03, hi.y - 0.03, lo.z + 0.012), "steel")
+    for x in (lo.x + 0.07, hi.x - 0.07):
+        add_cyl(o, (x, hi.y - 0.05, lo.z + 0.02), 0.01, 0.014, "copper", verts=8)
+    llo, lhi = world_box([lid])
+    add_box(lid, (llo.x + 0.04, lhi.y - 0.03, lhi.z - 0.001), (lhi.x - 0.04, lhi.y - 0.015, lhi.z + 0.003), "steel")
+
+def do_loungeChair(by):
+    o = by["loungeChair(Clone)"]
+    lo, hi = world_box([o])
+    z = seat_z(o, 0.2, 0.6)
+    add_box(o, (lo.x + 0.07, lo.y + 0.03, z), (hi.x - 0.07, hi.y - 0.14, z + 0.045), "mustard")
+    add_box(o, (lo.x + 0.07, hi.y - 0.14, z + 0.04), (hi.x - 0.07, hi.y - 0.07, hi.z - 0.07), "mustard")
+    add_box(o, (hi.x - 0.17, lo.y + 0.08, z + 0.045), (hi.x - 0.08, lo.y + 0.17, z + 0.1), "cream", rot=0.5)
+    feet(o, lo, hi, 0.012, 0.03)
+
+def do_bedBunk(by):
+    o = by["bedBunk(Clone)"]
+    lo, hi = world_box([o])
+    for k in ("coverBottom", "coverTop"):
+        clo, chi = world_box([by[k]])
+        add_box(by[k], (clo.x - 0.002, clo.y + 0.18, chi.z - 0.004), (chi.x + 0.002, clo.y + 0.22, chi.z + 0.003), "mustard")
+        add_box(by[k], (clo.x - 0.002, clo.y + 0.25, chi.z - 0.004), (chi.x + 0.002, clo.y + 0.265, chi.z + 0.002), "mustard")
+    for x in (lo.x + 0.012, hi.x - 0.012):
+        for y in (lo.y + 0.012, hi.y - 0.012):
+            add_sphere(o, (x, y, hi.z - 0.006), 0.014, "copper")
+
+def do_kitchenFridge(by):
+    o, top, bot = by["kitchenFridge(Clone)"], by["doorFreezer"], by["doorFridge"]
+    lo, hi = world_box([o])
+    for d in (top, bot):
+        dlo, dhi = world_box([d])
+        add_box(d, (dhi.x - 0.07, dlo.y - 0.012, dlo.z + (dhi.z - dlo.z) * 0.3), (dhi.x - 0.05, dlo.y + 0.002, dhi.z - 0.04), "copper")
+        add_box(d, (dlo.x + 0.01, dlo.y - 0.002, dhi.z - 0.012), (dhi.x - 0.01, dlo.y + 0.002, dhi.z - 0.006), "cream")
+    dlo, dhi = world_box([bot])
+    add_box(bot, (dlo.x + 0.06, dlo.y - 0.003, dhi.z - 0.2), (dlo.x + 0.12, dlo.y + 0.002, dhi.z - 0.14), "cream", rot=0.1)
+    add_box(bot, (dlo.x + 0.075, dlo.y - 0.004, dhi.z - 0.185), (dlo.x + 0.095, dlo.y + 0.0, dhi.z - 0.17), "red")
+    add_box(o, (lo.x + 0.01, lo.y, lo.z), (hi.x - 0.01, lo.y + 0.01, lo.z + 0.05), "ink")
+
+def do_lampRoundTable(by):
+    o = by["lampRoundTable(Clone)"]
+    lo, hi = world_box([o])
+    c = (lo + hi) / 2
+    add_cyl(o, (c.x, c.y, hi.z * 0.62), 0.062, 0.016, "mustard", verts=14, r2=0.07)
+    add_cyl(o, (c.x, c.y, lo.z + 0.008), 0.05, 0.016, "oakDark", verts=14)
+    add_cyl(o, (c.x + 0.012, c.y, hi.z * 0.28), 0.01, 0.01, "copper", axis="X", verts=8)
+
+
 # ---- pass 4: stone, logs, pumpkin -----------------------------------------------------------------------
 
 def stone_skin(o, seed):
@@ -896,5 +995,6 @@ ALL = ["cardboardBoxClosed", "cardboardBoxOpen", "kitchenBar", "desk", "chairDes
 ALL2 = ["cabinetBedDrawer", "bedSingle", "pottedPlant", "bookcaseClosedWide", "loungeSofa", "bookcaseClosedDoors",
         "bookcaseClosed", "kitchenCabinet", "rugRectangle", "coatRackStanding", "tableRound", "sideTableDrawers"]
 ALL4 = ["bedDouble", "chairRounded", "chairCushion", "cabinetTelevision", "loungeChairRelax", "benchCushionLow", "kitchenStove"]
+ALL11 = ["computerScreen", "televisionModern", "tableCloth", "toilet", "loungeChair", "bedBunk", "kitchenFridge", "lampRoundTable"]
 for n in (names or ALL + ALL2 + NATURE + ALL4 + NATURE4):
     build(n)
