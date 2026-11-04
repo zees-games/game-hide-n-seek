@@ -282,7 +282,8 @@ static var _join_cache: Dictionary = {}
 ## dot-bot's own drops, hops and stitches over the rims, which join the islands a bake leaves round stairs, steps and seams; a hop or stitch that climbs is jumped at its foot.
 func _join_islands() -> void:
 	_jump_feet.clear()
-	var cache_key := "%s@%.3f" % [_baked, _nav_radius]
+	# By map id, not [member _baked]: that carries the map node's instance id, so every round missed.
+	var cache_key := "%s@%.3f" % [str((game.get("map_doc") as Dictionary).get("id", "")), _nav_radius]
 	if _join_cache.has(cache_key):
 		nav.clear_rides()
 		for edge in _join_cache[cache_key]:
