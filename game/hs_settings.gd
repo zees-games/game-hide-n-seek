@@ -34,6 +34,9 @@ func _init() -> void:
 	# solo game. Every game in the family has both (the first play test found this one without
 	# Leave).
 	bindings = HsBindings.make()
+	# The touch Menu button takes the help hint's corner; the top left is the key hints'. By name: older dot-menu has no such property.
+	if &"menu_button_corner" in config:
+		config.set(&"menu_button_corner", &"top_right")
 	var _layered := config.load_layered()
 
 

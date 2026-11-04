@@ -369,7 +369,8 @@ func _draw_disc(side: int) -> void:
 
 
 func _draw_hints(side: int) -> void:
-	if player == null or not player.is_alive() or player.watching or side == 0 or is_blindfolded():
+	# Key hints mean nothing on a touchscreen, and the Menu button stands in their corner.
+	if DotPlatform.has_touch() or player == null or not player.is_alive() or player.watching or side == 0 or is_blindfolded():
 		_hints.text = ""
 		return
 
