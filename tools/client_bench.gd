@@ -35,3 +35,27 @@ func _boot_server(_bots_wanted: int, data_dir: String) -> DotNetManager:
 		if m != null and m.get("net") != null:
 			return m.get("net")
 	return null
+
+
+var _snap_next := 0.0
+var _snap_last: Dictionary = {}
+
+
+## `--snaplog`: every 2 s the client's snapshot, reconcile and skipped-reconcile counts, so a quiet
+## `replays` column can be told from a stalled link (a matching prediction skips, it does not replay).
+func _process(_delta: float) -> void:
+	if _client == null or "--snaplog" not in OS.get_cmdline_user_args():
+		return
+	var now := Time.get_ticks_msec() / 1000.0
+	if now < _snap_next:
+		return
+	_snap_next = now + 2.0
+	var net = _client.get("net")
+	if net == null:
+		return
+	var pc: Dictionary = net.perf_counters()
+	if not _snap_last.is_empty():
+		print("  snaplog snapshots +%d reconciles +%d skipped +%d received_tick %d" % [
+			int(pc[&"snapshots"]) - int(_snap_last[&"snapshots"]), int(pc[&"reconciles"]) - int(_snap_last[&"reconciles"]),
+			int(pc[&"skipped"]) - int(_snap_last[&"skipped"]), net.clock.received_tick()])
+	_snap_last = pc
