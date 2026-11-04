@@ -46,7 +46,8 @@ TIMEOUT=900
 TIMEOUT_GIVEN=0
 # A suite that legitimately runs longer than the default, as name=seconds. headless_bots plays 24 whole rounds of 290 s of game time at 32 ticks a second (bot sight and
 # pathing every tick), about 25 minutes on dev02 with the join cache. An explicit --timeout still wins for every suite.
-SUITE_TIMEOUTS="headless_bots=2400"
+# headless_maps bakes a navmesh per map (about 15 minutes of CPU on a free core, longer on a loaded box).
+SUITE_TIMEOUTS="headless_bots=2400 headless_maps=2400"
 PARSE=1
 RED=$'\033[31m'; GRN=$'\033[32m'; YLW=$'\033[33m'; OFF=$'\033[0m'
 CR=$'\r\033[K'
