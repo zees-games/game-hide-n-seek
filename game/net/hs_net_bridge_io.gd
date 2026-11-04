@@ -76,8 +76,13 @@ func client_tick(tick: int, command: DotFpsCommand) -> void:
 	packet.delta = net.clock.tick_duration()
 	packet.move = command if command != null else DotFpsCommand.new()
 
-	# Into the local history BEFORE predicting: reconciliation replays it.
-	net.local_inputs().push(packet)
+	# Into the local history BEFORE predicting: reconciliation replays it. A tick already sent (the clock stepped back) keeps
+	# its first command, which is the one the server took, so the prediction runs on that one too, not on today's sample.
+	var kept := net.local_inputs().peek(tick) as HsNetCommand
+	if kept != null:
+		packet = kept
+	else:
+		net.local_inputs().push(packet)
 
 	# The behaviour simulates from `last_move` on a fresh tick and on a replayed one alike —
 	# the predictor's replay sets it through `_net_apply_input`, and this is the fresh tick's
@@ -86,13 +91,6 @@ func client_tick(tick: int, command: DotFpsCommand) -> void:
 
 	if mine != null:
 		mine.last_move = packet.move
-
-	if link != null:
-		var payload := net.encode_ack()
-		var writer := DotNetWriter.new()
-		DotNetInput.write_batch(writer, _input_copies(packet))
-		payload.append_array(writer.to_bytes())
-		link.send_input(payload)
 
 	# One predicted player, and nothing else: everybody else is drawn from snapshots. The
 	# doors first, posed for this tick, because the player is predicted against them.
@@ -111,6 +109,15 @@ func client_tick(tick: int, command: DotFpsCommand) -> void:
 
 		if game.phase == HsGame.Phase.SEEK:
 			game.seek_elapsed += net.clock.tick_duration()
+
+	# Sent after predict_tick, which neutralises the command in place under the prediction hold: sent first, the server ran the
+	# live command while every replay ran the held one, and the two drifted apart by a few centimetres a snapshot.
+	if link != null:
+		var payload := net.encode_ack()
+		var writer := DotNetWriter.new()
+		DotNetInput.write_batch(writer, _input_copies(packet))
+		payload.append_array(writer.to_bytes())
+		link.send_input(payload)
 
 
 
