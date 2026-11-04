@@ -261,6 +261,7 @@ func _finish_annotation(doc: Dictionary) -> DotNpcAiNavAnnotations:
 	# Drops and short jumps up: the mesh does not join a table top to the floor, the bot can.
 	# A gap is a running jump the stand-ins do not make.
 	var ride := 0
+	nav.begin_batch()
 	for link in found.links:
 		var kind := int(link["kind"])
 		if kind == DotNpcAiNavAnnotations.LINK_DROP or kind == DotNpcAiNavAnnotations.LINK_JUMP_UP:
@@ -271,6 +272,7 @@ func _finish_annotation(doc: Dictionary) -> DotNpcAiNavAnnotations:
 			ride += 1
 			if kind == DotNpcAiNavAnnotations.LINK_JUMP_UP:
 				_jump_feet.append(link["from"])
+	nav.end_batch()
 	links_used = nav.rides().size()
 	return found
 
@@ -286,8 +288,11 @@ func _join_islands() -> void:
 	var cache_key := "%s@%.3f" % [str((game.get("map_doc") as Dictionary).get("id", "")), _nav_radius]
 	if _join_cache.has(cache_key):
 		nav.clear_rides()
+		# One map update for the whole replay, not one per ride.
+		nav.begin_batch()
 		for edge in _join_cache[cache_key]:
 			nav.add_ride(edge["from"], edge["to"], int(edge["id"]), float(edge["cost"]))
+		nav.end_batch()
 	else:
 		var _stats := DotBotLinks.new().join(nav)
 		_join_cache[cache_key] = nav.rides()
