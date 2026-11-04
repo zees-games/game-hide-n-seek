@@ -246,8 +246,11 @@ func _through_doorway(state: Dictionary, at: Vector3, t: float) -> bool:
 		var out := PackedVector3Array([middle + normal * near * 0.6, middle - normal * near * 0.8])
 		for i in range(out.size()):
 			var floor_at := nav.closest(out[i])
-			if Vector2(floor_at.x - out[i].x, floor_at.z - out[i].z).length() > 0.45 or absf(floor_at.y - at.y) > HsPlayer.BODY_STEP + 0.3:
+			if absf(floor_at.y - at.y) > HsPlayer.BODY_STEP + 0.3:
 				return false
+			# No cell within reach: the mesh is eroded across a narrow doorway, so go straight at it on this floor.
+			if Vector2(floor_at.x - out[i].x, floor_at.z - out[i].z).length() > 0.45:
+				floor_at = Vector3(out[i].x, at.y, out[i].z)
 			out[i] = floor_at
 		state["detour"] = out
 		state["detour_until"] = t + 3.0

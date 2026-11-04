@@ -2,6 +2,8 @@ extends "hs_bots_walk.gd"
 
 ## The stand-ins' senses, doors and walking: what both the hider and the seeker lean on.
 
+const SPAWN_CLEAR := 14.0
+
 
 func _state_of(player: HsPlayer) -> Dictionary:
 	if not _state.has(player.player_id):
@@ -565,6 +567,15 @@ func _give_up_goal(player: HsPlayer, state: Dictionary) -> void:
 
 
 
+## Whether [param spot] is at least [constant SPAWN_CLEAR] (flat) from each of the first few seeker spawns.
+func _clear_of_spawns(map: Node3D, spot: Vector3) -> bool:
+	for i in range(4):
+		var spawn: Array = map.call("spawn", "seekers", i)
+		if Vector2(spawn[0].x - spot.x, spawn[0].z - spot.z).length() < SPAWN_CLEAR:
+			return false
+	return true
+
+
 func _pick_spot(player: HsPlayer, state: Dictionary, avoid: PackedVector3Array, within: float = INF) -> void:
 	var at := player.controller.state.position
 	var taken := PackedVector3Array()
@@ -590,6 +601,10 @@ func _pick_spot(player: HsPlayer, state: Dictionary, avoid: PackedVector3Array, 
 	if within < INF:
 		pool = spots.filter(func(s: Dictionary) -> bool: return (s["at"] as Vector3).distance_to(at) < within)
 	pool.assign(_without_avoided(state, pool, now()))
+	# A spot beside the seekers' spawn is a catch in the first seconds, however well it hides.
+	var away: Array = pool.filter(func(s: Dictionary) -> bool: return _clear_of_spawns(map, s["at"] as Vector3))
+	if away.size() >= 3:
+		pool.assign(away)
 
 	var start := nav.closest(at) if nav.is_ready() else at
 	# A shuffle "within" so many metres is within so many metres of walking: a place 9 m away
