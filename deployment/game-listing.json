@@ -1,0 +1,15 @@
+{
+  "format": "tmc-game-listing",
+  "version": 1,
+  "listing": {
+    "name": "Hide & Seek",
+    "description": "Hide and seek. One or two seekers count blindfolded while everybody else hides; then every hider they catch, by a touch, joins them. Hiders win if anybody is still hidden when the clock runs out.",
+    "tags": ["3D", "Multiplayer"],
+    "platforms": ["PLATFORM_WEB"],
+    "graphicsType": "THREE_D",
+    "tmcKind": "GAME"
+  },
+  "pack": {
+    "id": "gamemann/game-hide-n-seek"
+  }
+}
