@@ -16,6 +16,7 @@
 #   tools/shot.sh --view=blind                                    # a seeker while the hiders hide
 #   tools/shot.sh --view=seeker --board                           # with the Tab scoreboard open
 #   tools/shot.sh --view=room --doors=open --at=... --look=...    # every door open (or shut)
+#   tools/shot.sh --view=seeker --touch --size=844x390            # a phone: touch buttons, landscape
 #   tools/shot.sh --view=overview --out=res://screenshots/x.png   # any --hs-* is the game's config
 #
 # xvfb-run because this needs a rendering context: `--headless` gives a null renderer and saves
@@ -27,6 +28,7 @@ mkdir -p screenshots
 view="seeker"
 seconds="3"
 out=""
+size="1280x720"
 config=("--hs-warmup-seconds=0" "--hs-hide-seconds=3")
 extra=()
 
@@ -35,8 +37,9 @@ for arg in "$@"; do
         --view=*)    view="${arg#*=}" ;;
         --seconds=*) seconds="${arg#*=}" ;;
         --out=*)     out="${arg#*=}" ;;
+        --size=*)    size="${arg#*=}" ;;
         --hs-*)      config+=("$arg") ;;
-        --at=*|--look=*|--third|--board|--name=*|--doors=*|--pick=*|--place=*|--action=*|--workshop) extra+=("$arg") ;;
+        --at=*|--look=*|--third|--touch|--board|--name=*|--doors=*|--pick=*|--place=*|--action=*|--workshop) extra+=("$arg") ;;
         *)           echo "unknown argument: $arg" >&2; exit 2 ;;
     esac
 done
@@ -47,5 +50,5 @@ for e in "${extra[@]}"; do
 done
 [ -n "$out" ] || out="res://screenshots/${name}.png"
 
-exec xvfb-run -a -s "-screen 0 1280x720x24" "${GODOT:-godot}" --path . --resolution 1280x720 \
+exec xvfb-run -a -s "-screen 0 ${size}x24" "${GODOT:-godot}" --path . --resolution "$size" \
     res://tools/shot.tscn -- "--seconds=$seconds" "--view=$view" "--out=$out" "${extra[@]}" "${config[@]}"
