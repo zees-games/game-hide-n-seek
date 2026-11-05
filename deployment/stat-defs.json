@@ -1,0 +1,114 @@
+{
+	"format": "dot-stat-defs",
+	"version": 1,
+	"stats": [
+		{
+			"key": "hs.rounds_won",
+			"name": "Rounds won",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "rounds",
+			"format": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "hs.hider_rounds",
+			"name": "Rounds hiding",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "rounds",
+			"format": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "hs.seeker_rounds",
+			"name": "Rounds seeking first",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "rounds",
+			"format": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "hs.survived",
+			"name": "Rounds never found",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "rounds",
+			"format": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "hs.caught",
+			"name": "Hiders caught",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "hiders",
+			"format": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "hs.best_round_caught",
+			"name": "Most hiders caught in a round",
+			"description": "",
+			"kind": "BEST",
+			"unit": "hiders",
+			"format": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "hs.times_caught",
+			"name": "Times caught",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "times",
+			"format": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "hs.first_caught",
+			"name": "Caught first",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "times",
+			"format": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		},
+		{
+			"key": "hs.taunts",
+			"name": "Taunts",
+			"description": "",
+			"kind": "COUNTER",
+			"unit": "taunts",
+			"format": "",
+			"decimals": 0,
+			"category": "",
+			"column": "OPTIONAL",
+			"better": null
+		}
+	]
+}
