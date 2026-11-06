@@ -7,7 +7,7 @@ const HsMapDoc := preload("../game/hs_map_doc.gd")
 ## Every map the game can be sent, built the way a server builds it and looked over for mistakes a document makes without any error: a spawn inside a wall, a prop the catalogue lacks, a prop sunk or floating, too little to hide behind, a door into a wall, a blocked doorway, a document too big to send.
 ## None of those stops a round (a spawn inside a locker is a player stuck for it), so this checks every map every time. Sections and checks are both counted; adding a map adds a section and CHECKS_PER_MAP checks.
 
-const MAPS := ["hs_practice", "hs_apartments", "hs_warehouse", "hs_manor", "hs_village", "hs_park", "hs_school", "hs_mall", "hs_ship", "hs_castle", "hs_camp", "hs_museum", "hs_restaurant", "hs_apartment", "hs_frontyard", "hs_hotel"]
+const MAPS := ["hs_practice", "hs_apartments", "hs_warehouse", "hs_manor", "hs_village", "hs_park", "hs_school", "hs_mall", "hs_ship", "hs_castle", "hs_camp", "hs_museum", "hs_restaurant", "hs_apartment", "hs_frontyard", "hs_hotel", "deco_mansion"]
 const CHECKS_PER_MAP := 15
 ## Per map whose document names a world pack that is here (hide-n-seek-maps/world, linked; local only).
 const CHECKS_PER_WORLD := 3
