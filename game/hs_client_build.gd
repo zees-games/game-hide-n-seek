@@ -207,7 +207,7 @@ func _build_touch() -> void:
 	touch = HsTouch.new()
 	hud.add_child(touch)
 	if platform != null:
-		platform.fit_touch_buttons(touch, HsTouch.LAYOUT)
+		HsTouch.touch_layout().apply(touch, platform)
 
 
 ## The key an action is on, as the player has it bound.

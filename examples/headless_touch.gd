@@ -20,17 +20,18 @@ func _ready() -> void:
 
 func _run() -> void:
 	print("game-hide-n-seek: touch buttons")
-	var ids := HsTouch.actions()
+	var ids := HsTouch.ids()
 
 	_section("the layout names real actions")
 	var rows := PackedStringArray()
 	for row in HsBindings.make().rows:
 		rows.append(String(row.action))
-	_check(ids.size() == HsTouch.LAYOUT.size() and ids.size() >= 5, "the layout has jump, run, duck, door and taunt")
+	_check(ids.size() == 5, "the layout has jump, run, duck, door and taunt")
 	for id in ids:
-		_check(rows.has(String(id)) or String(id) == "dot_fps_jump", "%s is an action in the bindings" % id)
-	_check(ids.has(&"dot_fps_jump") and ids.has(&"dot_fps_sprint") and ids.has(&"dot_fps_crouch"), "jump, run and duck are on it")
-	_check(ids.has(HsBindings.USE) and ids.has(HsBindings.TAUNT), "the door and the taunt are on it")
+		var action: StringName = HsTouch.ACTIONS.get(id, &"")
+		_check(rows.has(String(action)) or action == &"dot_fps_jump" or action == &"dot_fps_sprint" or action == &"dot_fps_crouch", "%s presses an action the bindings or controller define" % id)
+	_check(ids.has(&"jump") and ids.has(&"sprint") and ids.has(&"crouch"), "jump, run and crouch are on it, under their canonical ids")
+	_check(ids.has(&"use") and ids.has(HsTouch.TAUNT), "the door and the taunt are on it")
 	_finished()
 
 	_section("the sampler follows touch")
@@ -49,11 +50,11 @@ func _run() -> void:
 	_check(seen == "", "no two buttons overlap", seen)
 	var foot := buttons.footprint()
 	_check(Rect2(Vector2.ZERO, buttons.size).encloses(foot) and foot.position.y >= 66.0, "the cluster is on a phone screen and clear of the Menu button", str(foot))
-	_check(not buttons.is_held(&"dot_fps_jump"), "nothing is held at the start")
+	_check(not buttons.is_held(&"jump"), "nothing is held at the start")
 	# The headless viewport is 64 wide, so the move side is x < 32.
 	# A finger on a button is the game's, anywhere else on the look side it drags the view.
 	var sampler := HsTouch.new_sampler(DotFpsTunables.new()) as DotFpsTouchSampler
-	var on_button := buttons.centre_of(&"dot_fps_jump")
+	var on_button := buttons.centre_of(&"jump")
 	_check(buttons.contains_point(on_button), "a button's centre is on a button")
 	buttons.feed(_touch(0, on_button), sampler)
 	_check(sampler._look_finger == -1 and sampler._move_finger == -1, "the sampler ignores a touch over a button")
