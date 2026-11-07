@@ -1,4 +1,4 @@
-extends Node
+extends DotGameNetIo
 ## The signals, state and wire helpers of [HsNetBridge] (a base layer, split off for size); never used on its own.
 
 
@@ -72,15 +72,10 @@ signal chat_received(wire: Dictionary)
 signal voice_arrived(payload: PackedByteArray)
 
 var game: HsGame = null
-var net: DotNetManager = null
-var link: HsNetLink = null
 
 ## Which session this process is. Zero on a server.
 var local_player_id: int = 0
 
-## Where the clock learns the link's length in ms; dot-net cannot measure a transport, dot-server's heartbeat does ([method DotClientLink.ping_ms]).
-## With no sample the clock assumes an instant link and stamps every command for a tick already simulated, so all are discarded as late.
-var rtt_source: Callable = Callable()
 
 ## Where a voice frame goes on the server. Assigned by [DotGameModule] to the services
 ## layer's `relay_voice`, because the bridge is the only thing that names both ends.
@@ -136,21 +131,6 @@ var _toys_map: StringName = &""
 ## Client: where the mirrors live, which is not under the toys: they are registered before this
 ## end's map may exist, and stay registered through a map change.
 var _toy_holder: Node3D = null
-
-
-## How every dot-net message reaches a peer, routed by DELIVERY: snapshots are unreliable and go on the snapshot call; the rest are reliable,
-## events from the server, requests from the client. Sending all as events silently drops every client request.
-func _send(peer_id: int, payload: PackedByteArray, delivery: int) -> void:
-	if link == null:
-		return
-
-	if delivery == DotNetMessage.Delivery.UNRELIABLE:
-		link.send_snapshot(peer_id, payload)
-	elif net.is_server:
-		link.send_event(peer_id, payload)
-	else:
-		link.send_request(payload)
-
 
 
 static func player_key(session_id: int) -> StringName:
