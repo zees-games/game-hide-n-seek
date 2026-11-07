@@ -45,6 +45,8 @@ func _ready() -> void:
 			_action = arg.trim_prefix("--action=")
 		elif arg == "--third":
 			_third = true
+		elif arg == "--touch":
+			DotPlatform.touch_override = 1
 		elif arg.begins_with("--doors="):
 			_doors = arg.trim_prefix("--doors=")
 

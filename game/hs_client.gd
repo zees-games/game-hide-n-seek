@@ -39,10 +39,11 @@ func _ready() -> void:
 	add_child(game)
 	_build_ragdolls()
 
-	_sampler = DotFpsSampler.new(HsPlayer.tunables_for(config))
+	_sampler = HsTouch.new_sampler(HsPlayer.tunables_for(config))
 	HsPlayer.register_actions(_sampler)
 
 	_build_hud()
+	_build_touch()
 	_build_chat()
 	_build_audio()
 	_build_settings()
@@ -357,7 +358,7 @@ func _on_death(session_id: int, _by: int, why: StringName) -> void:
 
 func _physics_process(delta: float) -> void:
 	# The use key, held: the game makes the press from the edge, on the server or here.
-	var use := _pointer_ours() and not _covered() and InputMap.has_action(HsBindings.USE) and Input.is_action_pressed(HsBindings.USE)
+	var use := (_pointer_ours() or touch != null) and not _covered() and InputMap.has_action(HsBindings.USE) and Input.is_action_pressed(HsBindings.USE)
 
 	if _offline:
 		if player != null:
@@ -458,7 +459,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			settings.open()
 		return
 
-	if event is InputEventKey and (event as InputEventKey).pressed and not event.is_echo():
+	if touch != null and player != null and (event is InputEventScreenTouch or event is InputEventScreenDrag):
+		touch.feed(event, player.sampler if _offline and player.sampler != null else _sampler)
+		return
+
+	if (event is InputEventKey or event is InputEventAction) and event.is_pressed() and not event.is_echo():
 		if _key_pressed(event):
 			get_viewport().set_input_as_handled()
 			return

@@ -3,6 +3,7 @@ extends CharacterBody3D
 const HsConfig := preload("hs_config.gd")
 const HsController := preload("hs_controller.gd")
 const HsFigure := preload("hs_figure.gd")
+const HsTouch := preload("hs_touch.gd")
 const HsAvatars := preload("hs_avatars.gd")
 
 ## One person: how they move, which side they are on, and how close they are to being caught.
@@ -121,7 +122,7 @@ func _ready() -> void:
 	add_child(controller)
 
 	if samples_input:
-		sampler = DotFpsSampler.new(controller.tunables)
+		sampler = HsTouch.new_sampler(controller.tunables)
 		register_actions(sampler)
 
 
