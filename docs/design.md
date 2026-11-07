@@ -37,6 +37,10 @@ As in prop hunt: the HUD paints a seeker's screen black during the hide, the `HO
 
 A hider is drawn as one of the family's animated people (dot-player-char's `DotHumanoidFigure`, the style every game's players, bots and NPCs share): the person their site avatar's blocky atlas letter names (dot-platform, `HsAvatars`, `DotHumanoidLook.from_letter`), with the top the side's colour outright: hiders blue, seekers orange. Not tinted: tinting a teal shirt blue read teal and a red one purple. The figure is told the floor, the vertical speed and the crouch, so a crouched hider is drawn crouching and a jump is drawn as one. A side change rebuilds the figure, so a caught hider turns orange on the next frame.
 
+## The flashlight
+
+dot-flashlight's, for both sides, on F. The server owns on and off (`HsGame.toggle_flashlight`, asked by `HsEvents.Ask.FLASHLIGHT`) and replicates one flag per player (`net_flashlight`); a map whose `environment.ambient_energy` is under the config's floor starts everybody lit, any other starts dark. A lit beam is visible to everyone who can see the player, so a hider who lights up gives themselves away: that is the trade. Config: `hs_flashlight_*` cvars, `cfg/game/game-hide-n-seek/flashlight/game.yml`, a workbench set.
+
 ## Taunts, the beacon, points and stats
 
 Taunts are prop hunt's (`DotPropTaunts`): hiders only, from the seek on, forced after `auto_taunt_seconds` (60) within `auto_taunt_radius`. The beacon marks every hidden hider when `beacon_hiders_left` (1) are left or `beacon_seconds_left` (0, off) remain, for `beacon_reveal` (2 s) in every `beacon_every` (10 s): a reveal the seekers run to and the hider runs from, not a marker held on them (held, every seeker walked to the last hider from anywhere and a round with one left was a round lost). The end-of-round beacon is off by default because it decided rounds the hiders had held: at medium the bots' hiders won 6 of 24 with it at 30 s, 10 without. Points: winning side 10, a catch 5, surviving 5, taunts. `HsProgress` keeps the stats (doors used among them) and the achievements.

@@ -4,8 +4,8 @@ extends "headless_net_base.gd"
 ## It checks the claims the game rests on over a wire: the blindfold is true on the wire (a seeker's snapshots carry no hider while they hide, `HsInterest`), a catch is the server's and the client's prediction holds on the same ticks, and the sight meter is its owner's alone.
 ## Sections and checks are both counted.
 
-const SECTIONS := 16
-const CHECKS := 88
+const SECTIONS := 17
+const CHECKS := 92
 
 var _sections_entered := 0
 var _sections_finished := 0
@@ -31,6 +31,7 @@ func _run() -> void:
 		await _test_the_sight_meter_is_the_owners()
 		await _test_a_catch_crosses()
 		await _test_taunting()
+		await _test_the_flashlight_crosses()
 		await _test_free_roam_crosses()
 		await _test_the_round_ends()
 		await _test_the_toys_cross()
@@ -515,6 +516,23 @@ func _test_taunting() -> void:
 		"a taunt is played, and everybody is told who and which", str(_heard.get("taunt")))
 	_check(server_me.points - points == _server_game.config.taunt_points, "and is paid for",
 		"+%d" % (server_me.points - points))
+	_finished()
+
+
+func _test_the_flashlight_crosses() -> void:
+	_section("the flashlight is asked for, and the server's state comes back to everybody")
+	await _hide_with(HsGame.HIDERS)
+	var server_me := _server_me()
+	var was := server_me.flashlight
+	_client_bridge.ask_flashlight()
+	await _steps(8)
+	_check(server_me.flashlight != was, "the server switched it")
+	_check(_mine().flashlight == server_me.flashlight, "and the owner is told")
+	var theirs: HsPlayer = _client_game.players[_second.player_id]
+	_check(theirs.flashlight == _second.flashlight, "and the others' flag is the server's")
+	_client_bridge.ask_flashlight()
+	await _steps(8)
+	_check(server_me.flashlight == was and _mine().flashlight == was, "the next ask switches it back")
 	_finished()
 
 

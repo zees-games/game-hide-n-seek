@@ -477,6 +477,42 @@ func apply_door(index: int, open: bool, flip: bool, tick: int) -> void:
 		map.doors.apply(index, open, flip, tick)
 
 
+## The flashlight config, made on first use.
+func flashlight_conf() -> DotFlashlightConfig:
+	if flashlight_config == null:
+		flashlight_config = HsFlashlight.make_config()
+		flashlight_binder = HsFlashlight.make_binder(flashlight_config)
+		DotLog.result(CHANNEL, "flashlight config", flashlight_binder.load_layers())
+	return flashlight_config
+
+
+## A new map sets everybody's light by the map (dark ones start lit). Server side.
+func _advance_flashlights() -> void:
+	if not authoritative:
+		return
+
+	var cfg := flashlight_conf()
+	var map_id := str(map_doc.get("id", ""))
+
+	for player: HsPlayer in players.values():
+		if not player.flashlight_ready:
+			player.flashlight_ready = true
+			player.flashlight = HsFlashlight.starts_on(cfg, map_id, map_doc)
+
+
+## A living player switches their light, on any side. Refused where the map or the config disallows it. Server side.
+func toggle_flashlight(id: StringName) -> bool:
+	var player: HsPlayer = players.get(id)
+	var cfg := flashlight_conf()
+
+	if player == null or not player.is_alive() or player.watching \
+			or not DotFlashlightRules.allowed_on(cfg, str(map_doc.get("id", ""))):
+		return false
+
+	player.flashlight = not player.flashlight
+	return true
+
+
 ## A hider taunts, by choice. [param taunt_id] empty picks one. Server side.
 func taunt(id: StringName, taunt_id: StringName = &"") -> bool:
 	var player: HsPlayer = players.get(id)
