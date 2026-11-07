@@ -88,24 +88,25 @@ func _register_net_vars() -> void:
 		if spec["property"] == &"net_crouch":
 			declaration.range_of(0.0, 1.0)
 
-	replicate(&"net_health", DotNetVar.Type.FLOAT_RANGE).range_of(0.0, 1000.0).bits(12)
-	replicate(&"net_max_health", DotNetVar.Type.FLOAT_RANGE).range_of(0.0, 1000.0).bits(14)
-	replicate(&"net_points", DotNetVar.Type.UINT).bits(16)
-	replicate(&"net_ping", DotNetVar.Type.UINT).bits(10)
-	replicate(&"net_watching", DotNetVar.Type.BOOL)
-	var _meter := replicate(&"net_taunt_meter", DotNetVar.Type.FLOAT_RANGE).range_of(0.0, 1.0).bits(7).to_owner_only()
-	var _seen := replicate(&"net_sight_meter", DotNetVar.Type.FLOAT_RANGE).range_of(0.0, 1.0).bits(7).to_owner_only()
-	var _held := replicate(&"net_held", DotNetVar.Type.BOOL).to_owner_only()
-	replicate(&"net_caught", DotNetVar.Type.BOOL)
+	# Only the server (HsGame, HsServices) writes these, never the owner's prediction: server-driven, so a bump is not a misprediction.
+	replicate(&"net_health", DotNetVar.Type.FLOAT_RANGE).range_of(0.0, 1000.0).bits(12).server_driven()
+	replicate(&"net_max_health", DotNetVar.Type.FLOAT_RANGE).range_of(0.0, 1000.0).bits(14).server_driven()
+	replicate(&"net_points", DotNetVar.Type.UINT).bits(16).server_driven()
+	replicate(&"net_ping", DotNetVar.Type.UINT).bits(10).server_driven()
+	replicate(&"net_watching", DotNetVar.Type.BOOL).server_driven()
+	var _meter := replicate(&"net_taunt_meter", DotNetVar.Type.FLOAT_RANGE).range_of(0.0, 1.0).bits(7).to_owner_only().server_driven()
+	var _seen := replicate(&"net_sight_meter", DotNetVar.Type.FLOAT_RANGE).range_of(0.0, 1.0).bits(7).to_owner_only().server_driven()
+	var _held := replicate(&"net_held", DotNetVar.Type.BOOL).to_owner_only().server_driven()
+	replicate(&"net_caught", DotNetVar.Type.BOOL).server_driven()
 
 	# Per-player state rather than an event, so both survive what an event does not: a client joining after the admin typed `beacon`, a lost snapshot, a field re-laid at the top of a round are baselines the next snapshot corrects.
 	# The blind goes to its owner alone, since an opponent receiving it would know the moment somebody could not see.
 	# No relevance change for a beacon, unlike game-arena: every player here is already always relevant (`HsNetBridge`), and setting `always_relevant` back to false would drop the player from every snapshot.
-	var _blind := replicate(&"net_blind", DotNetVar.Type.BOOL).to_owner_only()
-	replicate(&"net_beacon", DotNetVar.Type.BOOL)
-	replicate(&"net_marked", DotNetVar.Type.BOOL)
-	replicate(&"net_flashlight", DotNetVar.Type.BOOL)
-	replicate(&"net_warp", DotNetVar.Type.UINT).bits(4)
+	var _blind := replicate(&"net_blind", DotNetVar.Type.BOOL).to_owner_only().server_driven()
+	replicate(&"net_beacon", DotNetVar.Type.BOOL).server_driven()
+	replicate(&"net_marked", DotNetVar.Type.BOOL).server_driven()
+	replicate(&"net_flashlight", DotNetVar.Type.BOOL).server_driven()
+	replicate(&"net_warp", DotNetVar.Type.UINT).bits(4).server_driven()
 
 
 func _net_apply_input(input: DotNetInput, _tick: int) -> void:
@@ -144,7 +145,11 @@ func pull() -> void:
 		net_max_health = player.health.max_health
 
 	net_points = clampi(player.points, 0, 65535)
-	net_ping = clampi(player.ping_ms, 0, 1023)
+	# pull() also runs on a predicting client, which knows neither: its own ping_ms and warps would overwrite the server's and read as a mismatch.
+	var authoritative := identity == null or identity.is_authoritative
+
+	if authoritative:
+		net_ping = clampi(player.ping_ms, 0, 1023)
 	net_watching = player.watching
 	net_taunt_meter = player.taunt_meter
 	net_sight_meter = player.sight_meter
@@ -154,7 +159,9 @@ func pull() -> void:
 	net_beacon = player.beacon or player.marked
 	net_marked = player.marked and not player.beacon
 	net_flashlight = player.flashlight
-	net_warp = player.warps & 0xF
+
+	if authoritative:
+		net_warp = player.warps & 0xF
 
 
 ## The server's answer, adopted wholesale. On the owner it is the rewind half of
