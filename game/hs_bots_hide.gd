@@ -13,6 +13,7 @@ func _hide(player: HsPlayer, command: DotFpsCommand) -> void:
 		# The survey lands a frame or two after the map; until then, nowhere to go.
 		if (spots.is_empty() and _surveyed != _baked) or now() < float(state.get("retry_at", -INF)):
 			return
+		_leave_sealed_spawn(player)
 		_pick_spot(player, state, PackedVector3Array())
 		if (state["spot"] as Dictionary).is_empty():
 			return
@@ -56,6 +57,26 @@ func _hide(player: HsPlayer, command: DotFpsCommand) -> void:
 		_look(player, command, Vector3(back.x, player.eye_position().y, back.z))
 	elif state["crouch"]:
 		command.set_button(DotFpsCommand.BUTTON_CROUCH, true)
+
+
+## A hider that starts inside a pocket the seekers cannot walk into (a fenced garden with no gate) could only be
+## chased from the other side of the fence for the whole round: it moves to a hiders' spawn they can reach.
+func _leave_sealed_spawn(player: HsPlayer) -> void:
+	var map: Node3D = game.get("map")
+	if map == null or not nav.is_ready():
+		return
+	var start := nav.closest((map.call("spawn", "seekers", 0) as Array)[0])
+	if nav.joined(start, player.controller.state.position):
+		return
+	var count: int = (((map.get("doc") as Dictionary).get("spawns", {}) as Dictionary).get("hiders", []) as Array).size()
+	var first := absi(hash(player.player_id)) % maxi(count, 1)
+	for k in range(count):
+		var i := (first + k) % count
+		var spot: Array = map.call("spawn", "hiders", i)
+		if nav.joined(start, spot[0]):
+			player.place_at(spot[0], spot[1])
+			DotLog.info(CHANNEL, "a hider started in a pocket the seekers cannot reach; moved to a spawn they can", {"player": str(player.player_id), "spawn": i})
+			return
 
 
 ## Remembers where the threat was last seen or heard, and forgets it after a while.
