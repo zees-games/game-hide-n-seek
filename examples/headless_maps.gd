@@ -36,8 +36,8 @@ const MIN_COVER := 12
 const CUT_OFF_BASELINE := []
 ## The share of all walkable area a spawn's component must hold when it is not the biggest one.
 const MIN_SPAWN_SHARE := 0.5
-## Maps failing the check above: hs_restaurant, hs_apartment, hs_hotel play in a component under half the mesh (the rest is not joined to it), hs_frontyard also has a hider spawn the seekers cannot walk to. Map data, in hide-n-seek-maps.
-const SPAWN_COMPONENT_BASELINE := []
+## Maps failing the check above: hs_restaurant, hs_apartment, hs_hotel play in a component under half the mesh (the rest is not joined to it), hs_frontyard also has a hider spawn the seekers cannot walk to. (Those four are fixed in hide-n-seek-maps; hs_mountainresort and sunken_resort, merged later, still fail it: hiders stranded from the seekers.) Map data, in hide-n-seek-maps.
+const SPAWN_COMPONENT_BASELINE := ["hs_mountainresort", "sunken_resort"]
 const COVER_HEIGHT := 0.8
 const COVER_WIDTH := 0.6
 

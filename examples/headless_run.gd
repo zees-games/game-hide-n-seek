@@ -4,7 +4,7 @@ extends "headless_run_client.gd"
 ## Counts sections AND checks: a script error aborts a section after it announced itself. Map numbers are the practice house's ([method HsCatalogue.practice]): the wall at x 0 with its door at z -1..0.8, kitchen east, living room west.
 
 
-const SECTIONS := 27
+const SECTIONS := 28
 
 const CHECKS := 166
 
