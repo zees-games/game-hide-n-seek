@@ -8,7 +8,7 @@ const HsMapDoc := preload("../game/hs_map_doc.gd")
 ## None of those stops a round (a spawn inside a locker is a player stuck for it), so this checks every map every time. Sections and checks are both counted; adding a map adds a section and CHECKS_PER_MAP checks.
 
 const MAPS := ["hs_practice", "hs_apartments", "hs_warehouse", "hs_manor", "hs_village", "hs_park", "hs_school", "hs_mall", "hs_ship", "hs_castle", "hs_camp", "hs_museum", "hs_restaurant", "hs_apartment", "hs_frontyard", "hs_hotel", "hs_mountainresort", "gm_villa", "deco_mansion", "sunken_resort"]
-const CHECKS_PER_MAP := 15
+const CHECKS_PER_MAP := 16
 ## Per map whose document names a world pack that is here (hide-n-seek-maps/world, linked; local only).
 const CHECKS_PER_WORLD := 3
 ## How far a drawn roof may stand above or below the boxes' top: boxes flatten a pitch, and a wall brush runs on into the sky.
@@ -34,6 +34,10 @@ const MIN_COVER := 12
 
 ## Maps whose hider spawns are known to be cut off from the seekers' on the bots' mesh; each must stay cut off here until fixed, then leave this list.
 const CUT_OFF_BASELINE := []
+## The share of all walkable area a spawn's component must hold when it is not the biggest one.
+const MIN_SPAWN_SHARE := 0.5
+## Maps failing the check above: hs_restaurant, hs_apartment, hs_hotel play in a component under half the mesh (the rest is not joined to it), hs_frontyard also has a hider spawn the seekers cannot walk to. Map data, in hide-n-seek-maps.
+const SPAWN_COMPONENT_BASELINE := []
 const COVER_HEIGHT := 0.8
 const COVER_WIDTH := 0.6
 
@@ -197,11 +201,66 @@ func _check_reachable(game: HsGame, id: StringName) -> void:
 		if not nav.joined(at, seeker):
 			cut_off.append("hider %d at %s" % [seat, at])
 
+	_check_spawn_islands(game, id)
+
 	if CUT_OFF_BASELINE.has(String(id)):
 		_check(not cut_off.is_empty(), "known cut-off map still cut off (else drop it from CUT_OFF_BASELINE)", "all hider spawns are joined now")
 		return
 
 	_check(cut_off.is_empty(), "every hider spawn is joined to the seekers' on the walkable mesh", "; ".join(cut_off))
+
+
+## Every spawn, seekers' as much as hiders', must stand in the component (islands joined by ride edges) of seeker spawn 0, and that component must be the biggest of the walkable mesh or hold at least [constant MIN_SPAWN_SHARE] of all walkable area: a seeker born on a few square metres of cut-off mesh has nowhere to walk, so the stand-in seekers never move.
+## Maps in [constant SPAWN_COMPONENT_BASELINE] play in a component under that share (the rest of their mesh is not joined to it); each must stay so until fixed.
+func _check_spawn_islands(game: HsGame, id: StringName) -> void:
+	var nav: DotBotNav = game.bots.nav
+	var all := nav.islands()
+	if all.is_empty():
+		_check(false, "every spawn is on one walkable component holding the play area", "%s: the mesh has no islands" % id)
+		return
+	var home: Vector3 = game.map.spawn("seekers", 0)[0]
+	var reps: Array[Vector3] = []
+	var total := 0.0
+	for island in all:
+		reps.append(_island_point(nav, island))
+		total += float(island["area"])
+	var share := 0.0
+	var biggest := 0.0
+	var placed := {}
+	for i in range(all.size()):
+		if placed.has(i):
+			continue
+		var members := 0.0
+		for k in range(i, all.size()):
+			if not placed.has(k) and nav.joined(reps[i], reps[k]):
+				placed[k] = true
+				members += float(all[k]["area"])
+		biggest = maxf(biggest, members)
+	for i in range(all.size()):
+		if nav.joined(home, reps[i]):
+			share += float(all[i]["area"])
+	var stranded: Array = []
+	for side: String in ["hiders", "seekers"]:
+		for seat in range((game.map_doc["spawns"][side] as Array).size()):
+			var at: Vector3 = game.map.spawn(side, seat)[0]
+			if not nav.joined(at, home) or not nav.joined(home, at):
+				stranded.append("%s %d at %s" % [side, seat, at])
+	var holds := share >= biggest - 0.01 or share >= total * MIN_SPAWN_SHARE
+	var detail := "%s: seekers' component %.0f of %.0f m2 (biggest %.0f); cut off from it: %s" % [id, share, total, biggest, "; ".join(stranded.slice(0, 8))]
+	if SPAWN_COMPONENT_BASELINE.has(String(id)):
+		_check(not (stranded.is_empty() and holds), "known bad spawn component still bad (else drop it from SPAWN_COMPONENT_BASELINE)", detail)
+		return
+	_check(stranded.is_empty() and holds, "every spawn is on one walkable component holding the play area", detail)
+
+
+## A point on an island's first polygon, for asking [method DotBotNav.joined] about the island as a whole.
+func _island_point(nav: DotBotNav, island: Dictionary) -> Vector3:
+	var vertices := nav.mesh.get_vertices()
+	var poly := nav.mesh.get_polygon(int((island["polygons"] as PackedInt32Array)[0]))
+	var centre := Vector3.ZERO
+	for v: int in poly:
+		centre += vertices[v] / float(poly.size())
+	return centre
 
 
 func _check_props(game: HsGame) -> void:
