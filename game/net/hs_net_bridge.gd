@@ -276,7 +276,7 @@ func server_tick(tick: int) -> void:
 
 	if net != null:
 		# The toys where the physics left them, before the snapshot goes.
-		for behaviour: HsToyNet in _toy_nets:
+		for behaviour: DotGameToyNet in _toy_nets:
 			behaviour.pull()
 
 		_in_server_tick = true

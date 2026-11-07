@@ -7,7 +7,6 @@ const HsEvents := preload("hs_events.gd")
 const HsNetCommand := preload("hs_net_command.gd")
 const HsNetLink := preload("hs_net_link.gd")
 const HsPlayerNet := preload("hs_player_net.gd")
-const HsToyNet := preload("hs_toy_net.gd")
 const HsInterest := preload("hs_interest.gd")
 const HsRequest := preload("hs_request.gd")
 
@@ -241,8 +240,8 @@ func _register_toys() -> void:
 
 ## A toy's behaviour and identity under [param parent] (the toy on the server, a holder of the client's own), registered under [param net_id]
 ## (0 allocates one: the server). Null when the registry refused it. The behaviour before the identity, which collects behaviours in `_ready`.
-func _toy_entity(toy: DotPropToy, parent: Node, net_id: int) -> HsToyNet:
-	var behaviour := HsToyNet.new()
+func _toy_entity(toy: DotPropToy, parent: Node, net_id: int) -> DotGameToyNet:
+	var behaviour := DotGameToyNet.new()
 	behaviour.name = "Net"
 	behaviour.toy = toy
 	var holder := Node3D.new() if parent != toy else null
@@ -282,7 +281,7 @@ func _toy_entity(toy: DotPropToy, parent: Node, net_id: int) -> HsToyNet:
 ## the same toy collects every behaviour under it in its `_ready`, and a freed one still found
 ## there broke the next snapshot (game-playground found it). A map change, or a new TOYS.
 func _release_toys() -> void:
-	for behaviour: HsToyNet in _toy_nets:
+	for behaviour: DotGameToyNet in _toy_nets:
 		if not is_instance_valid(behaviour):
 			continue
 		if behaviour.identity != null and net != null and net.registry.has(behaviour.identity.net_id):
@@ -329,14 +328,14 @@ func _pair_pending_toys() -> void:
 	if box != null and box.count() != _toy_nets.size():
 		DotLog.warn(CHANNEL, "the server's map has a different number of toys", {"server": _toy_nets.size(), "here": box.count()})
 	for i in range(_toy_nets.size()):
-		var behaviour: HsToyNet = _toy_nets[i]
+		var behaviour: DotGameToyNet = _toy_nets[i]
 		if is_instance_valid(behaviour):
 			behaviour.toy = box.toy(i) if box != null else null
 
 
 ## Client: the old map's toys are about to go; the mirrors stay registered, without them.
 func _unpair_toys() -> void:
-	for behaviour: HsToyNet in _toy_nets:
+	for behaviour: DotGameToyNet in _toy_nets:
 		if is_instance_valid(behaviour):
 			behaviour.toy = null
 
@@ -349,7 +348,7 @@ func toy_entities() -> int:
 ## How many toys this end replicates: a client's, mirrors paired with a toy. For a check.
 func toy_count() -> int:
 	var n := 0
-	for behaviour: HsToyNet in _toy_nets:
+	for behaviour: DotGameToyNet in _toy_nets:
 		if is_instance_valid(behaviour) and (net.is_server or behaviour.toy != null):
 			n += 1
 	return n
