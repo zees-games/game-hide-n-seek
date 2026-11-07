@@ -129,8 +129,8 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 	if state["mode"] == &"fleeing" and not held.is_empty() and not away.is_empty():
 		var held_at: Vector3 = held["at"]
 		var ahead := Vector2(held_at.x - at.x, held_at.z - at.z)
-		var turned := Vector2((away["at"] as Vector3).x - at.x, (away["at"] as Vector3).z - at.z)
-		if ahead.length() > 1.5 and ahead.dot(turned) < 0.0 and threat.distance_to(held_at) > threat.distance_to(at) + FLEE_KEEP:
+		var other := Vector2((away["at"] as Vector3).x - held_at.x, (away["at"] as Vector3).z - held_at.z)
+		if ahead.length() > 1.5 and other.length() > 2.0 and threat.distance_to(held_at) > threat.distance_to(at) + FLEE_KEEP:
 			state["moved_at"] = t
 			return
 	state["spot"] = away
@@ -209,6 +209,25 @@ func _flee_spot_for(player: HsPlayer, state: Dictionary, at: Vector3, threat: Ve
 		else DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN, FLEE_CLEAR) if running \
 		else DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken)
 	if away.is_empty():
-		var dir := Vector3(at.x - threat.x, 0.0, at.z - threat.z).normalized()
-		away = {"at": nav.closest(at + dir * 10.0), "exposure": 1.0}
+		away = {"at": _walkable_away(at, threat, start), "exposure": 1.0}
 	return away
+
+
+## The farthest from the threat of the points a walk away from it can reach: ten metres straight back is the far side of a fence in a walled yard, and walking at it paced a hider against the wall.
+func _walkable_away(at: Vector3, threat: Vector3, start: Vector3) -> Vector3:
+	var base := Vector3(at.x - threat.x, 0.0, at.z - threat.z).normalized()
+	if not nav.is_ready() or base == Vector3.ZERO:
+		return nav.closest(at + base * 10.0)
+	var best := at
+	var best_gap := at.distance_to(threat)
+	for turn in range(-4, 5):
+		var dir := base.rotated(Vector3.UP, deg_to_rad(turn * 22.5))
+		for reach in [10.0, 6.0, 3.0]:
+			var there := nav.closest(at + dir * reach)
+			if not nav.joined(start, there) or nav.path_length(start, there) > reach * 1.6:
+				continue
+			var gap := there.distance_to(threat)
+			if gap > best_gap + 1.0:
+				best_gap = gap
+				best = there
+	return best
