@@ -514,6 +514,7 @@ func _step(delta: float) -> void:
 	_advance_catching(delta)
 	_advance_taunts()
 	_advance_beacons()
+	_advance_flashlights()
 
 	if combat != null:
 		combat.tick(_tick, delta)

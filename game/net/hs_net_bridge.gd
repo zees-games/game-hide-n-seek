@@ -328,6 +328,8 @@ func _on_request(message: DotNetMessage) -> void:
 				_spectate_step(peer_id, int(step["direction"]))
 		HsEvents.Ask.ROAM:
 			_spectate_roam(peer_id)
+		HsEvents.Ask.FLASHLIGHT:
+			var _switched := game.toggle_flashlight(player_key(player_for_peer(peer_id)))
 		HsEvents.Ask.TAUNT:
 			var asked := HsEvents.read_ask_taunt(ask.reader())
 			if bool(asked["ok"]):

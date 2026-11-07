@@ -53,6 +53,7 @@ There are twelve maps: a small practice house built into the game, and eleven fr
 | **E** | Open or shut a door; kick, push, spin or press the toy you are looking at |
 | **T** / **F3** | Taunt / pick a taunt (hiders) |
 | **V** | Talk (voice) |
+| **F** | Flashlight, either side (off on a lit map; on at start where the map is dark) |
 | **F5** | First or third person |
 | **Tab** | Scoreboard (hold) |
 | **H** | Help: the goal, the rules and every key as you have it bound |

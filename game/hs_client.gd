@@ -113,6 +113,10 @@ func _start_remote_workbench() -> void:
 	if game.config_binder != null:
 		for set: DotProfileSet in game.config_binder.profile_sets():
 			wb.add_set(set, "Game settings: %s" % set.rel_path.trim_prefix("config_"))
+	var _fl := game.flashlight_conf()
+	if game.flashlight_binder != null:
+		for set: DotProfileSet in game.flashlight_binder.profile_sets():
+			wb.add_set(set, "Flashlight")
 	add_child(wb)
 	var started := wb.start(game.ensure_runtime())
 	DotLog.result(CHANNEL, "the remote workbench", started)
@@ -299,6 +303,9 @@ func is_seeker() -> bool:
 
 
 func _on_map(map_id: StringName) -> void:
+	if flash != null:
+		flash.allowed = DotFlashlightRules.allowed_on(game.flashlight_conf(), str(map_id))
+
 	if ragdolls != null:
 		# A body on the old map would hang in the new one's air.
 		ragdolls.clear()
@@ -429,6 +436,7 @@ func _present_hide() -> void:
 
 
 func _present_effects(delta: float) -> void:
+	_present_flashlights(delta)
 	if audio != null:
 		audio.listen_from(camera.global_position)
 		if platform != null and platform.slide_sounds != null and audio.steps != null:
@@ -498,6 +506,11 @@ func _key_pressed(event: InputEvent) -> bool:
 
 	if player == null or not player.is_alive() or is_spectating():
 		return false
+
+	if event.is_action_pressed(HsBindings.FLASHLIGHT):
+		if flash != null:
+			var _asked := flash.toggle()
+		return true
 
 	if is_seeker():
 		return false

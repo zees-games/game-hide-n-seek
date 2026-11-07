@@ -379,6 +379,34 @@ func _test_taunts() -> void:
 	_finished()
 
 
+func _test_the_flashlight() -> void:
+	_section("the flashlight: the map sets it, either side switches it, a map may forbid it")
+	var game := await _hide_round()
+	var cfg := game.flashlight_conf()
+	var hider: HsPlayer = game.players_on(HsGame.HIDERS)[0]
+	var seeker: HsPlayer = game.players_on(HsGame.SEEKERS)[0]
+	_check(cfg.key == "F" and game.flashlight_binder != null, "the key is F and the config has a binder", cfg.key)
+
+	cfg.default_state = DotFlashlightConfig.START_ON
+	hider.flashlight_ready = false
+	await _step(game, 2)
+	_check(hider.flashlight, "a map that starts lit lights the player")
+	cfg.default_state = DotFlashlightConfig.START_OFF
+	hider.flashlight_ready = false
+	await _step(game, 2)
+	_check(not hider.flashlight, "and one that starts dark does not")
+
+	_check(game.toggle_flashlight(hider.player_id) and hider.flashlight, "the switch turns a hider's light on")
+	_check(game.toggle_flashlight(seeker.player_id) and seeker.flashlight, "and a seeker's, who is blindfolded")
+	_check(game.toggle_flashlight(hider.player_id) and not hider.flashlight, "and the next press turns it off")
+
+	cfg.allowed_maps = PackedStringArray(["no_such_map"])
+	_check(not game.toggle_flashlight(hider.player_id) and not hider.flashlight, "a map outside allowed_maps has no light")
+	cfg.allowed_maps = PackedStringArray()
+	cfg.default_state = DotFlashlightConfig.START_DARK
+	_finished()
+
+
 func _test_the_round() -> void:
 	_section("a round: the seekers catch everybody, or the hiders hold out")
 	var game := await _seek_round(func(c: HsConfig) -> void:

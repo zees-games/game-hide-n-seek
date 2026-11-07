@@ -247,6 +247,10 @@ func _add_tunables(world: HsGame) -> void:
 
 ## Every [HsConfig] field as an `hs_<field>` cvar, a cfg/ yml key and a workbench set. The cvars shipped server configs and map files already use under other names stay, as aliases of the field.
 func _bind_config(world: HsGame) -> void:
+	var _fl := world.flashlight_conf()
+	if world.flashlight_binder != null:
+		var _flash_cvars := world.flashlight_binder.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
+		world.flashlight_binder.bind_commands(add_command)
 	var binder := world.config_binder
 	if binder == null:
 		return
@@ -335,6 +339,9 @@ func _start_workbench(world: HsGame) -> void:
 		return admin_permit.is_valid() and actor is String and bool(admin_permit.call(actor, flag))
 	for set: DotProfileSet in world.config_binder.profile_sets():
 		workbench.add_set(set, "Game settings: %s" % set.rel_path.trim_prefix("config_"))
+	if world.flashlight_binder != null:
+		for set: DotProfileSet in world.flashlight_binder.profile_sets():
+			workbench.add_set(set, "Flashlight")
 	var ambient_set := DotGameWorkbench.cvar_set(console, HsAmbience.cvar_types(), AMBIENT_KIND)
 	if ambient_set != null:
 		workbench.add_set(ambient_set, "Ambience (hs_ambient*)")
@@ -350,6 +357,8 @@ func _start_workbench(world: HsGame) -> void:
 		var rt := workbench.api.runtime as DotProfileRuntime
 		if rt != null:
 			world.config_binder.attach(rt)
+			if world.flashlight_binder != null:
+				world.flashlight_binder.attach(rt)
 			if ambient_set != null:
 				DotGameWorkbench.bind_cvar_set(ambient_set, rt, console)
 	add_command("workbench", func(ctx: DotCmdContext) -> void: ctx.reply_lines(_workbench_lines()),

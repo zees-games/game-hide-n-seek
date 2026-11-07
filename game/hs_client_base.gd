@@ -45,6 +45,12 @@ var settings: HsSettings = null
 ## The player's console (the platform's).
 var console: DotConsoleController = null
 
+## The flashlight on the eye and the others' beams (dot-flashlight); the server owns on/off.
+var flash: DotFlashlight = null
+var flash_crowd: DotFlashlightCrowd = null
+var _flash_msec := -100000
+var _flash_retain := 0.0
+
 var net: DotNetManager = null
 var bridge: HsNetBridge = null
 var link: Node = null

@@ -58,6 +58,9 @@ var net_beacon: bool = false
 ## Which of the two the beacon is: true for the rule's mark, false for an admin's.
 var net_marked: bool = false
 
+## `HsPlayer.flashlight`. Everybody's: the beam is drawn for the others.
+var net_flashlight: bool = false
+
 ## `HsPlayer.warps`, four bits of it: how many times the server has put this player
 ## somewhere rather than moved them there. See [method _forget_the_path].
 var net_warp: int = 0
@@ -101,6 +104,7 @@ func _register_net_vars() -> void:
 	var _blind := replicate(&"net_blind", DotNetVar.Type.BOOL).to_owner_only()
 	replicate(&"net_beacon", DotNetVar.Type.BOOL)
 	replicate(&"net_marked", DotNetVar.Type.BOOL)
+	replicate(&"net_flashlight", DotNetVar.Type.BOOL)
 	replicate(&"net_warp", DotNetVar.Type.UINT).bits(4)
 
 
@@ -149,6 +153,7 @@ func pull() -> void:
 	net_blind = player.blinded
 	net_beacon = player.beacon or player.marked
 	net_marked = player.marked and not player.beacon
+	net_flashlight = player.flashlight
 	net_warp = player.warps & 0xF
 
 
@@ -217,3 +222,4 @@ func _adopt() -> void:
 	# rule's are drawn in different colours.
 	player.beacon = net_beacon and not net_marked
 	player.marked = net_marked
+	player.flashlight = net_flashlight

@@ -1,11 +1,17 @@
 extends "hs_game_rotation.gd"
 ## The state and the queries of [HsGame] (a middle layer, split off for size); never used on its own.
 
+const HsFlashlight := preload("hs_flashlight.gd")
+
 ## `sv_falldamage*`: landing hard hurts. On in this game (dot-combat's default is off); the
 ## server applies it through [member combat], a client never does.
 var fall_rules: DotFallDamageRules = make_fall_rules()
 ## The ambience cvars (`hs_ambient*`): bound by the module (REPLICATED), followed by a client through its link.
 var ambient_rules: DotAmbienceRules = HsAmbience.make_rules()
+
+## The flashlight's config and binder, made on first use so a suite that builds a game by hand still has one.
+var flashlight_config: DotFlashlightConfig = null
+var flashlight_binder: DotGameConfigBinder = null
 
 ## Binds [member config] to cvars, the cfg/ yml layers and the workbench; made by the server scene or the client.
 var config_binder: DotGameConfigBinder = null
@@ -309,6 +315,9 @@ func build_map(doc: Dictionary) -> DotResult:
 		return built
 
 	map_doc = map.doc
+
+	for p: HsPlayer in players.values():
+		p.flashlight_ready = false
 
 	if spectate != null:
 		var views: Array[Transform3D] = [map.overview(), map.overview()]

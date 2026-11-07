@@ -11,6 +11,8 @@ const SCOREBOARD := &"hs_scoreboard"
 const USE := &"hs_use"
 ## The spectator's free camera, on and off (`mp_freeroam`). Its flying keys are the movement keys.
 const ROAM := &"hs_roam"
+## The flashlight, on and off, for both sides.
+const FLASHLIGHT := &"hs_flashlight"
 ## dot-ui's chat window's actions, which dot-game's chat client leaves at their defaults.
 const CHAT := &"chat_open"
 const CHAT_TEAM := &"chat_open_team"
@@ -25,6 +27,7 @@ static func make() -> DotMenuBindings:
 	keys.add(&"dot_fps_walk", &"bind_walk", "Walk quietly", "Alt", "Movement")
 	keys.add_wheel_jump("Movement")
 	keys.add(USE, &"bind_use", "Open or shut a door", "E", "General")
+	keys.add(FLASHLIGHT, &"bind_flashlight", "Flashlight", "F", "General")
 	keys.add(TAUNT, &"bind_taunt", "Taunt", "T", "Hiders")
 	keys.add(TAUNT_MENU, &"bind_taunt_menu", "Pick a taunt", "F3", "Hiders")
 	keys.add(CHAT, &"bind_chat", "Chat", "Y", "Communication")

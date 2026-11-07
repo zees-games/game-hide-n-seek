@@ -91,6 +91,10 @@ var beacon: bool = false
 
 var beacon_marker: DotFxBeacon = null
 
+## The flashlight is on (server-owned, replicated); `flashlight_ready` is cleared on a new map so the next tick sets its start state.
+var flashlight: bool = false
+var flashlight_ready: bool = false
+
 ## What other people see this player as. Client side.
 var figure: HsFigure = null
 
@@ -334,5 +338,6 @@ func describe() -> Dictionary:
 		"marked": marked,
 		"blinded": blinded,
 		"beacon": beacon,
+		"flashlight": flashlight,
 		"points": points,
 	}

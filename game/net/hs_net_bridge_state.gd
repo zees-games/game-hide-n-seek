@@ -432,6 +432,11 @@ func ask_roam() -> void:
 	_ask(HsEvents.Ask.ROAM, HsEvents.write_ask_roam())
 
 
+## Switch the flashlight. The server owns on/off and answers in the player's replicated state.
+func ask_flashlight() -> void:
+	_ask(HsEvents.Ask.FLASHLIGHT, PackedByteArray([0]))
+
+
 ## Taunt: [param taunt_id] from the list, or empty for any.
 func ask_taunt(taunt_id: StringName = &"") -> void:
 	_ask(HsEvents.Ask.TAUNT, HsEvents.write_ask_taunt(taunt_id))
