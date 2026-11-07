@@ -121,16 +121,6 @@ func client_tick(tick: int, command: DotFpsCommand) -> void:
 
 
 
-func receive_snapshot(payload: PackedByteArray) -> DotResult:
-	if net == null or net.is_server:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only a client receives these.")
-
-	if rtt_source.is_valid():
-		net.stats.note_rtt(float(rtt_source.call()))
-
-	return net.receive_snapshot(payload)
-
-
 func receive_input(peer_id: int, payload: PackedByteArray) -> DotResult:
 	if net == null or not net.is_server:
 		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only the server takes input.")
@@ -199,20 +189,6 @@ func receive_voice(peer_id: int, payload: PackedByteArray) -> DotResult:
 
 	voice_arrived.emit(payload)
 	return DotResult.success(null)
-
-
-func receive_event(payload: PackedByteArray) -> DotResult:
-	if net == null:
-		return DotResult.fail(DotError.CODE_STATE, "No manager.")
-
-	return net.receive(payload, 1)
-
-
-func receive_request(peer_id: int, payload: PackedByteArray) -> DotResult:
-	if net == null:
-		return DotResult.fail(DotError.CODE_STATE, "No manager.")
-
-	return net.receive(payload, peer_id)
 
 
 ## Somebody who is out asked to look at somebody else; the server's list, the server's rule. A refusal goes back as a notice rather than
