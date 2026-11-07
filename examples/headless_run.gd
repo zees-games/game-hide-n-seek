@@ -6,7 +6,7 @@ extends "headless_run_client.gd"
 
 const SECTIONS := 27
 
-const CHECKS := 160
+const CHECKS := 166
 
 
 func _ready() -> void:
@@ -45,6 +45,7 @@ func _run() -> void:
 	await _test_help_and_menu()
 	await _test_the_map_menu()
 	await _test_wheel_jump()
+	await _test_spectate_tap()
 
 	for world in _worlds.duplicate():
 		await _dispose(world)
