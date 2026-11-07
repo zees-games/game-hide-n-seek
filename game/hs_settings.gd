@@ -1,9 +1,9 @@
-extends DotMenuSettings
+extends DotMenuGameSettings
 
 const HsBindings := preload("hs_bindings.gd")
 
 ## A player's own settings and the menu that changes them: view turn rate and width, volumes, the window, and the look of the menu. Use: `add_child(settings)`, `setup()` (loads, pushes every value), `bind_look/camera/audio`, `open()` (Escape does this in the client).
-## dot-menu's `DotMenuSettings` with this game's schema. The scopes are the family's: `sensitivity` is ACCOUNT, `field_of_view` SERVER_CLAMPED (a wide view is an advantage a server may cap), volumes this machine's.
+## dot-menu's `DotMenuGameSettings` with this game's spec. The scopes are the family's: `sensitivity` is ACCOUNT, `field_of_view` SERVER_CLAMPED (a wide view is an advantage a server may cap), volumes this machine's.
 
 const SCHEMA_VERSION := 1
 
@@ -24,38 +24,24 @@ const NOT_APPLIED: Array[StringName] = [
 
 
 func _init() -> void:
-	name = "Settings"
-	directory = SETTINGS_DIR
-	app_namespace = APP_NAMESPACE
-	schema = schema_for()
-	config = DotMenuConfig.new()
-	config.brand_name = "Hide & Seek"
-	# Help and Leave are dot-menu's stock: H opens help, Leave leaves the server or quits a
-	# solo game. Every game in the family has both (the first play test found this one without
-	# Leave).
-	bindings = HsBindings.make()
-	# The touch Menu button takes the help hint's corner; the top left is the key hints'. By name: older dot-menu has no such property.
-	if &"menu_button_corner" in config:
-		config.set(&"menu_button_corner", &"top_right")
-	var _layered := config.load_layered()
+	super(spec_for())
 
 
-## The document: this game's field of view first, so it keeps its own default, then the
-## stock settings it applies.
-static func schema_for() -> DotSettingsSchema:
-	var s := DotSettingsSchema.new()
-	s.version = SCHEMA_VERSION
-	s.add(DotSettingsDef.integer(&"field_of_view", DEFAULT_FOV, 70, 120, &"video").with_scope(
-		DotSettingsDef.Scope.SERVER_CLAMPED
-	))
-	s.add(DotSettingsDef.boolean(&"ambient", true, &"audio").with_description("Quiet sounds under the map."))
-	s.add(DotSettingsDef.number(&"ambient_volume", 1.0, 0.0, 1.0, &"audio"))
-	return DotMenuStock.declare(s, DotMenuStock.DEFAULT_GROUPS, null, NOT_APPLIED)
-
-
-## The help screen's goal and rules; the keys come from [HsBindings].
-func _fill_help(help: DotMenuHelp) -> void:
-	help.about = "Most players hide; one or two seekers count with their eyes shut, then go looking. A hider who is caught becomes a seeker where they stand. The hiders win if anybody is still hidden when the clock runs out."
-	help.add_text("Hiding", "Find somewhere nobody looks: under, behind, inside. Doors open and shut, some walls are not walls, and crouching gets you into small places. Taunt for points if you are brave; near the end the last hiders give themselves away with a beacon.")
-	help.add_text("Seeking", "Catch a hider by touching them, or, on a server set that way, by keeping them in view. Everybody you catch seeks with you.")
-	help.add_section("Mouse", [["Left", "Watch the next player while out"], ["Right", "Watch the one before"]], &"keys")
+## The game's settings as data: names, field of view, extra settings, keys and the help screen's goal and rules.
+static func spec_for() -> DotMenuGameSpec:
+	var s := DotMenuGameSpec.new()
+	s.schema_version = SCHEMA_VERSION
+	s.brand_name = "Hide & Seek"
+	s.settings_dir = SETTINGS_DIR
+	s.app_namespace = APP_NAMESPACE
+	s.default_fov = DEFAULT_FOV
+	s.ambient_text = "Quiet sounds under the map."
+	s.not_applied = NOT_APPLIED
+	s.bindings_maker = func() -> DotMenuBindings: return HsBindings.make()
+	s.help_about = "Most players hide; one or two seekers count with their eyes shut, then go looking. A hider who is caught becomes a seeker where they stand. The hiders win if anybody is still hidden when the clock runs out."
+	s.help_cards = [
+		["Hiding", "Find somewhere nobody looks: under, behind, inside. Doors open and shut, some walls are not walls, and crouching gets you into small places. Taunt for points if you are brave; near the end the last hiders give themselves away with a beacon."],
+		["Seeking", "Catch a hider by touching them, or, on a server set that way, by keeping them in view. Everybody you catch seeks with you."],
+	]
+	s.help_sections = [["Mouse", [["Left", "Watch the next player while out"], ["Right", "Watch the one before"]], &"keys"]]
+	return s
