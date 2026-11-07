@@ -13,6 +13,7 @@ func _hide(player: HsPlayer, command: DotFpsCommand) -> void:
 		# The survey lands a frame or two after the map; until then, nowhere to go.
 		if (spots.is_empty() and _surveyed != _baked) or now() < float(state.get("retry_at", -INF)):
 			return
+		_leave_sealed_spawn(player)
 		_pick_spot(player, state, PackedVector3Array())
 		if (state["spot"] as Dictionary).is_empty():
 			return
@@ -56,6 +57,26 @@ func _hide(player: HsPlayer, command: DotFpsCommand) -> void:
 		_look(player, command, Vector3(back.x, player.eye_position().y, back.z))
 	elif state["crouch"]:
 		command.set_button(DotFpsCommand.BUTTON_CROUCH, true)
+
+
+## A hider that starts inside a pocket the seekers cannot walk into (a fenced garden with no gate) could only be
+## chased from the other side of the fence for the whole round: it moves to a hiders' spawn they can reach.
+func _leave_sealed_spawn(player: HsPlayer) -> void:
+	var map: Node3D = game.get("map")
+	if map == null or not nav.is_ready():
+		return
+	var start := nav.closest((map.call("spawn", "seekers", 0) as Array)[0])
+	if nav.joined(start, player.controller.state.position):
+		return
+	var count: int = (((map.get("doc") as Dictionary).get("spawns", {}) as Dictionary).get("hiders", []) as Array).size()
+	var first := absi(hash(player.player_id)) % maxi(count, 1)
+	for k in range(count):
+		var i := (first + k) % count
+		var spot: Array = map.call("spawn", "hiders", i)
+		if nav.joined(start, spot[0]):
+			player.place_at(spot[0], spot[1])
+			DotLog.info(CHANNEL, "a hider started in a pocket the seekers cannot reach; moved to a spawn they can", {"player": str(player.player_id), "spawn": i})
+			return
 
 
 ## Remembers where the threat was last seen or heard, and forgets it after a while.
@@ -129,8 +150,8 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 	if state["mode"] == &"fleeing" and not held.is_empty() and not away.is_empty():
 		var held_at: Vector3 = held["at"]
 		var ahead := Vector2(held_at.x - at.x, held_at.z - at.z)
-		var turned := Vector2((away["at"] as Vector3).x - at.x, (away["at"] as Vector3).z - at.z)
-		if ahead.length() > 1.5 and ahead.dot(turned) < 0.0 and threat.distance_to(held_at) > threat.distance_to(at) + FLEE_KEEP:
+		var other := Vector2((away["at"] as Vector3).x - held_at.x, (away["at"] as Vector3).z - held_at.z)
+		if ahead.length() > 1.5 and other.length() > 2.0 and threat.distance_to(held_at) > threat.distance_to(at) + FLEE_KEEP:
 			state["moved_at"] = t
 			return
 	state["spot"] = away
@@ -209,6 +230,25 @@ func _flee_spot_for(player: HsPlayer, state: Dictionary, at: Vector3, threat: Ve
 		else DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN, FLEE_CLEAR) if running \
 		else DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken)
 	if away.is_empty():
-		var dir := Vector3(at.x - threat.x, 0.0, at.z - threat.z).normalized()
-		away = {"at": nav.closest(at + dir * 10.0), "exposure": 1.0}
+		away = {"at": _walkable_away(at, threat, start), "exposure": 1.0}
 	return away
+
+
+## The farthest from the threat of the points a walk away from it can reach: ten metres straight back is the far side of a fence in a walled yard, and walking at it paced a hider against the wall.
+func _walkable_away(at: Vector3, threat: Vector3, start: Vector3) -> Vector3:
+	var base := Vector3(at.x - threat.x, 0.0, at.z - threat.z).normalized()
+	if not nav.is_ready() or base == Vector3.ZERO:
+		return nav.closest(at + base * 10.0)
+	var best := at
+	var best_gap := at.distance_to(threat)
+	for turn in range(-4, 5):
+		var dir := base.rotated(Vector3.UP, deg_to_rad(turn * 22.5))
+		for reach in [10.0, 6.0, 3.0]:
+			var there := nav.closest(at + dir * reach)
+			if not nav.joined(start, there) or nav.path_length(start, there) > reach * 1.6:
+				continue
+			var gap := there.distance_to(threat)
+			if gap > best_gap + 1.0:
+				best_gap = gap
+				best = there
+	return best
