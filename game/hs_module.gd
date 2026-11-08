@@ -151,6 +151,7 @@ func _bind_rule_cvars(world: HsGame) -> void:
 	# sv_falldamage and its tunables: dot-combat's, on by default in this game. Server-side
 	# only, so no REPLICATED: the damage is the server's and arrives as health.
 	var _fall := world.fall_rules.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY)
+	var _stomp := world.stomp.rules.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY)
 
 	# mp_friendlyfire (default off here, as the game builds its rules) and mp_teammate_passthrough.
 	if world.combat != null:
