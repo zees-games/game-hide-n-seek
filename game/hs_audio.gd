@@ -74,7 +74,7 @@ static func sound_catalogue() -> DotAudioCatalogue:
 
 	# The map's toys: dot-props' stock toy sounds (Kenney, CC0, and a horn made for it), shipped
 	# in the addon, each carrying as far as its row says.
-	for row: Dictionary in DotPropToySounds.rows():
+	for row: Dictionary in DotPropBodySounds.rows():
 		var toy := _placed(row["id"], float(row["distance"]), 6.0, 4, 40, float(row["pitch_min"]), float(row["pitch_max"]))
 		toy.path = row["path"]
 		toy.variants = row["variants"]
@@ -105,19 +105,19 @@ static func sound_recipes() -> Dictionary:
 		UI_CLICK: DotAudioSynth.Voice.CLICK,
 		UI_DENY: DotAudioSynth.Voice.DENY,
 		# Stand-ins only for a build without dot-props' toy files.
-		DotPropToySounds.BOUNCE: DotAudioSynth.Voice.IMPACT,
-		DotPropToySounds.THUMP: DotAudioSynth.Voice.IMPACT,
-		DotPropToySounds.KNOCK: DotAudioSynth.Voice.IMPACT,
-		DotPropToySounds.PIN: DotAudioSynth.Voice.CLICK,
-		DotPropToySounds.WOOD: DotAudioSynth.Voice.IMPACT,
-		DotPropToySounds.RUBBER: DotAudioSynth.Voice.IMPACT,
-		DotPropToySounds.PUNCH: DotAudioSynth.Voice.HURT,
-		DotPropToySounds.METAL: DotAudioSynth.Voice.CLICK,
-		DotPropToySounds.BELL: DotAudioSynth.Voice.PICKUP,
-		DotPropToySounds.CLICK: DotAudioSynth.Voice.CLICK,
-		DotPropToySounds.WATER: DotAudioSynth.Voice.STEP,
-		DotPropToySounds.BOING: DotAudioSynth.Voice.SPAWN,
-		DotPropToySounds.HORN: DotAudioSynth.Voice.BLIP,
+		DotPropBodySounds.BOUNCE: DotAudioSynth.Voice.IMPACT,
+		DotPropBodySounds.THUMP: DotAudioSynth.Voice.IMPACT,
+		DotPropBodySounds.KNOCK: DotAudioSynth.Voice.IMPACT,
+		DotPropBodySounds.PIN: DotAudioSynth.Voice.CLICK,
+		DotPropBodySounds.WOOD: DotAudioSynth.Voice.IMPACT,
+		DotPropBodySounds.RUBBER: DotAudioSynth.Voice.IMPACT,
+		DotPropBodySounds.PUNCH: DotAudioSynth.Voice.HURT,
+		DotPropBodySounds.METAL: DotAudioSynth.Voice.CLICK,
+		DotPropBodySounds.BELL: DotAudioSynth.Voice.PICKUP,
+		DotPropBodySounds.CLICK: DotAudioSynth.Voice.CLICK,
+		DotPropBodySounds.WATER: DotAudioSynth.Voice.STEP,
+		DotPropBodySounds.BOING: DotAudioSynth.Voice.SPAWN,
+		DotPropBodySounds.HORN: DotAudioSynth.Voice.BLIP,
 		# Stand-ins only for a build without dot-player-char's files.
 		DotPlayerDeathReactions.SOUND_THUD: DotAudioSynth.Voice.IMPACT,
 		DotPlayerDeathReactions.SOUND_FACE_PLANT: DotAudioSynth.Voice.IMPACT,

@@ -204,9 +204,9 @@ func _test_toys() -> void:
 	_check(lamp.on != was_lit and switch.count == 1, "the switch turns the lamp", "lit %s" % lamp.on)
 
 	await _toys_ride(game, hider)
-	var _off := game.toy_rules.set_cvar(DotPropToyRules.CVAR_ENABLED, "0")
+	var _off := game.toy_rules.set_cvar(DotPropBodyRules.CVAR_ENABLED, "0")
 	_check(not toys.toy(0).visible and toys.toy(0).process_mode == Node.PROCESS_MODE_DISABLED, "sv_toys 0 takes the toys away")
-	var _on := game.toy_rules.set_cvar(DotPropToyRules.CVAR_ENABLED, "1")
+	var _on := game.toy_rules.set_cvar(DotPropBodyRules.CVAR_ENABLED, "1")
 
 	await _end_round(game)
 	var home := toys.toy(1)
