@@ -317,7 +317,7 @@ func _check_toys(game: HsGame, doc: Dictionary) -> void:
 ## What a toy's own shapes, lifted five centimetres off the floor it stands on, are inside of
 ## the map's walls and furniture, or "". Every toy's colliders are left out: a see-saw's plank
 ## lies on its own base.
-func _toy_hits(game: HsGame, toy: DotPropToy, own: Array[RID]) -> String:
+func _toy_hits(game: HsGame, toy: DotPropBody, own: Array[RID]) -> String:
 	var space := game.get_world_3d().direct_space_state
 	for part: CollisionObject3D in [toy.fixed, toy.body]:
 		if part == null:

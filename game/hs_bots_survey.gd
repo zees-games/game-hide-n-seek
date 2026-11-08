@@ -114,8 +114,8 @@ func _bake_map(map: Node3D, doc: Dictionary, key: String) -> void:
 	# a bot never paths across one. The loose toys are not in it; a bot walks through a
 	# ball and pushes it, as anybody does.
 	var toys: Variant = map.get("toys")
-	if toys is DotPropToyBox:
-		still.append_array((toys as DotPropToyBox).nav_bodies())
+	if toys is DotPropBodyBox:
+		still.append_array((toys as DotPropBodyBox).nav_bodies())
 	var baked := nav.bake(map, {"radius": _nav_radius, "height": HsPlayer.BODY_CROUCH, "climb": HsPlayer.BODY_STEP}, 0, still)
 	if not baked.ok:
 		_surveyed = key

@@ -30,7 +30,7 @@ func _is_relevant(observer: DotNetIdentity, entity: DotNetIdentity, _context: Di
 
 	# A toy: not to a seeker while the hiders hide, or a ball rolling away from where a hider
 	# just walked would be that hider on the wire. It is sent as it stands when the seek starts.
-	if entity.get_parent() is DotPropToy:
+	if entity.get_parent() is DotPropBody:
 		return game.team_of(watcher.player_id) != HsGame.SEEKERS
 
 	var seen := entity.get_parent() as HsPlayer

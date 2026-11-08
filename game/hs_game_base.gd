@@ -114,7 +114,7 @@ var ragdoll_rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
 
 ## dot-props' `sv_toys*` (whether a map's toys are there, how many simulate at once, how hard a
 ## walk pushes one). Bound by the module (REPLICATED) and followed by a client, which draws them.
-var toy_rules: DotPropToyRules = DotPropToyRules.new()
+var toy_rules: DotPropBodyRules = DotPropBodyRules.new()
 
 ## What a person weighs on a see-saw, kg.
 const PERSON_MASS := 70.0
