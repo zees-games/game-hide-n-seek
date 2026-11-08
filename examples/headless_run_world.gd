@@ -531,6 +531,9 @@ func _test_progress() -> void:
 	var first := game.progress.session_values(hiders[0].player_id)
 	var second := game.progress.session_values(hiders[1].player_id)
 	_check(mine.get_value(HsProgress.CAUGHT_OTHERS) == 2.0, "the seeker counted two catches")
+	_check(game.progress.feed != null and game.progress.feed.tracker == game.progress.stats
+		and game.progress.feed.actor(seeker.player_id)["key"] != &"",
+		"a catch is wired to the head-to-head feed")
 	_check(first.get_value(HsProgress.FIRST_CAUGHT) == 1.0 and second.get_value(HsProgress.FIRST_CAUGHT) == 0.0,
 		"only the first caught is counted first")
 	_check(second.get_value(HsProgress.SPOTTED) == 1.0 and first.get_value(HsProgress.SPOTTED) == 0.0,
