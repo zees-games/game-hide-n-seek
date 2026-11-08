@@ -539,6 +539,15 @@ func _test_progress() -> void:
 	_check(second.get_value(HsProgress.SPOTTED) == 1.0 and first.get_value(HsProgress.SPOTTED) == 0.0,
 		"and only the one seen was spotted")
 
+	var _held := DotStatsValues.new()
+	_held.values = {String(HsProgress.CAUGHT_OTHERS): 10.0}
+	game.progress.rank.seed_baseline(&"rank-probe", _held)
+	var _life: float = game.progress.rank.publish_lifetime(&"rank-probe", DotStatsValues.new(), game.progress.stats.schema)
+	_check(game.progress.stats.schema.has(HsProgress.RANK_SCORE) and _life == 10.0,
+		"rank_score is declared and ranks on a stored lifetime baseline", "%.1f" % _life)
+	game.progress.rank.forget(&"rank-probe")
+	_check(mine.get_value(HsProgress.RANK_SCORE) == 2.0, "two catches file a rank_score of 2", str(mine.get_value(HsProgress.RANK_SCORE)))
+
 	var declared := HsProgress.ids()
 	var unread: Array = []
 	for achievement in HsProgress.catalogue().achievements:
