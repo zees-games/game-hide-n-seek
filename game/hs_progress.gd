@@ -40,6 +40,8 @@ const REPORT_INTERVAL := 60.0
 
 var _report_timer: Timer
 var stats: DotStatsTracker = null
+## Files catches for the site's head-to-head ("vs") table.
+var feed: DotStatsEventFeed = null
 var achievements: DotAchievementTracker = null
 var link: DotAchievementStatsLink = null
 
@@ -200,6 +202,11 @@ func setup(directory: String, report: bool) -> DotResult:
 	stats.report_to_backbone = report
 	stats.define_on_start = report
 	add_child(stats)
+	feed = DotStatsEventFeed.new(stats)
+	feed.key_of = func(id: Variant) -> StringName: return _key(StringName(str(id)))
+	feed.is_bot = func(id: Variant) -> bool:
+		var body: HsPlayer = players.get(StringName(str(id)))
+		return body != null and body.is_bot
 
 	var counted := stats.start()
 
@@ -392,8 +399,15 @@ func on_caught(player_id: StringName, by: StringName, how: StringName) -> void:
 	if by == &"" or by == player_id or not players.has(by):
 		return
 
+	report_kill(by, player_id, String(how))
 	record(by, CAUGHT_OTHERS)
 	_round_found[by] = int(_round_found.get(by, 0)) + 1
+
+
+## Files a catch for the head-to-head table.
+func report_kill(killer: StringName, victim: StringName, weapon: String = "") -> void:
+	if feed != null:
+		var _ok := feed.report_kill(killer, victim, weapon)
 
 
 func on_fell(player_id: StringName) -> void:
