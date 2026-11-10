@@ -368,6 +368,10 @@ func _physics_process(delta: float) -> void:
 	if net == null or not net.is_running() or bridge == null:
 		return
 
+	# Snapshots read since the last frame are reconciled before the clock moves: the replay runs to the clock's
+	# tick, and after `advance` that is a tick `predict_tick` has yet to simulate, so it was played twice.
+	net.flush_reconcile()
+
 	var ticks := net.clock.advance(delta)
 
 	# The clock has advanced; only the sampling waits, so the mouse does not pile up a turn
