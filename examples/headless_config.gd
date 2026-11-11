@@ -13,8 +13,18 @@ func _ready() -> void:
 	_run.call_deferred()
 
 
-const ROOT := "user://hs_cfgtest"
+## One directory per suite process (the probe child is handed its parent's): user:// is shared by
+## every copy of this project on a box, and two suites at once wrote and deleted each other's cfg files.
+const ROOT_ARG := "--cfgroot="
+var ROOT := _root()
 const GAME := "game-hide-n-seek"
+
+
+func _root() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with(ROOT_ARG):
+			return a.substr(ROOT_ARG.length())
+	return "user://hs_cfgtest_%d" % OS.get_process_id()
 
 
 func _run() -> void:
@@ -40,17 +50,17 @@ func _run() -> void:
 	console.set_cvar("hs_tag_range", "0.6")
 	_check(is_equal_approx(config.tag_range, 0.6) and binder.source_of("tag_range") == "cvar", "a cvar writes the field")
 	_check(binder.diff_yaml().contains("tag_range: 0.6"), "the diff names the edit")
-	var schema_path := "user://hs_config_schema.json"
+	var schema_path := ROOT + "_config_schema.json"
 	_check(binder.write_schema(schema_path).ok and FileAccess.file_exists(schema_path), "write_schema writes the schema")
 	DirAccess.remove_absolute(schema_path)
 
-	var bad := FileAccess.open("user://hs_config_bad.json", FileAccess.WRITE)
+	var bad := FileAccess.open(ROOT + "_config_bad.json", FileAccess.WRITE)
 	bad.store_string('{"no_such_field": 1}')
 	bad.close()
-	var strict := HsConfig.make_binder(HsConfig.new(), "user://hs_config_bad.json")
+	var strict := HsConfig.make_binder(HsConfig.new(), ROOT + "_config_bad.json")
 	strict.strict = true
 	_check(not strict.load_layers().ok, "strict: an unknown key is refused")
-	DirAccess.remove_absolute("user://hs_config_bad.json")
+	DirAccess.remove_absolute(ROOT + "_config_bad.json")
 
 	var fall := HsGame.make_fall_rules()
 	var _made := fall.bind_cvars(console.cvar, DotConVar.FLAG_NOTIFY)
@@ -133,7 +143,7 @@ func _write(rel: String, text: String) -> void:
 func _child() -> String:
 	var out: Array = []
 	OS.execute(OS.get_executable_path(), ["--headless", "--path", ProjectSettings.globalize_path("res://"),
-		"res://examples/headless_config.tscn", "--", "--probe", "--hs-run-speed=7.5", "--hs-tag-range=3.3"], out, true)
+		"res://examples/headless_config.tscn", "--", "--probe", ROOT_ARG + ROOT, "--hs-run-speed=7.5", "--hs-tag-range=3.3"], out, true)
 	return "".join(PackedStringArray(out))
 
 
