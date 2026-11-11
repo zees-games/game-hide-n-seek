@@ -170,9 +170,12 @@ func _client_ragdoll(client: Node, world: HsGame) -> void:
 		for i in 60:
 			await get_tree().physics_frame
 		var down := bodies.size() == 1 and is_instance_valid(bodies[0])
-		_check(down and bodies[0].centre().y < 0.8 and bodies[0].lowest_point() > -0.25,
+		# Relative to the floor under each part: the map's ground slopes and ends in an edge near this spot, so a
+		# limb may hang past it (no floor there) and an absolute height says nothing.
+		var floor_y := _floor_under(bodies[0]) if down else 0.0
+		_check(down and bodies[0].centre().y < floor_y + 0.8 and _sunk_part(bodies[0]) == "",
 			"a second on, the body lies on the floor: not standing, not through it",
-			str(bodies[0].describe()) if down else "gone")
+			(str(bodies[0].describe()) + " floor %.2f centre %s sunk %s" % [floor_y, str(bodies[0].centre()), _sunk_part(bodies[0])]) if down else "gone")
 	else:
 		for k in 3:
 			_check(false, "a stand-in drawn to slay")
@@ -188,6 +191,37 @@ func _client_ragdoll(client: Node, world: HsGame) -> void:
 		"a figure animates by game time (frame_delta), not the wall clock", str(fig._posed_at_usec))
 	fig.queue_free()
 	_check(_death_sounds_listed(), "the death sounds are in the game's catalogue")
+
+
+## The highest floor under the body's parts (a ray down from each part's centre; parts over open air, a limb
+## past an edge, have none). 0.0 when nothing is under the body at all.
+func _floor_under(rag: DotPlayerRagdoll) -> float:
+	var high := -INF
+	for floor_at: Variant in _part_floors(rag).values():
+		high = maxf(high, float(floor_at))
+	return 0.0 if high == -INF else high
+
+
+## The first part whose centre is below the floor directly under it (it went through), or "".
+func _sunk_part(rag: DotPlayerRagdoll) -> String:
+	var floors := _part_floors(rag)
+	for part: Variant in floors:
+		if (part.body as Node3D).global_position.y < float(floors[part]) - 0.05:
+			return str(part.role)
+	return ""
+
+
+## Part -> y of the world surface under its centre, for the parts that have one.
+func _part_floors(rag: DotPlayerRagdoll) -> Dictionary:
+	var space := rag.get_world_3d().direct_space_state
+	var out := {}
+	var parts: Array = rag.get("_parts")
+	for part: Variant in parts:
+		var at: Vector3 = (part.body as Node3D).global_position
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(at + Vector3.UP * 1.5, at + Vector3.DOWN * 3.0))
+		if not hit.is_empty():
+			out[part] = (hit["position"] as Vector3).y
+	return out
 
 
 func _client_death_codec() -> void:
