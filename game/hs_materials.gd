@@ -1,7 +1,7 @@
 extends RefCounted
 
 ## What a map's surfaces are made of: wood, tile, carpet, paint, brick, grass, asphalt, glass. Generated once per process as small tiling textures on a client, never a file: a shipped texture's imported material records the AUTHORED path (the delivery bug's sixth form). Mapped in world space (triplanar), so a box needs no UVs; a map may tint a surface.
-## The building follows game-arena's look: Kenney's light prototype grid (tiles on a floor) under a pastel ([constant PASTELS]), the map's tint paled halfway to white, so coloured furniture reads against pale rooms. Things (glass, water, lockers, lamps) keep their generated look.
+## The building follows game-fatal-contact's look: Kenney's light prototype grid (tiles on a floor) under a pastel ([constant PASTELS]), the map's tint paled halfway to white, so coloured furniture reads against pale rooms. Things (glass, water, lockers, lamps) keep their generated look.
 ## The two textures load by `HsPaths.rebase`, with a fallback to generated. Kenney's Prototype Textures 1.0, CC0; `assets/kenney/prototype/License.txt` is his.
 
 const HsPaths := preload("hs_paths.gd")
@@ -13,7 +13,7 @@ const GRID_PATH := "res://assets/kenney/prototype/grid.png"
 const TILES_PATH := "res://assets/kenney/prototype/tiles.png"
 
 ## How much world one copy of either texture covers: 4 m, so a major line is 2 m and a faint
-## one 0.5 m, as on game-arena's maps.
+## one 0.5 m, as on game-fatal-contact's maps.
 const GRID_METRES := 4.0
 
 ## surface id -> `[pastel, floor]`: the colour of a building surface on the grid, and whether it is a floor (Kenney's tiles) or a wall (the grid). A surface not here keeps its generated pattern.
