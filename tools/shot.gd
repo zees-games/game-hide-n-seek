@@ -108,6 +108,9 @@ func _run() -> void:
 	await _until_a_round(game)
 	await _until_uncovered()
 	var local = _client.get("player")
+	# Waits past the load cover (slow on a cold GPU box) before any timing starts; capped, so a stuck cover cannot hang the shot.
+	if not await DotShotGate.wait_lifted(get_tree(), _client.get("platform")):
+		printerr("shot: load cover still up after the wait; shooting anyway")
 	var seeker := _view in ["seeker", "blind"]
 
 	_assign_sides(game, local, seeker)
