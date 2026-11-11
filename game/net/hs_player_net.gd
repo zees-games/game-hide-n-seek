@@ -110,7 +110,7 @@ func _register_net_vars() -> void:
 
 	# Per-player state rather than an event, so both survive what an event does not: a client joining after the admin typed `beacon`, a lost snapshot, a field re-laid at the top of a round are baselines the next snapshot corrects.
 	# The blind goes to its owner alone, since an opponent receiving it would know the moment somebody could not see.
-	# No relevance change for a beacon, unlike game-arena: every player here is already always relevant (`HsNetBridge`), and setting `always_relevant` back to false would drop the player from every snapshot.
+	# No relevance change for a beacon, unlike game-fatal-contact: every player here is already always relevant (`HsNetBridge`), and setting `always_relevant` back to false would drop the player from every snapshot.
 	var _blind := replicate(&"net_blind", DotNetVar.Type.BOOL).to_owner_only().server_driven()
 	replicate(&"net_beacon", DotNetVar.Type.BOOL).server_driven()
 	replicate(&"net_marked", DotNetVar.Type.BOOL).server_driven()
