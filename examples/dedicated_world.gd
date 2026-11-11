@@ -1,4 +1,5 @@
 extends "dedicated_base.gd"
+const HsTestPorts := preload("test_ports.gd")
 
 const HsAmbience := preload("../game/hs_ambience.gd")
 const HsConfig := preload("../game/hs_config.gd")
