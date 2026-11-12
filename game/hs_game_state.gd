@@ -10,6 +10,7 @@ var fall_rules: DotFallDamageRules = make_fall_rules()
 var stomp: DotStomp = DotStomp.new()
 ## Each player's vertical speed going into this tick's movement, for [method _resolve_stomps].
 var _pre_vy: Dictionary = {}
+var _stomp_hulls: Array = []  # scratch for _resolve_stomps, cleared each call
 ## The ambience cvars (`hs_ambient*`): bound by the module (REPLICATED), followed by a client through its link.
 var ambient_rules: DotAmbienceRules = HsAmbience.make_rules()
 
