@@ -55,7 +55,8 @@ func _process(_delta: float) -> void:
 		return
 	var pc: Dictionary = net.perf_counters()
 	if not _snap_last.is_empty():
-		print("  snaplog snapshots +%d reconciles +%d skipped +%d received_tick %d" % [
-			int(pc[&"snapshots"]) - int(_snap_last[&"snapshots"]), int(pc[&"reconciles"]) - int(_snap_last[&"reconciles"]),
-			int(pc[&"skipped"]) - int(_snap_last[&"skipped"]), net.clock.received_tick()])
+		print("  snaplog snapshots +", int(pc[&"snapshots"]) - int(_snap_last[&"snapshots"]),
+			" reconciles +", int(pc[&"reconciles"]) - int(_snap_last[&"reconciles"]),
+			" skipped +", int(pc[&"skipped"]) - int(_snap_last[&"skipped"]),
+			" received_tick ", net.clock.received_tick())
 	_snap_last = pc

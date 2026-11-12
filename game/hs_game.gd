@@ -500,7 +500,8 @@ func _resolve_stomps() -> void:
 	if not authoritative or not stomp.rules.enabled or combat == null or phase == Phase.IDLE:
 		return
 
-	var hulls: Array = []
+	var hulls := _stomp_hulls
+	hulls.clear()
 
 	for id: StringName in players:
 		var other: HsPlayer = players[id]

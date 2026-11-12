@@ -6,4 +6,3 @@ game/hs_hud.gd::_draw_meter::string_build	1
 game/hs_hud.gd::_key::string_build	1
 game/hs_hud.gd::_process::string_build	1
 game/hs_hud.gd::present_blind::string_build	1
-tools/load_probe.gd::_process::string_build	2
