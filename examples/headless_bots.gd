@@ -5,7 +5,7 @@ const HsGame := preload("../game/hs_game.gd")
 const HsPlayer := preload("../game/hs_player.gd")
 
 ## Stand-ins play whole rounds against each other on the real maps, and the suite holds how they hide and seek to bands: how long a hider lasts, the share of rounds the hiders win (20-60% at medium; a seeker that finds nobody is as broken as a hider found at once), doors shut, hiders spread out, seekers catching, nobody stuck at a door.
-## Twenty-four rounds by default, about 25 minutes on dev02, `game.sh` gives it 2400 s (a band on six rounds was a band on noise). Flags: `-- --rounds N`, `-- --first N`, `-- --difficulty hard`; env: `HS_BOTS_PROBE`, `HS_BOTS_MAPS=a,b`, `HS_BOTS_TRACE`, `HS_BOTS_FOLLOW=u903`, `HS_BOTS_EVERY`, `HS_CAUGHT_FROM`, `HS_BEACON_LEFT`, `HS_BEACON_SECONDS`.
+## Twenty-four rounds by default, about 25 minutes on dev02, `game.sh` gives it 2400 s (a band on six rounds was a band on noise). Flags: `-- --rounds N`, `-- --maps a,b` (as `HS_BOTS_MAPS`), `-- --first N`, `-- --difficulty hard`; env: `HS_BOTS_PROBE`, `HS_BOTS_MAPS=a,b`, `HS_BOTS_TRACE`, `HS_BOTS_FOLLOW=u903`, `HS_BOTS_EVERY`, `HS_CAUGHT_FROM`, `HS_BEACON_LEFT`, `HS_BEACON_SECONDS`.
 ## Without `maps/` linked it plays the practice house.
 
 ## Maps the rounds rotate through, when `maps/` is there.
@@ -78,6 +78,9 @@ func _run() -> void:
 	var at := args.find("--rounds")
 	if at >= 0 and at + 1 < args.size():
 		rounds = maxi(1, int(args[at + 1]))
+	at = args.find("--maps")
+	if at >= 0 and at + 1 < args.size():
+		MAPS = Array(args[at + 1].split(",", false))
 	var difficulty := "medium"
 	at = args.find("--difficulty")
 	if at >= 0 and at + 1 < args.size():
