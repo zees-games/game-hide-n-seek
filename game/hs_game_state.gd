@@ -394,11 +394,27 @@ func rounds_left_on_map() -> int:
 func hide_limit() -> float:
 	var asked := float(map_doc.get("hide_seconds", 0.0))
 	return minf(asked, config.hide_seconds) if asked > 0.0 else config.hide_seconds
+## Per-map balance the map file does not carry (a map pack's own value wins). sunken_resort is three
+## levels of glass corridors and labs: one seeker found nobody in 240 s (hiders won 12 of 12 rounds).
+const MAP_TUNING := {
+	&"sunken_resort": {"players_per_seeker": 3.0},
+}
+
+
+## What the map asks for under [param key]: its file's value, else [constant MAP_TUNING]'s, else 0.
+func _map_ask(key: String) -> float:
+	var own := float(map_doc.get(key, 0.0))
+	if own > 0.0:
+		return own
+	var tuned: Dictionary = MAP_TUNING.get(StringName(str(map_doc.get("id", ""))), {})
+	return float(tuned.get(key, 0.0))
+
+
 ## How many seekers a round of [param players] starts with: the server's rule, or the map's
 ## `players_per_seeker` when it asks for more (a three-storey building is more than one seeker
 ## clears in a round); a map can only ask for more seekers than the rule gives, never fewer.
 func seekers_for(players: int) -> int:
-	var asked := float(map_doc.get("players_per_seeker", 0.0))
+	var asked := _map_ask("players_per_seeker")
 	if asked > 0.0 and asked < config.players_per_seeker:
 		return DotTeamRotation.count_for(players, asked, config.min_seekers, config.max_seekers)
 	return config.seekers_for(players)
@@ -406,7 +422,7 @@ func seekers_for(players: int) -> int:
 
 ## How long the seekers get to seek: the map's, under the server's ceiling.
 func round_limit() -> float:
-	var asked := float(map_doc.get("round_seconds", 0.0))
+	var asked := _map_ask("round_seconds")
 	return minf(asked, config.round_seconds) if asked > 0.0 else config.round_seconds
 
 
