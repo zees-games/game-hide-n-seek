@@ -6,7 +6,7 @@
 # map_ids: []
 # Whether the next map is drawn at random (seeded) rather than taken in order.
 # shuffle_maps: true
-# Rounds played on a map before the next one, unless the players vote first. [1..50]
+# Rounds played on a map before the next one, unless the players vote first. [1..]
 # rounds_per_map: 4
 # Where map documents are read from, relative to this game's root.
 # map_directory: "maps"
@@ -16,5 +16,5 @@
 # seed_value: 20261010
 
 # --- Bots
-# How many players the server keeps in the round by adding stand-ins. [0..255]
+# How many players the server keeps in the round by adding stand-ins. [0..]
 # minimum_players: 5

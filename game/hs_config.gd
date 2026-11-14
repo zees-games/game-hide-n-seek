@@ -51,8 +51,8 @@ enum Pick {
 ## One seeker for every this many players, rounded up, at least [member min_seekers] and at most [member max_seekers], never everybody.
 ## Few by design: a round starts with one or two seekers and grows them from the hiders they catch.
 @export_range(1.0, 64.0, 0.5) var players_per_seeker: float = 8.0
-@export_range(1, 255, 1) var min_seekers: int = 1
-@export_range(1, 255, 1) var max_seekers: int = 3
+@export_range(1, 255, 1, "or_greater") var min_seekers: int = 1
+@export_range(1, 255, 1, "or_greater") var max_seekers: int = 3
 
 ## How the first seekers are chosen each round: [enum Pick].
 @export_enum("random", "queue", "swap", "first caught") var seeker_pick: int = Pick.FIRST_CAUGHT
@@ -130,7 +130,7 @@ const CAUGHT_SEEK_START := 1
 @export_group("The beacon")
 
 ## Every hider still hidden is beaconed once this few are left. 0 never.
-@export_range(0, 32, 1) var beacon_hiders_left: int = 1
+@export_range(0, 32, 1, "or_greater") var beacon_hiders_left: int = 1
 
 ## Every hider still hidden is beaconed once this few seconds are left. 0 never, the default: at 30 the bots' hiders won 6 rounds in 24 instead of 10, because every seeker then walks to every hider.
 ## The last hider's beacon ([member beacon_hiders_left]) ends a round nobody can find anybody in.
@@ -185,7 +185,7 @@ const CAUGHT_SEEK_START := 1
 @export var shuffle_maps: bool = true
 
 ## Rounds played on a map before the next one, unless the players vote first.
-@export_range(1, 50, 1) var rounds_per_map: int = 4
+@export_range(1, 50, 1, "or_greater") var rounds_per_map: int = 4
 
 ## Where map documents are read from, relative to this game's root.
 @export var map_directory: String = "maps"
@@ -201,7 +201,7 @@ const CAUGHT_SEEK_START := 1
 @export_group("Bots")
 
 ## How many players the server keeps in the round by adding stand-ins.
-@export_range(0, 255, 1) var minimum_players: int = 5
+@export_range(0, 255, 1, "or_greater") var minimum_players: int = 5
 
 # How far a stand-in sees and hears, how fast it turns and notices, and how well it knows a
 # map are dot-bot's `bot_*` settings, shared by every game (`bot_difficulty`, `bot_sight`,
