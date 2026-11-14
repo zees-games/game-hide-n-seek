@@ -14,6 +14,20 @@
 # map_rotation_file: "cfg/maps.yml"
 # Seed every random choice is drawn from: the map, the seekers, the bots.
 # seed_value: 20261010
+# The most boxes a map document may hold; a map past it is refused with the count. 0 = no limit. [0..]
+# max_map_boxes: 0
+# The most props a map document may hold. 0 = no limit. [0..]
+# max_map_props: 0
+# The most lights a map document may hold. 0 = no limit; what they cost to draw is the map's choice. [0..]
+# max_map_lights: 0
+# Past this many lights a map is still played, with a warning in the log. 0 = no warning. [0..]
+# map_lights_warn: 128
+# The most spawns a map document may give each side. 0 = no limit. [0..]
+# max_map_spawns: 0
+# The most doors a map document may hold. 0 = no limit. [0..]
+# max_map_doors: 0
+# The most toys (balls, trampolines, switches) a map document may hold. 0 = no limit. [0..]
+# max_map_toys: 0
 
 # --- Bots
 # How many players the server keeps in the round by adding stand-ins. [0..]

@@ -51,6 +51,8 @@ func _ready() -> void:
 	_build_taunts()
 
 	if authoritative:
+		# Before any document is read: the server's limits on one (`max_map_*`, 0 = none).
+		HsMapDoc.apply_limits(config)
 		catalogue = HsCatalogue.new()
 		var _loaded := catalogue.load_from(config.map_directory)
 		# Solo in the client shell: the map packs it mounted for this game, which a server

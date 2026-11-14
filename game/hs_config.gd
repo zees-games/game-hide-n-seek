@@ -197,6 +197,27 @@ const CAUGHT_SEEK_START := 1
 ## Seed every random choice is drawn from: the map, the seekers, the bots.
 @export var seed_value: int = 20261010
 
+## The most boxes a map document may hold; a map past it is refused with the count. 0 = no limit.
+@export_range(0, 100000, 1, "or_greater") var max_map_boxes: int = 0
+
+## The most props a map document may hold. 0 = no limit.
+@export_range(0, 100000, 1, "or_greater") var max_map_props: int = 0
+
+## The most lights a map document may hold. 0 = no limit; what they cost to draw is the map's choice.
+@export_range(0, 100000, 1, "or_greater") var max_map_lights: int = 0
+
+## Past this many lights a map is still played, with a warning in the log. 0 = no warning.
+@export_range(0, 100000, 1, "or_greater") var map_lights_warn: int = 128
+
+## The most spawns a map document may give each side. 0 = no limit.
+@export_range(0, 100000, 1, "or_greater") var max_map_spawns: int = 0
+
+## The most doors a map document may hold. 0 = no limit.
+@export_range(0, 100000, 1, "or_greater") var max_map_doors: int = 0
+
+## The most toys (balls, trampolines, switches) a map document may hold. 0 = no limit.
+@export_range(0, 100000, 1, "or_greater") var max_map_toys: int = 0
+
 
 @export_group("Bots")
 

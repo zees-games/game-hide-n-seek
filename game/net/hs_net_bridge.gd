@@ -257,15 +257,18 @@ func _on_world_rebuilt() -> void:
 
 	var encoded := HsMapDoc.encode(game.map.doc)
 
-	if encoded.size() > HsMapDoc.WIRE_LIMIT:
-		# Sent anyway: a client on a native transport will take it, and the line says why a
-		# browser does not. A WebSocket message past its outbound buffer is never delivered.
-		DotLog.warn(CHANNEL, "a map is larger than a browser can be sent in one message", {
-			"map": String(game.map.id()), "bytes": encoded.size(), "limit": HsMapDoc.WIRE_LIMIT,
+	# A map larger than one message goes in pieces: a WebSocket message past its outbound
+	# buffer is never delivered, so no message is let near it, whatever the map's size.
+	_map_messages = HsEvents.write_map_parts(encoded, HsMapDoc.PART_BYTES)
+
+	if _map_messages.size() > 1:
+		DotLog.info(CHANNEL, "a large map goes in pieces", {
+			"map": String(game.map.id()), "bytes": encoded.size(), "pieces": _map_messages.size(),
 		})
 
-	_map_body = HsEvents.write_map(encoded)
-	_broadcast(HsEvents.Kind.MAP, _map_body)
+	for message in _map_messages:
+		_broadcast(message[0], message[1])
+
 	_register_toys()
 
 
@@ -367,8 +370,7 @@ func _admit(peer_id: int) -> void:
 		profile_link.peer_joined(peer_id)
 
 	# The map, before anything that stands on it.
-	if not _map_body.is_empty():
-		_tell(peer_id, HsEvents.Kind.MAP, _map_body)
+	_send_map(peer_id)
 
 	if not _toys_body.is_empty():
 		_tell(peer_id, HsEvents.Kind.TOYS, _toys_body)
@@ -422,6 +424,8 @@ func _on_event(message: DotNetMessage) -> void:
 			_apply_hello(reader)
 		HsEvents.Kind.MAP:
 			_apply_map(reader)
+		HsEvents.Kind.MAP_PART:
+			_apply_map_part(reader)
 		HsEvents.Kind.TOYS:
 			_apply_toys(reader)
 		HsEvents.Kind.JOIN:

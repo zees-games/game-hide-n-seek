@@ -1,6 +1,8 @@
 extends "hs_module_base.gd"
 ## The commands, the chat wiring, the map vote and the tunable cvars of [HsModule] (a middle layer, split off for size); never loaded on its own.
 
+const HsMapDoc := preload("hs_map_doc.gd")
+
 
 ## The maps the SERVER names for this game (the deployment's map config), fetched and added to
 ## the catalogue; returns how many documents they held. Server-only: clients get the map in MAP.
@@ -333,6 +335,7 @@ func _cmd_reload(ctx: DotCmdContext) -> void:
 		ctx.reply("No world.")
 		return
 
+	HsMapDoc.apply_limits(world.config)
 	var loaded := world.catalogue.load_from(world.config.map_directory)
 	loaded += await _add_delivered_maps(world)
 	world.apply_rotation()

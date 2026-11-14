@@ -5,7 +5,7 @@ extends "headless_net_base.gd"
 ## Sections and checks are both counted.
 
 const SECTIONS := 17
-const CHECKS := 92
+const CHECKS := 93
 
 var _sections_entered := 0
 var _sections_finished := 0
@@ -100,6 +100,26 @@ func _test_the_codec() -> void:
 	var carried := HsEvents.read_map(incoming.reader())
 	_check(bool(carried["ok"]) and (carried["encoded"] as PackedByteArray).size() == HsEvents.MAP_BYTES,
 		"a MAP as large as a reader accepts fits in an event", "%d of %d bytes" % [(carried["encoded"] as PackedByteArray).size(), HsEvents.MAP_BYTES])
+
+	# A map has no size limit: past one message it goes in MAP_PARTs, each one an event, joined whole.
+	var large := PackedByteArray()
+	large.resize(HsMapDoc.PART_BYTES * 3 + 5)
+	for i in large.size():
+		large[i] = (i * 31 + 7) & 0xff
+	var parts := HsEvents.write_map_parts(large, HsMapDoc.PART_BYTES)
+	var joined := PackedByteArray()
+	var parts_ok := parts.size() == 4
+	for part in parts:
+		var sent_part := HsEvent.new(part[0], part[1])
+		var part_wire := DotNetWriter.new()
+		sent_part._write(part_wire)
+		var got_part := HsEvent.new()
+		got_part._read(DotNetReader.new(part_wire.to_bytes()))
+		var piece := HsEvents.read_map_part(got_part.reader())
+		parts_ok = parts_ok and got_part.kind == HsEvents.Kind.MAP_PART and bool(piece["ok"]) and int(piece["total"]) == large.size()
+		joined.append_array(piece["chunk"])
+	_check(parts_ok and joined == large and HsEvents.write_map_parts(PackedByteArray([1, 2]), HsMapDoc.PART_BYTES)[0][0] == HsEvents.Kind.MAP,
+		"a map past one message goes in MAP_PARTs that join whole; a small one is one MAP", "%d parts, %d of %d bytes" % [parts.size(), joined.size(), large.size()])
 
 	_check(HsEvent.fits(), "every event kind fits the event's kind field",
 		"%d kinds in %d bits" % [HsEvents.Kind.size(), HsEvent.KIND_BITS])
@@ -424,13 +444,16 @@ func _test_a_client_without_the_map() -> void:
 		"and reads every snapshot to its end, a player seated after them included", "%s, %d of %d snapshots applied" % [
 			"no copy" if copy == null else "%.2f m apart" % copy.global_position.distance_to(third.global_position), applied[0], received])
 
-	# The MAP arrives late: the same mirrors are handed the toys, nothing registered again.
-	_server_bridge._tell(CLIENT_PEER, HsEvents.Kind.MAP, _server_bridge.get("_map_body"))
+	# The MAP arrives late, and in pieces (a map larger than one message goes as MAP_PARTs; a
+	# small piece size makes this one several): the same mirrors are handed the toys, nothing registered again.
+	var pieces := HsEvents.write_map_parts(HsMapDoc.encode(_server_game.map.doc), 512)
+	for piece in pieces:
+		_server_bridge._tell(CLIENT_PEER, piece[0], piece[1])
 	await _steps(6)
 	var still := ids.filter(func(id: int) -> bool: return _client_net.registry.has(id)).size()
 	_check(_client_game.map.id() == &"practice_again" and _client_bridge.toy_count() == 5 and still == ids.size()
 		and _client_bridge.toy_entities() == ids.size(),
-		"when the map comes, the same mirrors are paired with its toys", "%s, %d paired" % [_client_game.map.id(), _client_bridge.toy_count()])
+		"when the map comes in %d pieces, the same mirrors are paired with its toys" % pieces.size(), "%s, %d paired" % [_client_game.map.id(), _client_bridge.toy_count()])
 
 	var ball := _server_game.map.toys.toy(0)
 	var mirror := _client_game.map.toys.toy(0)

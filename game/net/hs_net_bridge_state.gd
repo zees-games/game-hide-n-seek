@@ -116,11 +116,19 @@ var _in_server_tick := false
 var _unregistered_in_tick: Array[int] = []
 var _client_ticked_for: int = -1
 
-## The map the clients were last sent, so a late joiner is sent the same bytes.
-var _map_body: PackedByteArray = PackedByteArray()
+## The map the clients were last sent, as `[kind, body]` messages (one MAP, or MAP_PARTs in
+## order), so a late joiner is sent the same bytes.
+var _map_messages: Array = []
+
+## A client's map so far while it arrives in MAP_PARTs: the next index it expects, how many,
+## the whole size, and the bytes joined.
+var _map_next: int = 0
+var _map_count: int = 0
+var _map_total: int = 0
+var _map_joined: PackedByteArray = PackedByteArray()
 
 ## The map's toys on the wire, one behaviour per toy in toy order, and the TOYS event that
-## names their net ids (kept for a joiner, as [member _map_body] is).
+## names their net ids (kept for a joiner, as [member _map_messages] is).
 var _toy_nets: Array = []
 var _toys_body: PackedByteArray = PackedByteArray()
 
@@ -464,7 +472,61 @@ func _apply_map(reader: DotNetReader) -> void:
 	if not bool(told["ok"]) or game == null:
 		return
 
-	var decoded := HsMapDoc.decode(told["encoded"])
+	_map_next = 0
+	_build_map_bytes(told["encoded"])
+
+
+## The last map sent, to one peer, in the messages everybody had.
+func _send_map(peer_id: int) -> void:
+	for message in _map_messages:
+		_tell(peer_id, message[0], message[1])
+
+
+## One piece of a large map. Index 0 starts it over; a piece out of order, or a whole that
+## does not add up, drops the map with a line rather than building half of one.
+func _apply_map_part(reader: DotNetReader) -> void:
+	var told := HsEvents.read_map_part(reader)
+
+	if not bool(told["ok"]) or game == null:
+		return
+
+	var index := int(told["index"])
+
+	if index == 0:
+		_map_next = 0
+		_map_count = int(told["count"])
+		_map_total = int(told["total"])
+		_map_joined = PackedByteArray()
+
+	if index != _map_next or int(told["count"]) != _map_count or int(told["total"]) != _map_total:
+		DotLog.warn(CHANNEL, "a map piece arrived out of order; the map is dropped", {
+			"index": index, "expected": _map_next, "count": told["count"],
+		})
+		_map_next = -1
+		return
+
+	_map_joined.append_array(told["chunk"])
+	_map_next += 1
+
+	if _map_next < _map_count:
+		return
+
+	_map_next = 0
+
+	if _map_joined.size() != _map_total:
+		DotLog.warn(CHANNEL, "a map's pieces do not add up; the map is dropped", {
+			"bytes": _map_joined.size(), "expected": _map_total,
+		})
+		return
+
+	var whole := _map_joined
+	_map_joined = PackedByteArray()
+	_build_map_bytes(whole)
+
+
+## A whole map's bytes, decoded and built.
+func _build_map_bytes(encoded: PackedByteArray) -> void:
+	var decoded := HsMapDoc.decode(encoded)
 
 	if not decoded.ok:
 		DotLog.warn(CHANNEL, "the server sent a map this build cannot build", {

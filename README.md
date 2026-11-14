@@ -136,6 +136,8 @@ The map's toys follow `sv_toys` (0 removes them), `sv_toys_awake` (how many may 
 
 Somebody slain by an administrator, or killed by a fall, drops as a ragdoll ([dot-player-char](https://github.com/modcommunity/dot-player-char)). `sv_ragdoll 0` makes it a quick fall; `sv_ragdoll_style` picks ragdoll, stiff, topple or hide; `sv_ragdoll_time` and `sv_ragdoll_max` say how long and how many; `sv_ragdoll_reactions` weights the falls.
 
+A map document has no size limit. A map larger than one message (60,000 bytes deflated) is sent in pieces, so a browser client gets it too. A server can still set limits with `--hs-max-map-boxes`, `-props`, `-lights`, `-spawns`, `-doors` and `-toys` (default 0, no limit). A document over a limit is refused with its count, never cut down. `--hs-map-lights-warn` (default 128, 0 for none) logs a warning past that many lights; the cost of a light stays the map author's choice.
+
 `--hs-map-ids=<ids>` limits a server to some maps. Any other setting in `game/hs_config.gd` can be given the same way (`--hs-sprint-scale=1.5`, `--hs-taunt-range=80`). Taunts are listed in `taunts/taunts.json`; edit it to add your own sounds. The vote's settings go in `user://cfg/hideseek_vote.json` (`{"enabled": false}` turns it off); dot-vote's README lists them.
 
 ### Console commands
@@ -168,7 +170,7 @@ A map is a JSON file: the building as boxes, the furniture as props, the doors, 
 | Suite | What it covers |
 | --- | --- |
 | `headless_run` | The game itself: draw, hide, tagging, being watched, taunts, falls, beacon, doors, toys, ragdolls, bots |
-| `headless_maps` | Every map: fits on the wire, clear spawns, props stand on something, doors swing clear, toys stay put |
+| `headless_maps` | Every map: encodes for the wire, no hard document limit, clear spawns, props stand on something, doors swing clear, toys stay put |
 | `headless_climb` | Standing on a branch, seeing under a table, climbing stairways, crawling through a play tube |
 | `headless_bots` | Bots play whole rounds against each other |
 | `headless_net` | A server and a client in one process: blindfold, door, catch, sight meter, taunts, toys |
