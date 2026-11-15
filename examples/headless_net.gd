@@ -88,7 +88,21 @@ func _test_the_codec() -> void:
 		and absf(float(clock["seek_elapsed"]) - 40.25) < 0.1 and int(clock["hiders"]) == 3
 		and int(clock["seekers"]) == 1, "CLOCK", str(clock))
 
+	_codec_map_sizes()
+
 	# A kind goes out in a fixed field the writer masks without a word, so one past it aliases a smaller kind.
+	_check(HsEvent.fits(), "every event kind fits the event's kind field",
+		"%d kinds in %d bits" % [HsEvents.Kind.size(), HsEvent.KIND_BITS])
+	_check(HsRequest.fits(), "every request kind fits the request's kind field",
+		"%d kinds in %d bits" % [HsEvents.Ask.size(), HsRequest.KIND_BITS])
+	_check(HsEvents.chat_kinds_fit(), "every chat kind fits the chat line's kind field",
+		"%d kinds in %d bits" % [DotChatMessage.KIND_NAMES.size(), HsEvents.CHAT_KIND_BITS])
+
+	_finished()
+
+
+## MAP and MAP_PART round trips at the size limits: the largest MAP fits one event, a larger map splits and joins whole.
+func _codec_map_sizes() -> void:
 	# The largest MAP a reader accepts must survive the event's own body cap: at 4096 a 4100-byte map was read back as no bytes, silently.
 	var biggest := PackedByteArray()
 	biggest.resize(HsEvents.MAP_BYTES)
@@ -120,15 +134,6 @@ func _test_the_codec() -> void:
 		joined.append_array(piece["chunk"])
 	_check(parts_ok and joined == large and HsEvents.write_map_parts(PackedByteArray([1, 2]), HsMapDoc.PART_BYTES)[0][0] == HsEvents.Kind.MAP,
 		"a map past one message goes in MAP_PARTs that join whole; a small one is one MAP", "%d parts, %d of %d bytes" % [parts.size(), joined.size(), large.size()])
-
-	_check(HsEvent.fits(), "every event kind fits the event's kind field",
-		"%d kinds in %d bits" % [HsEvents.Kind.size(), HsEvent.KIND_BITS])
-	_check(HsRequest.fits(), "every request kind fits the request's kind field",
-		"%d kinds in %d bits" % [HsEvents.Ask.size(), HsRequest.KIND_BITS])
-	_check(HsEvents.chat_kinds_fit(), "every chat kind fits the chat line's kind field",
-		"%d kinds in %d bits" % [DotChatMessage.KIND_NAMES.size(), HsEvents.CHAT_KIND_BITS])
-
-	_finished()
 
 
 

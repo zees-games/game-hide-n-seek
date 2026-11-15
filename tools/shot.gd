@@ -127,13 +127,7 @@ func _run() -> void:
 
 	match _view:
 		"overview":
-			await _frames(6)
-			# A map of two thousand boxes is still under the loading cover after six frames.
-			await _seconds_of(_seconds)
-			var box: AABB = game.map.bounds()
-			var centre := box.get_center()
-			var reach := maxf(box.size.length() * 0.42, 14.0)
-			_free_camera().look_at_from_position(centre + Vector3(reach * 0.45, reach * 0.6, reach * 0.55), centre)
+			await _view_overview(game)
 		"room":
 			if _place != Vector3.INF:
 				game._set_phase(HsGame.Phase.SEEK)
@@ -185,6 +179,17 @@ func _run() -> void:
 	var saved := _save_png(path)
 	await DotShotSeq.new().record(get_tree(), path)
 	get_tree().quit(0 if saved == OK else 1)
+
+
+# The whole map from above and to one side, far enough back to frame its bounds.
+func _view_overview(game: HsGame) -> void:
+	await _frames(6)
+	# A map of two thousand boxes is still under the loading cover after six frames.
+	await _seconds_of(_seconds)
+	var box: AABB = game.map.bounds()
+	var centre := box.get_center()
+	var reach := maxf(box.size.length() * 0.42, 14.0)
+	_free_camera().look_at_from_position(centre + Vector3(reach * 0.45, reach * 0.6, reach * 0.55), centre)
 
 
 func _view_door(game: HsGame, local: HsPlayer) -> void:
