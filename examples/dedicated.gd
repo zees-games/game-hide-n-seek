@@ -178,9 +178,11 @@ func _test_the_commands() -> void:
 	var _set := _run_command("hs_round_seconds 45")
 	_check(is_equal_approx(game.config.round_seconds, 45.0), "and setting it writes through to the world",
 		"%.1f" % game.config.round_seconds)
+	# A cvar refuses a value under its range rather than clamping it, so the field keeps what it had.
+	var seekers_before: int = game.config.max_seekers
 	var _back := _run_command("hs_max_seekers 0")
-	_check(game.config.max_seekers == 1, "a round with no seeker is not one: it is taken as one",
-		"%d" % game.config.max_seekers)
+	_check(game.config.max_seekers == seekers_before, "a round with no seeker is not one: hs_max_seekers 0 is refused",
+		"%d, was %d" % [game.config.max_seekers, seekers_before])
 	_finished()
 
 
