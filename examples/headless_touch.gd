@@ -4,10 +4,7 @@ const HsBindings := preload("../game/hs_bindings.gd")
 const HsTouch := preload("../game/hs_touch.gd")
 
 ## The touch layout: every button presses an action the bindings or the controller define, no two overlap, a finger on a button is not a look drag, and it exists only where there is touch.
-##
-## [codeblock]
-## godot --headless --path . res://examples/headless_touch.tscn
-## [/codeblock]
+## Run: [code]godot --headless --path . res://examples/headless_touch.tscn[/code].
 
 const SECTIONS := 4
 const EXPECTED_CHECKS := 19

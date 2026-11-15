@@ -15,16 +15,12 @@ const KIND := "hideseek_map"
 
 const CHANNEL := "hs.map"
 
-## The most one MAP message carries, compressed. A WebSocket's outbound buffer is sixty-four
-## kilobytes and a message past it is never sent (mg-look-at-me's finding), so a larger map goes
-## as MAP_PART messages of at most this many bytes each (the bridge's `_map_messages`). Not a
-## limit on a map: a document of any size is sent.
+## The most one MAP message carries, compressed. A WebSocket's outbound buffer is sixty-four kilobytes and a message past it is never sent (mg-look-at-me's finding), so a larger map goes
+## as MAP_PART messages of at most this many bytes each (the bridge's `_map_messages`). Not a limit on a map: a document of any size is sent.
 const PART_BYTES := 60000
 
-## How many of each thing a document may hold, 0 for no limit (the default for every one).
-## Settings, not constants: `HsConfig.max_map_*` (`max_map_boxes` ... in config_maps/game.yml), applied by
-## [method apply_limits] when the game starts. A document over a set limit is refused with the
-## count, never cut down. What a big map costs to draw and send is its author's choice.
+## How many of each thing a document may hold, 0 for no limit (the default for every one). Settings, not constants: `HsConfig.max_map_*` (`max_map_boxes` ... in config_maps/game.yml), applied by
+## [method apply_limits] when the game starts. A document over a set limit is refused with the count, never cut down. What a big map costs to draw and send is its author's choice.
 static var max_boxes: int = 0
 static var max_props: int = 0
 static var max_lights: int = 0
