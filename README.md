@@ -1,6 +1,6 @@
 # Hide and Seek
 
-A multiplayer hide and seek game for [Godot 4](https://godotengine.org/), built on the [Dot collection](https://moddingcommunity.com/co/4-dot-assets) and [TMC's gaming platform](https://moddingcommunity.com/play).
+A multiplayer hide and seek game for [Godot 4](https://godotengine.org/), built on the [Gamespice](https://gamespice.net) platform and addon collection.
 
 Most players are **hiders**: their own TMC avatars in a blue shirt. They get a little while to find a spot nobody will look. One or more **seekers** (orange) count with a black screen while everybody hides, then go looking. A seeker catches a hider by touching them, and every caught hider becomes a seeker too, so the hunt grows as the round goes on.
 
@@ -63,7 +63,7 @@ There is a small practice house built in, plus the maps from [hide-n-seek-maps](
 
 ## Getting started
 
-You need [Godot 4.7](https://godotengine.org/download). The game is built from many Dot addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons in:
+You need [Godot 4.7](https://godotengine.org/download). The game is built from many Gamespice addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons in:
 
 ```bash
 git clone https://github.com/gamespice-platform/bootstrap.git
