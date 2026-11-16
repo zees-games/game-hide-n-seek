@@ -5,7 +5,7 @@ const HsMapConfig := preload("../game/hs_map_config.gd")
 ## A map's file sets the round's cvars and the next map puts them back; the client's two keys do the same on a plain config.
 ## Writes a file into the operator tier for the run and removes it; the cvars start away from the file's values.
 
-const CHECKS := 9
+const CHECKS := 10
 const DIR := "res://cfg/server/game/game-hide-n-seek/dot_map/map"
 
 
@@ -34,6 +34,7 @@ func _run() -> void:
 	console.cvar("sv_evil", "0", "", DotConVar.FLAG_ARCHIVE)
 	var cfg := DotGameMapConfig.for_console(HsMapConfig.GAME_ID, console, HsMapConfig.KEYS)
 
+	_check(not HsMapConfig.KEYS["hs_round_seconds"].has("max") and HsMapConfig.KEYS["hs_catch_mode"]["max"] == 2, "only the domain limits keep a max")
 	var got := cfg.apply("hs_cfgtest_a")
 	_check(got.size() == 3, "a matching map applies its three whitelisted keys (%s)" % [got])
 	_check(console.find_cvar("hs_round_seconds").get_float() == 90.0, "hs_round_seconds is 90 on the map")
