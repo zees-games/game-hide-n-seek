@@ -5,7 +5,7 @@ extends DotGameCheckSuite
 
 const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
-const CHECKS := 34
+const CHECKS := 35
 
 
 func _ready() -> void:
@@ -162,8 +162,8 @@ func _layers() -> void:
 	OS.unset_environment("HS_SIGHT_SECONDS")
 	_write("game/%s/config_round/game.yml" % GAME, "sight_seconds: 2.5\n")
 	_check(_child().contains("PROBE ok=false"), "strict: a key in the wrong file is refused")
-	for f in ["config_round", "config_catching"]:
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(ROOT.path_join("game/%s/%s/game.yml" % [GAME, f])))
+	var removed := DotPaths.remove_tree(ProjectSettings.globalize_path(ROOT))
+	_check(removed.ok and not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(ROOT)), "the per-process cfg fixture directory is removed", ROOT if removed.ok else str(removed.error))
 
 
 ## The shipped cfg files hold every key, in step with HsConfig, and change nothing as they are.
