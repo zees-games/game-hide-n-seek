@@ -29,6 +29,12 @@ func _clips(_item: String) -> PackedStringArray:
 	return PackedStringArray(["idle", "walk", "run", "sprint", "crouch_walk", "jump"])
 
 
+func _build() -> void:
+	if limits_path == "":
+		limits_path = "res://tools/visual_qa_thresholds.json"
+	build_stage()
+
+
 func _stage(item: String, clip: String) -> DotResult:
 	if not SPEEDS.has(clip):
 		return DotResult.fail(DotError.CODE_INVALID, "no %s clip" % clip)
