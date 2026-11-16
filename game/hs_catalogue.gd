@@ -224,6 +224,19 @@ func _add(doc: Dictionary, origin: String) -> bool:
 	return true
 
 
+## id -> the user://maps file of each map dropped this run (HsMapDrop), which a later drop may replace.
+var dropped: Dictionary = {}
+
+
+## A map dropped on the game (HsMapDrop), already checked and copied to [param path]: listed at once, in place of an
+## earlier drop with the same id.
+func add_dropped(doc: Dictionary, path: String) -> void:
+	dropped[StringName(str(doc["id"]))] = path
+	maps[StringName(str(doc["id"]))] = doc
+	refused.erase(path)
+	_rebuild_order()
+
+
 func _rebuild_order() -> void:
 	_order.clear()
 

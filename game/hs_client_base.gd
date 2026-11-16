@@ -8,6 +8,7 @@ const HsSettings := preload("hs_settings.gd")
 const HsTouch := preload("hs_touch.gd")
 const HsServices := preload("hs_services.gd")
 const HsNetBridge := preload("net/hs_net_bridge.gd")
+const HsMapDrop := preload("hs_map_drop.gd")
 
 const HsConfig := preload("hs_config.gd")
 const HsMapConfig := preload("hs_map_config.gd")
@@ -42,6 +43,8 @@ var board: DotMenuScoreboard = null
 var chat: DotGameChatClient = null
 var audio: HsAudio = null
 var settings: HsSettings = null
+## Maps dropped on the window or the executable (HsMapDrop); null on dot-map older than API 26.
+var map_drop: Node = null
 
 ## The player's console (the platform's).
 var console: DotConsoleController = null
