@@ -63,7 +63,21 @@ func _run() -> void:
 	_check(Rect2(Vector2.ZERO, host.size).encloses(foot) and foot.position.y >= 66.0, "the cluster is on a phone screen and clear of the Menu button", str(foot))
 	_check(not touch.is_held(&"jump"), "nothing is held at the start")
 
-	# A finger on a button is the game's; anywhere else on the look side it drags the view.
+	_finger_checks(touch, controls, sampler, menu_button)
+
+	_door_and_menu_checks(touch, controls, sampler)
+
+	_narrow_phones(ids)
+	host.free()
+
+	_no_touch_and_wiring(client)
+
+	DotPlatform.touch_override = -1
+	_report(EXPECTED_CHECKS)
+
+
+# A finger on a button is the game's; anywhere else on the look side it drags the view.
+func _finger_checks(touch: HsTouch, controls: DotMobileControls, sampler: DotFpsTouchSampler, menu_button: Button) -> void:
 	var on_jump := touch.buttons.centre_of(&"jump")
 	_check(touch.buttons.contains_point(on_jump), "a button's centre is on a button")
 	_tap(controls, 0, on_jump, true)
@@ -80,7 +94,9 @@ func _run() -> void:
 	_tap(controls, 1, Vector2(600, 40), false)
 	_tap(controls, 2, Vector2(8, 200), false)
 
-	# The door and the taunt press the actions the key path reads.
+
+# The door and the taunt press the actions the key path reads; a menu pauses the overlay.
+func _door_and_menu_checks(touch: HsTouch, controls: DotMobileControls, sampler: DotFpsTouchSampler) -> void:
 	var use_action: StringName = HsTouch.ACTIONS[&"use"]
 	if not InputMap.has_action(use_action):
 		InputMap.add_action(use_action)
@@ -112,7 +128,9 @@ func _run() -> void:
 	_check(controls.sampler == other, "it follows the sampler the keys drive now")
 	touch.sync(sampler, false)
 
-	# Another phone, narrower.
+
+# Another phone, narrower.
+func _narrow_phones(ids: Array[StringName]) -> void:
 	for size: Vector2 in [Vector2(667, 375), Vector2(932, 430)]:
 		var narrow := DotTouchButtons.new()
 		narrow.size = size
@@ -123,9 +141,9 @@ func _run() -> void:
 		_check(clash == "", "no two buttons overlap at %dx%d" % [size.x, size.y], clash)
 		narrow.free()
 
-	host.free()
 
-	# No touch: nothing shows and the sampler is left alone.
+# No touch: nothing shows and the sampler is left alone; the client carries the wiring.
+func _no_touch_and_wiring(client: Node) -> void:
 	DotPlatform.touch_override = 0
 	var off_host := CanvasLayer.new()
 	add_child(off_host)
@@ -144,9 +162,6 @@ func _run() -> void:
 	for m: Dictionary in (load("res://game/hs_client_build.gd") as GDScript).get_script_method_list():
 		methods.append(m["name"])
 	_check("touch_live" in methods and "_touch_sampler" in methods, "the client carries the touch wiring")
-
-	DotPlatform.touch_override = -1
-	_report(EXPECTED_CHECKS)
 
 
 func _tap(controls: DotMobileControls, index: int, pos: Vector2, pressed: bool) -> void:
