@@ -517,14 +517,27 @@ func _clear_between(from: Vector3, to: Vector3, furniture: bool = false) -> bool
 	if world == null:
 		return true
 
-	var query := PhysicsRayQueryParameters3D.create(from, to)
-	query.collision_mask = physics.layer_mask(&"world") if physics != null else 1
+	# The bots ask this tens of times a tick: the two queries are made once per layout and only
+	# their ends move (a new query and three mask lookups a ray were a third of its cost).
+	if _ray_layout != physics or _ray_walls == null:
+		_ray_layout = physics
+		_ray_walls = PhysicsRayQueryParameters3D.new()
+		_ray_walls.collision_mask = physics.layer_mask(&"world") if physics != null else 1
+		_ray_solid = PhysicsRayQueryParameters3D.new()
+		_ray_solid.collision_mask = _ray_walls.collision_mask
+		if physics != null:
+			# The toys too: a hider crouched behind a barrel or the roundabout is behind something.
+			_ray_solid.collision_mask |= physics.layer_mask(&"prop") | physics.layer_mask(&"toy")
 
-	if furniture and physics != null:
-		# The toys too: a hider crouched behind a barrel or the roundabout is behind something.
-		query.collision_mask |= physics.layer_mask(&"prop") | physics.layer_mask(&"toy")
-
+	var query := _ray_solid if furniture else _ray_walls
+	query.from = from
+	query.to = to
 	return world.direct_space_state.intersect_ray(query).is_empty()
+
+
+var _ray_layout: Object = null
+var _ray_walls: PhysicsRayQueryParameters3D = null
+var _ray_solid: PhysicsRayQueryParameters3D = null
 
 
 ## The fall a death gets: dot-player-char's reaction rule over the server's weights, seeded from
