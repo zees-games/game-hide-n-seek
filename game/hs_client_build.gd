@@ -246,6 +246,9 @@ func _build_chat() -> void:
 	]
 	chat.max_length = HsServices.chat_rules().max_length
 	chat.voice_config = HsServices.voice_format()
+	# A phone: three narrow rows in the corner, so a log line is not drawn across the thumbstick and the buttons.
+	if DotPlatform.has_touch():
+		chat.window_settings = {"max_lines": 3, "width": 200.0, "margin_left": 12.0, "margin_bottom": 8.0}
 	add_child(chat)
 
 
