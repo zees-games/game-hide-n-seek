@@ -204,10 +204,24 @@ func _build_hud() -> void:
 func _build_touch() -> void:
 	if not DotPlatform.has_touch():
 		return
-	touch = HsTouch.new()
-	hud.add_child(touch)
-	if platform != null:
-		HsTouch.touch_layout().apply(touch, platform)
+	touch = HsTouch.build(self, hud, _touch_sampler(), game.mobile_rules, _menu_button) as HsTouch
+	if platform != null and platform.has_method(&"fit_touch_buttons"):
+		platform.call(&"fit_touch_buttons", touch.buttons, HsTouch.layout())
+
+
+## The Escape menu's own button, which keeps its touches.
+func _menu_button() -> Button:
+	return settings.menu.menu_button if settings != null and settings.menu != null else null
+
+
+## The sampler the keys drive now: the player's own offline, the netcode's online.
+func _touch_sampler() -> DotFpsSampler:
+	return player.sampler if _offline and player != null and player.sampler != null else _sampler
+
+
+## Whether the player is in the world for gyro: not out, not watching, not behind the cover.
+func touch_live() -> bool:
+	return player != null and not is_spectating() and not _covered()
 
 
 ## The key an action is on, as the player has it bound.
@@ -307,8 +321,7 @@ func _suspend_input(suspended: bool) -> void:
 		player.sampler.suspended = suspended
 
 	if touch != null:
-		touch.visible = not suspended
-		touch.release_all()
+		touch.sync(_touch_sampler(), suspended)
 
 
 ## Whether the pointer is the game's: captured. A menu frees it and the platform takes it back.

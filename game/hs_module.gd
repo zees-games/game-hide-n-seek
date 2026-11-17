@@ -165,6 +165,10 @@ func _bind_rule_cvars(world: HsGame) -> void:
 	var _bodies := world.body_rules.bind_cvars(
 		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
 	)
+	# sv_mobile_*: dot-mobile's touch controls, REPLICATED for the client's overlay.
+	var _mobile := world.mobile_rules.bind_cvars(
+		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	)
 	# hs_ambient*: REPLICATED, because each client plays its own ambience under the server's intent; the directory cvar stays local.
 	var _ambient := world.ambient_rules.bind_cvars(
 		add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED,

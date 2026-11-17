@@ -14,6 +14,10 @@ var _stomp_hulls: Array = []  # scratch for _resolve_stomps, cleared each call
 ## The ambience cvars (`hs_ambient*`): bound by the module (REPLICATED), followed by a client through its link.
 var ambient_rules: DotAmbienceRules = HsAmbience.make_rules()
 
+## dot-mobile's touch cvars (`sv_mobile_*`): bound by the module (REPLICATED), followed by the client's overlay. Nothing here
+## shoots, so aim assist and auto-fire stay at their off defaults.
+var mobile_rules: DotMobileRules = DotMobileRules.new()
+
 ## The flashlight's config and binder, made on first use so a suite that builds a game by hand still has one.
 var flashlight_config: DotFlashlightConfig = null
 var flashlight_binder: DotGameConfigBinder = null

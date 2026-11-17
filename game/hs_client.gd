@@ -167,6 +167,7 @@ func _build_netcode() -> DotResult:
 	var _view := game.view_rules.follow_cvars(link)
 	var _solid := game.body_rules.follow_cvars(link)
 	var _ambient := game.ambient_rules.follow_cvars(link)
+	var _mobile := game.mobile_rules.follow_cvars(link)
 	# The server's sv_ragdoll* set: this end draws the bodies.
 	var _dead := game.ragdoll_rules.follow_cvars(link)
 	# And sv_toys*: a client hides the toys a server took away.
@@ -396,6 +397,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
+	if touch != null:
+		touch.sync(_touch_sampler(), platform != null and platform.is_input_blocked())
 	var _shown := present_frame(net, game, player, not third_person, delta, -1.0, _watched_through_eyes())
 	_present_hide()
 	if audio != null and audio.ambient != null and camera != null and camera.is_inside_tree() and game.physics != null:
@@ -464,8 +467,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			settings.open()
 		return
 
-	if touch != null and player != null and (event is InputEventScreenTouch or event is InputEventScreenDrag):
-		touch.feed(event, player.sampler if _offline and player.sampler != null else _sampler)
+	# The overlay forwards a touch to the sampler itself, and the mouse Godot emulates from one is dropped; a touch it
+	# does not take (touch off or not allowed) goes straight to the sampler.
+	if touch != null and (event is InputEventScreenTouch or event is InputEventScreenDrag or touch.takes(event)):
+		if not touch.takes(event) and not event is InputEventMouse:
+			_touch_sampler().handle_event(event)
 		return
 
 	if (event is InputEventKey or event is InputEventAction) and event.is_pressed() and not event.is_echo():

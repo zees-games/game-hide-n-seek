@@ -25,6 +25,7 @@
 /addons/dot_ui
 /addons/dot_settings
 /addons/dot_menu
+/addons/dot_mobile
 /addons/dot_console
 /addons/dot_fx
 # bootstrap fetches the release zip into addons/dot_net/native/bin and export copies it beside the exe (dot-bootstrap: bootstrap-natives).
