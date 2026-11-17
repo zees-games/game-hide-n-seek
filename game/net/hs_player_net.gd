@@ -155,7 +155,7 @@ func pull() -> void:
 
 	net_points = clampi(player.points, 0, 65535)
 	# pull() also runs on a predicting client, which knows neither: its own ping_ms and warps would overwrite the server's and read as a mismatch.
-	var authoritative := identity == null or identity.is_authoritative
+	var authoritative: bool = identity == null or identity.is_authoritative
 
 	if authoritative:
 		net_ping = clampi(player.ping_ms, 0, 1023)
