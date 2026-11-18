@@ -2,7 +2,7 @@ extends RefCounted
 
 ## Maps handed to Hide & Seek outside the game: a map document (`.json` of kind `hideseek_map`) or a folder holding
 ## some, dragged onto the window, dropped on the executable or named by `--map-path=<path>`, through dot-map's
-## DotMapDropIntake (API 29). Solo only: each document is checked as the catalogue checks one ([method
+## DotMapDropIntake (API 30). Solo only: each document is checked as the catalogue checks one ([method
 ## HsMapDoc.parse_json]), copied to `user://maps/<id>.json` (read on every start) and joins the open catalogue at once,
 ## so M offers it as "<name> (local)". A map document may also sit in a .zip (read in place). Anything else (a converted BSP
 ## folder, a text file) is refused out loud with what the game takes. The document finding is dot-map's DotMapDocDrop.
@@ -12,7 +12,7 @@ const HsMapDoc := preload("hs_map_doc.gd")
 
 const CHANNEL := "hs.map_drop"
 ## dot-map's API level with DotMapDropIntake. Older builds take no dropped maps.
-const NEEDS_LEVEL := 29
+const NEEDS_LEVEL := 30
 const INTAKE_SCRIPT := "res://addons/dot_map/core/dot_map_drop_intake.gd"
 ## What the refusal says this game takes.
 const TAKES := "a Hide & Seek map (.json of kind hideseek_map, or a .zip or folder of them)"
@@ -26,7 +26,7 @@ const CONFIG_PREFIX := "--hs-"
 
 ## The intake, a child of [param host] watching its window, adding to [param game]'s catalogue; every result is said
 ## line by line through [param say] (`func(line: String)`), and the paths on this process's command line are handled
-## once, deferred. Null, with a warning, on dot-map older than API 29.
+## once, deferred. Null, with a warning, on dot-map older than API 30.
 static func attach(host: Node, game: Node, say: Callable) -> Node:
 	var intake := make(game)
 	if intake == null:
