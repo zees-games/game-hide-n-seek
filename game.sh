@@ -226,6 +226,7 @@ do_test() {
         parse_all
         fails=$?
         [ "$fails" -eq 0 ] && printf '  %sok%s   every script parses\n' "$GRN" "$OFF"
+        tools/check_infer_cycle.sh || fails=$((fails + 1))
     fi
 
     echo "running the suites"
