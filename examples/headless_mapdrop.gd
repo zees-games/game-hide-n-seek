@@ -99,7 +99,7 @@ func _test_intake(game: FakeGame) -> void:
 		str(result))
 	_check(game.catalogue.maps.has(id) and game.catalogue.playable(PackedStringArray()).has(id), "M lists it at once")
 	_check(FileAccess.file_exists(DROPPED), "copied to user://maps/<id>.json, read on every start")
-	_check(HsMapDrop.lines(result) == PackedStringArray(["Added Dropped house. Press M to play it."]), "and said",
+	_check(HsMapDrop.lines(result) == PackedStringArray(["Added Dropped house (local). Press M to play it."]), "and said",
 		str(HsMapDrop.lines(result)))
 	intake.set(&"search_depth", 3)
 	var again := SOURCE.path_join(MAP + ".json")
@@ -110,6 +110,21 @@ func _test_intake(game: FakeGame) -> void:
 	var reloaded := HsCatalogue.new()
 	var _loaded := reloaded.load_from("maps")
 	_check(reloaded.maps.has(id), "a fresh catalogue reads it from user://maps")
+
+	var zip_path := SOURCE.path_join("pack.zip")
+	var zip_id := MAP + "_zip"
+	var zipped := _write_zip(zip_path, {"maps/" + zip_id + ".json": _doc_text(zip_id, "Zipped map")})
+	_check(zipped, "a test zip is made")
+	result = intake.call(&"handle", _global(zip_path), "window")
+	_check((result.get("added", []) as Array).size() == 1 and _errors(result) == "", "a zip holding a map document is read in place and added",
+		str(result))
+	_check(game.catalogue.display_name(StringName(zip_id)) == "Zipped map (local)", "and listed as <title> (local)",
+		game.catalogue.display_name(StringName(zip_id)))
+	_wipe_file(DROPPED.get_base_dir().path_join(zip_id + ".json"))
+	var empty_zip := SOURCE.path_join("empty.zip")
+	var _made := _write_zip(empty_zip, {"readme.txt": "hello"})
+	result = intake.call(&"handle", _global(empty_zip), "window")
+	_check(_errors(result).contains("no map document in the zip"), "a zip with no map document is refused out loud", _errors(result))
 
 	var taken := SOURCE.path_join("taken.json")
 	_write_doc(taken, String(HsCatalogue.PRACTICE), "Not the practice house")
@@ -162,12 +177,34 @@ func _test_attach(game: FakeGame) -> void:
 	var result := HsMapDrop.take_cmdline(intake, PackedStringArray(["--headless", "--map-path=" + file]))
 	_check(str(result.get("source", "")) == "command line" and (result.get("added", []) as Array).size() == 1,
 		"a --map-path map is added from the command line", str(result))
-	_check(_said == PackedStringArray(["Added Dropped house, fixed. Press M to play it."]), "and said", str(_said))
+	_check(_said == PackedStringArray(["Added Dropped house, fixed (local). Press M to play it."]), "and said", str(_said))
 	_said.clear()
 	result = HsMapDrop.take_cmdline(intake, PackedStringArray([ProjectSettings.globalize_path(SOURCE.path_join("notes.txt"))]))
-	_check(_said.size() == 1 and _said[0].begins_with("Could not add: notes.txt: not a map this game can load"),
+	_check(_said.size() == 1 and _said[0].begins_with("Not a map: notes.txt: not a map this game can load"),
 		"a file dropped on the executable that is no map is refused out loud", str(_said))
 	host.queue_free()
+
+
+func _write_zip(path: String, files: Dictionary) -> bool:
+	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+	var packer := ZIPPacker.new()
+	if packer.open(path) != OK:
+		return false
+	for name: String in files:
+		var _s := packer.start_file(name)
+		var _w := packer.write_file(str(files[name]).to_utf8_buffer())
+		var _c := packer.close_file()
+	var _closed := packer.close()
+	return true
+
+
+func _doc_text(id: String, title: String) -> String:
+	var doc: Dictionary = HsCatalogue.practice().duplicate(true)
+	doc["format"] = HsMapDoc.FORMAT
+	doc["kind"] = HsMapDoc.KIND
+	doc["id"] = id
+	doc["name"] = title
+	return JSON.stringify(doc)
 
 
 func _write_doc(path: String, id: String, title: String) -> void:

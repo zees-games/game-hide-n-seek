@@ -261,7 +261,7 @@ func map_rows() -> Array:
 	for id in catalogue.playable(config.map_ids):
 		var doc: Dictionary = catalogue.maps.get(id, {})
 		var title := catalogue.pack_title(id) if catalogue.is_content(id) else ""
-		var shown := str(doc.get("name", id))
+		var shown := catalogue.display_name(id)
 		var detail := str(doc.get("blurb", ""))
 		if not catalogue.in_rotation(id):
 			detail = ("%s (not in rotation)" % detail).strip_edges()

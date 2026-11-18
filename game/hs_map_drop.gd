@@ -2,20 +2,20 @@ extends RefCounted
 
 ## Maps handed to Hide & Seek outside the game: a map document (`.json` of kind `hideseek_map`) or a folder holding
 ## some, dragged onto the window, dropped on the executable or named by `--map-path=<path>`, through dot-map's
-## DotMapDropIntake (API 26). Solo only: each document is checked as the catalogue checks one ([method
+## DotMapDropIntake (API 29). Solo only: each document is checked as the catalogue checks one ([method
 ## HsMapDoc.parse_json]), copied to `user://maps/<id>.json` (read on every start) and joins the open catalogue at once,
-## so M offers it. Anything else (a converted BSP folder, a zip, a text file) is refused out loud with what the game
-## takes. A shared document acceptor in dot-map would replace this file (nightly map-drop-games-1).
+## so M offers it as "<name> (local)". A map document may also sit in a .zip (read in place). Anything else (a converted BSP
+## folder, a text file) is refused out loud with what the game takes. The document finding is dot-map's DotMapDocDrop.
 
 const HsConfig := preload("hs_config.gd")
 const HsMapDoc := preload("hs_map_doc.gd")
 
 const CHANNEL := "hs.map_drop"
 ## dot-map's API level with DotMapDropIntake. Older builds take no dropped maps.
-const NEEDS_LEVEL := 26
+const NEEDS_LEVEL := 29
 const INTAKE_SCRIPT := "res://addons/dot_map/core/dot_map_drop_intake.gd"
 ## What the refusal says this game takes.
-const TAKES := "a Hide & Seek map (.json of kind hideseek_map) or a folder of them"
+const TAKES := "a Hide & Seek map (.json of kind hideseek_map, or a .zip or folder of them)"
 ## The document kinds a drop may hold.
 const KINDS := [HsMapDoc.KIND]
 ## Options dot-core reads whose next argument is their value (never read as a dropped path).
@@ -26,7 +26,7 @@ const CONFIG_PREFIX := "--hs-"
 
 ## The intake, a child of [param host] watching its window, adding to [param game]'s catalogue; every result is said
 ## line by line through [param say] (`func(line: String)`), and the paths on this process's command line are handled
-## once, deferred. Null, with a warning, on dot-map older than API 26.
+## once, deferred. Null, with a warning, on dot-map older than API 29.
 static func attach(host: Node, game: Node, say: Callable) -> Node:
 	var intake := make(game)
 	if intake == null:
@@ -55,92 +55,37 @@ static func make(game: Node) -> Node:
 
 
 ## The acceptor: [code]{}[/code] when [param path] holds no document of [constant KINDS] (the intake then refuses it),
-## else [code]{added, errors}[/code]. [param depth] folders down at most (0 is no limit).
+## else [code]{added, errors}[/code]: dot-map's DotMapDocDrop finds the documents (a .json, a folder, a zip) and
+## [method _take] checks and stores each. [param depth] folders down at most (0 is no limit).
 static func accept(path: String, into: String, game: Node, depth: int) -> Dictionary:
-	var files := documents_in(path, depth)
-	if files.is_empty():
-		return {}
-	var errors := PackedStringArray()
-	var added: Array[Dictionary] = []
+	return DotMapDocDrop.accept(path, into, PackedStringArray(KINDS), depth,
+		func(doc: Dictionary, text: String, name: String, dest: String) -> Dictionary:
+			return _take(doc, text, name, dest, game))
+
+
+## One document: checked as the catalogue checks one, written to [param dest] and joined to the catalogue.
+static func _take(_raw: Dictionary, text: String, name: String, dest: String, game: Node) -> Dictionary:
 	var catalogue: Object = game.get(&"catalogue") if game != null else null
 	if catalogue == null or not bool(game.get(&"authoritative")):
-		errors.append("%s: dropped maps play in solo only" % path.rstrip("/").get_file())
-		return {"added": added, "errors": errors}
-	var made := DirAccess.make_dir_recursive_absolute(into)
-	if made != OK:
-		errors.append("%s: cannot make %s (%s)" % [path.rstrip("/").get_file(), into, error_string(made)])
-		return {"added": added, "errors": errors}
-	for file in files:
-		var text := FileAccess.get_file_as_string(file)
-		var parsed := HsMapDoc.parse_json(text, file.get_file())
-		if not parsed.ok:
-			errors.append("%s: %s %s" % [file.get_file(), parsed.error.message, parsed.error.detail])
-			continue
-		var doc: Dictionary = parsed.value
-		var id := str(doc["id"])
-		var target := into.path_join(id + ".json")
-		if (catalogue.get(&"maps") as Dictionary).has(StringName(id)) and not (catalogue.get(&"dropped") as Dictionary).has(StringName(id)) \
-				and not FileAccess.file_exists(target):
-			errors.append("%s: %s is already one of this game's maps" % [file.get_file(), id])
-			continue
-		var out := FileAccess.open(target, FileAccess.WRITE)
-		if out == null:
-			errors.append("%s: cannot write %s (%s)" % [file.get_file(), target, error_string(FileAccess.get_open_error())])
-			continue
-		out.store_string(text)
-		out.close()
-		catalogue.call(&"add_dropped", doc, target)
-		added.append({"id": id, "name": str(doc.get("name", id)), "path": target})
-	return {"added": added, "errors": errors}
+		return {"error": "dropped maps play in solo only"}
+	var parsed := HsMapDoc.parse_json(text, name)
+	if not parsed.ok:
+		return {"error": "%s %s" % [parsed.error.message, parsed.error.detail]}
+	var doc: Dictionary = parsed.value
+	var id := str(doc["id"])
+	var target := dest.path_join(id + ".json")
+	if (catalogue.get(&"maps") as Dictionary).has(StringName(id)) and not (catalogue.get(&"dropped") as Dictionary).has(StringName(id)) \
+			and not FileAccess.file_exists(target):
+		return {"error": "%s is already one of this game's maps" % id}
+	if DotMapDocDrop.write_doc(dest, id, text) == "":
+		return {"error": "cannot write %s" % target}
+	catalogue.call(&"add_dropped", doc, target)
+	return {"added": {"id": id, "name": str(doc.get("name", id)), "path": target}}
 
 
-## [param path] itself when it is a document of [constant KINDS], or every one in the folder [param path] and its
-## folders [param depth] down (0 is no limit), sorted by name.
-static func documents_in(path: String, depth: int) -> PackedStringArray:
-	var out := PackedStringArray()
-	if FileAccess.file_exists(path):
-		if _is_document(path):
-			out.append(path)
-	elif DirAccess.dir_exists_absolute(path):
-		_collect(path.rstrip("/"), depth if depth > 0 else -1, out)
-	return out
-
-
-static func _collect(dir: String, left: int, out: PackedStringArray) -> void:
-	var files := DirAccess.get_files_at(dir)
-	files.sort()
-	for file in files:
-		if _is_document(dir.path_join(file)):
-			out.append(dir.path_join(file))
-	if left == 0:
-		return
-	var subs := DirAccess.get_directories_at(dir)
-	subs.sort()
-	for sub in subs:
-		if not sub.begins_with(".") and sub != "__MACOSX":
-			_collect(dir.path_join(sub), left - 1 if left > 0 else -1, out)
-
-
-static func _is_document(file: String) -> bool:
-	if file.get_extension().to_lower() != "json":
-		return false
-	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(file))
-	return data is Dictionary and KINDS.has(str((data as Dictionary).get("kind", "")))
-
-
-## What to show for an intake result: the maps added, then what was refused and why.
+## What to show for an intake result: "Added <name> (local). Press M to play it." then "Not a map: <why>" per refusal.
 static func lines(result: Dictionary) -> PackedStringArray:
-	var out := PackedStringArray()
-	var names := PackedStringArray()
-	for entry: Variant in result.get("added", []):
-		if entry is Dictionary:
-			names.append(str((entry as Dictionary).get("name", (entry as Dictionary).get("id", "?"))))
-	if not names.is_empty():
-		out.append("Added %s. Press M to play it." % ", ".join(names))
-	var errors: PackedStringArray = result.get("errors", PackedStringArray())
-	if not errors.is_empty():
-		out.append("Could not add: %s" % "; ".join(errors))
-	return out
+	return DotMapDocDrop.lines(result, "Press M to play it.")
 
 
 ## Handles the dropped paths in [param args] as from the command line; [code]{}[/code] when there are none.

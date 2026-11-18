@@ -70,7 +70,7 @@ func apply_rotation() -> void:
 	for id in catalogue.playable(PackedStringArray()):
 		var def := DotMapDef.new()
 		def.id = id
-		def.display_name = str(catalogue.maps[id].get("name", id))
+		def.display_name = catalogue.display_name(id)
 		def.scene_path = "doc:%s" % id
 		def.content_id = StringName(catalogue.content_ref(id))
 		var _added := _rot_catalogue.add(def)

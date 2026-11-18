@@ -52,6 +52,7 @@ var _content_refs: Dictionary = {}
 ## one built in. Forgets anything read before.
 func load_from(directory: String) -> int:
 	maps.clear()
+	_local.clear()
 	refused.clear()
 
 	_add(practice(), "built-in")
@@ -146,6 +147,12 @@ func pack_title(id: StringName) -> String:
 	return str(_content_titles.get(id, ""))
 
 
+## The name a menu shows: the document's name, with " (local)" after a map from the user folder (a dropped one).
+func display_name(id: StringName) -> String:
+	var shown := str(maps.get(id, {}).get("name", id))
+	return shown + DotMapDocDrop.TAG if _local.has(id) else shown
+
+
 func _content_doc(entry: DotContentEntry) -> Dictionary:
 	if _content_docs.has(entry.key):
 		return _content_docs[entry.key]
@@ -209,6 +216,8 @@ func _read_directory(root: String) -> int:
 
 		if _add(parsed.value, file):
 			loaded += 1
+			if root == USER_MAPS:
+				_local[StringName(str(parsed.value["id"]))] = true
 
 	return loaded
 
@@ -226,12 +235,15 @@ func _add(doc: Dictionary, origin: String) -> bool:
 
 ## id -> the user://maps file of each map dropped this run (HsMapDrop), which a later drop may replace.
 var dropped: Dictionary = {}
+## id -> true for each map read from USER_MAPS or dropped.
+var _local: Dictionary = {}
 
 
 ## A map dropped on the game (HsMapDrop), already checked and copied to [param path]: listed at once, in place of an
 ## earlier drop with the same id.
 func add_dropped(doc: Dictionary, path: String) -> void:
 	dropped[StringName(str(doc["id"]))] = path
+	_local[StringName(str(doc["id"]))] = true
 	maps[StringName(str(doc["id"]))] = doc
 	refused.erase(path)
 	_rebuild_order()
