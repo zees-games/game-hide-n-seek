@@ -76,6 +76,9 @@ func _test_args() -> void:
 	_check(paths == PackedStringArray([folder]), "a bare path is a drop (the executable's drop)", str(paths))
 	paths = HsMapDrop.paths_in(intake, PackedStringArray(["--headless", "res://examples/headless_mapdrop.tscn"]))
 	_check(paths.is_empty(), "no path on a plain start", str(paths))
+	paths = HsMapDrop.paths_in(intake, PackedStringArray(["wss://tmcdev.net:6100/", "ws://127.0.0.1:6100", "https://games.tmcdev.net/x", "tmcdev.net:6100", "--join", "wss://tmcdev.net:6100/"]))
+	_check(paths.is_empty(), "a connect URL or host:port is never a drop", str(paths))
+	_check(paths.is_empty(), "no path on a plain start", str(paths))
 	intake.free()
 
 
