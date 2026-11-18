@@ -1,4 +1,4 @@
-extends "hs_bots_move.gd"
+extends "hs_bots_sight.gd"
 
 ## The hider half of the stand-ins: picking a spot, watching for seekers and fleeing.
 
@@ -75,6 +75,7 @@ func _leave_sealed_spawn(player: HsPlayer) -> void:
 		var spot: Array = map.call("spawn", "hiders", i)
 		if nav.joined(start, spot[0]):
 			player.place_at(spot[0], spot[1])
+			_sight_stale()
 			DotLog.info(CHANNEL, "a hider started in a pocket the seekers cannot reach; moved to a spawn they can", {"player": str(player.player_id), "spawn": i})
 			return
 
@@ -102,7 +103,7 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 	var heard := _heard(player, 2)
 	# Seen by it: it will make the hider out in a moment whatever the hider does, so go now, at a
 	# sprint, while the gap is widest. One walking past with its back turned is let pass.
-	var seen := nearest != null and _sees(nearest, player)
+	var seen := nearest != null and _sight_sees(nearest, player)
 	# About to walk into the hider whatever it has seen.
 	var bumping := nearest != null and nearest_d < BUMP_FROM
 	# The beacon has given it away: every seeker knows where it is, so keeping still is waiting
@@ -167,6 +168,16 @@ func _watch_for_seekers(player: HsPlayer, state: Dictionary) -> void:
 
 ## The nearest living seeker within `sight` that the hider can see, or null.
 func _nearest_seen_seeker(player: HsPlayer, at: Vector3, sight: float) -> HsPlayer:
+	var native: Variant = _sight_nearest(player, at, 2, sight, false)
+	if native is bool:
+		return _nearest_seen_seeker_script(player, at, sight)
+	if sight_verify:
+		return _sight_checked_nearest(native, _nearest_seen_seeker_script(player, at, sight), "_nearest_seen_seeker", player)
+	return native
+
+
+## [method _nearest_seen_seeker] in script: the fallback, and what the native ask is held to.
+func _nearest_seen_seeker_script(player: HsPlayer, at: Vector3, sight: float) -> HsPlayer:
 	var nearest: HsPlayer = null
 	var nearest_d := INF
 	for other in (game.call("players_on", 2) as Array):

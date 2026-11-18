@@ -28,6 +28,7 @@ func drive() -> void:
 		_prepare()
 
 	_hear_steps(players)
+	_sight_bind(players)
 
 	for id: StringName in players:
 		var player: HsPlayer = players[id]
@@ -196,6 +197,16 @@ func _ensure_search(state: Dictionary, at: Vector3, profile: DotBotProfile) -> v
 
 ## The nearest living hider the seeker can see; a hider marked by the game's beacon is known to every seeker.
 func _visible_prey(player: HsPlayer, at: Vector3) -> HsPlayer:
+	var native: Variant = _sight_nearest(player, at, 1, INF, true)
+	if native is bool:
+		return _visible_prey_script(player, at)
+	if sight_verify:
+		return _sight_checked_nearest(native, _visible_prey_script(player, at), "_visible_prey", player)
+	return native
+
+
+## [method _visible_prey] in script: the fallback, and what the native ask is held to.
+func _visible_prey_script(player: HsPlayer, at: Vector3) -> HsPlayer:
 	var prey: HsPlayer = null
 	var prey_d := INF
 	for other in (game.call("players_on", 1) as Array):
