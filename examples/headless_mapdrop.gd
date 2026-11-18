@@ -60,23 +60,23 @@ func _test_args() -> void:
 	print("-- the command line: config options are not drops, --map-path and bare paths are")
 	var folder := ProjectSettings.globalize_path(SOURCE.path_join("args"))
 	DirAccess.make_dir_recursive_absolute(folder)
-	var kept := HsMapDrop.drop_args(PackedStringArray(["--hs-map_directory", folder, "--dot_net.port", folder,
-		"--hs-doors_enabled", folder, "--hs-no_such_key", folder, "--hs-seed_value=5", "--headless"]))
+	var intake := HsMapDrop.make(null)
+	if not _check(intake != null, "dot-map 30 makes the shared intake"):
+		return
+	var kept: PackedStringArray = intake.call(&"strip_config_args", PackedStringArray(["--hs-map_directory", folder, "--dot_net.port", folder,
+		"--hs-doors_enabled", folder, "--hs-no_such_key", folder, "--hs-seed_value=5", "--headless"]), intake.get(&"config_prefixes"), intake.get(&"option_takes_value"))
 	_check(kept == PackedStringArray([folder, folder, "--headless"]),
 		"a --hs-<key> and --<addon>.<key> value is no drop; a --hs-<bool> switch and an unknown key take none", str(kept))
-	var intake := HsMapDrop.make(null)
-	if not _check(intake != null, "dot-map 26 makes the shared intake"):
-		return
 	_check(bool(intake.get(&"watch_window")), "it watches the window itself")
 	_check(intake.call(&"accepted_kinds") == PackedStringArray([HsMapDrop.TAKES]), "it takes Hide & Seek map documents only",
 		str(intake.call(&"accepted_kinds")))
-	var paths := HsMapDrop.paths_in(intake, PackedStringArray(["--path", folder, "--config", folder, "--map-path=" + folder]))
+	var paths: Variant = intake.call(&"paths_in", PackedStringArray(["--path", folder, "--config", folder, "--map-path=" + folder]))
 	_check(paths == PackedStringArray([folder]), "--map-path= is a drop; --path and --config values are not", str(paths))
-	paths = HsMapDrop.paths_in(intake, PackedStringArray([folder, "--hs-map_directory", folder]))
+	paths = intake.call(&"paths_in", PackedStringArray([folder, "--hs-map_directory", folder]))
 	_check(paths == PackedStringArray([folder]), "a bare path is a drop (the executable's drop)", str(paths))
-	paths = HsMapDrop.paths_in(intake, PackedStringArray(["--headless", "res://examples/headless_mapdrop.tscn"]))
+	paths = intake.call(&"paths_in", PackedStringArray(["--headless", "res://examples/headless_mapdrop.tscn"]))
 	_check(paths.is_empty(), "no path on a plain start", str(paths))
-	paths = HsMapDrop.paths_in(intake, PackedStringArray(["wss://tmcdev.net:6100/", "ws://127.0.0.1:6100", "https://games.tmcdev.net/x", "tmcdev.net:6100", "--join", "wss://tmcdev.net:6100/"]))
+	paths = intake.call(&"paths_in", PackedStringArray(["wss://tmcdev.net:6100/", "ws://127.0.0.1:6100", "https://games.tmcdev.net/x", "tmcdev.net:6100", "--join", "wss://tmcdev.net:6100/"]))
 	_check(paths.is_empty(), "a connect URL or host:port is never a drop", str(paths))
 	_check(paths.is_empty(), "no path on a plain start", str(paths))
 	intake.free()
@@ -174,12 +174,12 @@ func _test_attach(game: FakeGame) -> void:
 	await get_tree().process_frame
 	_check(_said.is_empty(), "this suite's own command line drops nothing", str(_said))
 	var file := ProjectSettings.globalize_path(SOURCE.path_join(MAP + ".json"))
-	var result := HsMapDrop.take_cmdline(intake, PackedStringArray(["--headless", "--map-path=" + file]))
+	var result: Variant = intake.call(&"take_cmdline", PackedStringArray(["--headless", "--map-path=" + file]))
 	_check(str(result.get("source", "")) == "command line" and (result.get("added", []) as Array).size() == 1,
 		"a --map-path map is added from the command line", str(result))
 	_check(_said == PackedStringArray(["Added Dropped house, fixed (local). Press M to play it."]), "and said", str(_said))
 	_said.clear()
-	result = HsMapDrop.take_cmdline(intake, PackedStringArray([ProjectSettings.globalize_path(SOURCE.path_join("notes.txt"))]))
+	result = intake.call(&"take_cmdline", PackedStringArray([ProjectSettings.globalize_path(SOURCE.path_join("notes.txt"))]))
 	_check(_said.size() == 1 and _said[0].begins_with("Not a map: notes.txt: not a map this game can load"),
 		"a file dropped on the executable that is no map is refused out loud", str(_said))
 	host.queue_free()
