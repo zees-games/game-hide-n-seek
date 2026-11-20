@@ -77,3 +77,12 @@ Thumbs.db
 .vscode/
 /addons/dot_player_char
 /addons/dot_flashlight
+
+# Linked addons (separate repositories, symlinked in for local development).
+/addons/dot_bot_record
+/addons/dot_npc
+/addons/dot_player_class
+/addons/dot_server_query
+/addons/dot_sql
+/addons/dot_weapon
+/addons/godot-sqlite
