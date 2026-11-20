@@ -1,8 +1,8 @@
-A multiplayer hide and seek game for [Godot 4](https://godotengine.org/), built on the [Gamespice](https://gamespice.net) platform and addon collection.
+A multiplayer hide and seek game for [Godot 4](https://godotengine.org/), built on the [**GameSpice**](https://gamespice.net) platform and addon collection.
 
-Most players are **hiders**: their own Gamespice avatars in a blue shirt. They get a little while to find a spot nobody will look. One or more **seekers** (orange) count with a black screen while everybody hides, then go looking. A seeker catches a hider by touching them, and every caught hider becomes a seeker too, so the hunt grows as the round goes on.
+Most players are **hiders**: their own GameSpice avatars in a blue shirt. They get a little while to find a spot nobody will look. One or more **seekers** (orange) count with a black screen while everybody hides, then go looking. A seeker catches a hider by touching them, and every caught hider becomes a seeker too, so the hunt grows as the round goes on.
 
-The project and its assets are open source under the MIT license. Only the back-end web infrastructure is not; if you use your own authentication back end instead of Gamespice, you build that part yourself.
+The project and its assets are open source under the MIT license. Only the back-end web infrastructure is not; if you use your own authentication back end instead of GameSpice, you build that part yourself.
 
 **Please treat this as partially tested.** It was built with Claude Code and has a headless test suite that passes, but little of it has been in front of real players. Please report anything you run into.
 
@@ -19,7 +19,7 @@ Each round starts with the hide. The hiders get 40 seconds by default to find a 
 - **Toys.** Every map has things to play with: balls to kick, swings, see-saws, roundabouts, trampolines, barrels, lamps, a fountain and more. Everybody sees them in the same place, and a ball you kicked rolling away from your hiding place is a clue. Toys reset at the start of each round.
 - **Falling** off the map catches a hider. A seeker who falls goes back to the start.
 
-Scoring defaults: winning is worth 10 points to everyone on that side, a catch 5 and surviving a round 5. Catches, rounds survived and the rest go to your stats and the Gamespice leaderboards.
+Scoring defaults: winning is worth 10 points to everyone on that side, a catch 5 and surviving a round 5. Catches, rounds survived and the rest go to your stats and the GameSpice leaderboards.
 
 Seekers are picked at the start: one for every 8 players by default, within a minimum and maximum you can set (`hs_players_per_seeker`, `hs_min_seekers`, `hs_max_seekers`). By default the first hider caught is next round's seeker. Say **!seek** or **!hide** in chat to ask for a side. Somebody who joins while the seekers are out joins them. After a few rounds on a map, players vote for the next one (`!rtv`, `!nominate hs_manor`).
 
@@ -61,7 +61,7 @@ There is a small practice house built in, plus the maps from [hide-n-seek-maps](
 
 ## Getting started
 
-You need [Godot 4.7](https://godotengine.org/download). The game is built from many Gamespice addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons in:
+You need [Godot 4.7](https://godotengine.org/download). The game is built from many GameSpice addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons in:
 
 ```bash
 git clone https://github.com/gamespice-platform/bootstrap.git
