@@ -1,5 +1,3 @@
-# Hide and Seek
-
 A multiplayer hide and seek game for [Godot 4](https://godotengine.org/), built on the [Gamespice](https://gamespice.net) platform and addon collection.
 
 Most players are **hiders**: their own Gamespice avatars in a blue shirt. They get a little while to find a spot nobody will look. One or more **seekers** (orange) count with a black screen while everybody hides, then go looking. A seeker catches a hider by touching them, and every caught hider becomes a seeker too, so the hunt grows as the round goes on.
