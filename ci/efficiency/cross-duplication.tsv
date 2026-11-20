@@ -1,0 +1,34 @@
+# duplication (cross-game)
+# Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
+examples/dedicated.gd	85
+examples/dedicated_base.gd	76
+examples/dedicated_client.gd	40
+examples/dedicated_vote.gd	63
+examples/headless_native_motor.gd	136
+examples/headless_net.gd	95
+examples/headless_net_base.gd	33
+examples/headless_run_client.gd	35
+game/hs_audio.gd	135
+game/hs_avatars.gd	50
+game/hs_bots_walk.gd	31
+game/hs_catalogue.gd	30
+game/hs_client_build.gd	32
+game/hs_client_view.gd	69
+game/hs_controller.gd	33
+game/hs_doors.gd	42
+game/hs_game.gd	39
+game/hs_game_rotation.gd	35
+game/hs_hud.gd	37
+game/hs_map.gd	174
+game/hs_map_doc.gd	149
+game/hs_materials.gd	340
+game/hs_player.gd	65
+game/hs_progress.gd	92
+game/hs_props.gd	127
+game/hs_services.gd	150
+game/net/hs_events.gd	211
+game/net/hs_net_bridge_state.gd	35
+game/net/hs_net_link.gd	121
+game/net/hs_player_net.gd	35
+tools/measure_props.gd	131
+tools/render_cover.gd	50
