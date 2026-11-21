@@ -8,6 +8,15 @@ The project and its assets are open source under the MIT license. Only the back-
 
 **Please treat this as partially tested.** It was built with Claude Code and has a headless test suite that passes, but little of it has been in front of real players. Please report anything you run into.
 
+## Screenshots
+
+| | |
+| --- | --- |
+| ![Hide phase](https://raw.githubusercontent.com/zees-games/game-hide-n-seek/main/docs/screenshots/hide_hider.png)<br>Hide phase: the hiders' countdown and round banner, seen as a hider in blue. | ![The seekers' black screen while the hiders hide, counting down.](https://raw.githubusercontent.com/zees-games/game-hide-n-seek/main/docs/screenshots/blind.png)<br>The seekers' black screen while the hiders hide, counting down. |
+| ![A hider in third person (F5) running a school corridor, with the door prompt.](https://raw.githubusercontent.com/zees-games/game-hide-n-seek/main/docs/screenshots/hider_third.png)<br>A hider in third person (F5) running a school corridor, with the door prompt. | ![Seeker view](https://raw.githubusercontent.com/zees-games/game-hide-n-seek/main/docs/screenshots/seeker.png)<br>Seeker view during the hunt: hidden and seeker counts and the round clock. |
+| ![The moment of a catch](https://raw.githubusercontent.com/zees-games/game-hide-n-seek/main/docs/screenshots/caught.png)<br>The moment of a catch: the caught hider becomes a seeker. | ![The Tab scoreboard, hiders and seekers side by side.](https://raw.githubusercontent.com/zees-games/game-hide-n-seek/main/docs/screenshots/board.png)<br>The Tab scoreboard, hiders and seekers side by side. |
+| ![A map from above](https://raw.githubusercontent.com/zees-games/game-hide-n-seek/main/docs/screenshots/overview.png)<br>A map from above: Hollowmere Manor with its hedge maze and greenhouse. | ![The in-game map list (M).](https://raw.githubusercontent.com/zees-games/game-hide-n-seek/main/docs/screenshots/mapmenu.png)<br>The in-game map list (M). |
+
 ## How it plays
 
 Each round starts with the hide. The hiders get 40 seconds by default to find a spot while the seekers stand at their spawn with a black screen (they still see their HUD and menus). Then the seekers are let go and have 4 minutes by default (both are settings, see below).

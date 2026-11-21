@@ -314,6 +314,7 @@ func _save_png(path: String) -> int:
 	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 	var saved := image.save_png(path)
 	print("saved %s (%s): %s" % [_out, _view, error_string(saved)])
+	print("renderer: %s" % RenderingServer.get_video_adapter_name())
 	return saved
 
 
