@@ -77,4 +77,7 @@ Thumbs.db
 # Editors
 .vscode/
 /addons/dot_player_char
+/addons/dot_animation
+/addons/dot_save
+/addons/dot_camera
 /addons/dot_flashlight
