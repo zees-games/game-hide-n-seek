@@ -81,3 +81,10 @@ Thumbs.db
 /addons/dot_save
 /addons/dot_camera
 /addons/dot_flashlight
+/addons/dot_bot_record
+/addons/dot_sql
+/addons/godot-sqlite
+/addons/dot_weapon
+/addons/dot_player_class
+/addons/dot_server_query
+/addons/dot_npc
