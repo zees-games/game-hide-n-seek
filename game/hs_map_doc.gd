@@ -370,42 +370,19 @@ static func _door(raw: Variant) -> Dictionary:
 
 ## A normalised document as bytes: JSON, deflated, behind both its lengths.
 static func encode(doc: Dictionary) -> PackedByteArray:
-	var raw := JSON.stringify(doc, "", false).to_utf8_buffer()
-	var packed := raw.compress(FileAccess.COMPRESSION_DEFLATE)
-
-	var out := PackedByteArray()
-	out.resize(8)
-	out.encode_u32(0, raw.size())
-	out.encode_u32(4, packed.size())
-	out.append_array(packed)
-	return out
+	return DotWireDoc.encode(doc)
 
 
 static func decode(bytes: PackedByteArray) -> DotResult:
-	if bytes.size() < 9:
-		return DotResult.fail(DotError.CODE_PARSE, "A map on the wire was empty.")
-
-	var size := bytes.decode_u32(0)
-
-	if bytes.decode_u32(4) != bytes.size() - 8:
-		return DotResult.fail(DotError.CODE_PARSE, "A map on the wire is not the length it says.")
-
-	# Deflate expands at most 1032 to 1, so a size past that is a corrupt header, and
-	# decompressing it would allocate whatever it says. A bound of the format, not a limit.
-	if size <= 0 or size > (bytes.size() - 8) * 1032:
-		return DotResult.fail(DotError.CODE_PARSE, "A map on the wire says it is %d bytes." % size)
-
-	var raw := bytes.slice(8).decompress(size, FileAccess.COMPRESSION_DEFLATE)
-
-	if raw.size() != size:
-		return DotResult.fail(DotError.CODE_PARSE, "A map on the wire would not decompress.")
-
-	return parse_json(raw.get_string_from_utf8(), "wire")
+	var text := DotWireDoc.decode_text(bytes, "map")
+	if not text.ok:
+		return text
+	return parse_json(text.value, "wire")
 
 
 ## A short fingerprint of a document, for a log line and for two ends to compare.
 static func digest(doc: Dictionary) -> String:
-	return JSON.stringify(doc, "", true).sha256_text().substr(0, 12)
+	return DotWireDoc.digest(doc)
 
 
 
