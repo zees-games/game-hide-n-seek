@@ -1,7 +1,7 @@
 extends GSGameVisualQaCapture
 
 ## Visual QA capture for the six people a player can be, as a hider (blue) and as a seeker (orange): idle, walk, run, sprint, crouch walk and a jump, three cameras, every frame at 60 fps.
-## Renders, so it runs on a GPU box through tools/visual_qa_shot.sh, never in the headless suites (addons/dot_game/docs/visual-qa.md).
+## Renders, so it runs on a GPU box through tools/visual_qa_shot.sh, never in the headless suites (addons/gs_game/docs/visual-qa.md).
 
 const HsFigure := preload("res://game/hs_figure.gd")
 const HsGameBase := preload("res://game/hs_game_base.gd")

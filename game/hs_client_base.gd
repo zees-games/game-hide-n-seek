@@ -35,7 +35,7 @@ var camera: Camera3D = null
 ## player and the camera are all in. It is [member GSGameClient.gate].
 var gate: GSLoadGate = null
 
-## dot-game's client platform: the cover, settings and menu, console, HUD theme, Tab, M, the
+## gs-game's client platform: the cover, settings and menu, console, HUD theme, Tab, M, the
 ## pointer and the input block. See [GSGameClient].
 var platform: GSGameClient = null
 var hud: HsHud = null
@@ -43,13 +43,13 @@ var board: GSMenuScoreboard = null
 var chat: GSGameChatClient = null
 var audio: HsAudio = null
 var settings: HsSettings = null
-## Maps dropped on the window or the executable (HsMapDrop); null on dot-map older than API 26.
+## Maps dropped on the window or the executable (HsMapDrop); null on gs-map older than API 26.
 var map_drop: Node = null
 
 ## The player's console (the platform's).
 var console: GSConsoleController = null
 
-## The flashlight on the eye and the others' beams (dot-flashlight); the server owns on/off.
+## The flashlight on the eye and the others' beams (gs-flashlight); the server owns on/off.
 var flash: GSFlashlight = null
 var flash_crowd: GSFlashlightCrowd = null
 var _flash_msec := -100000
@@ -134,7 +134,7 @@ func _prepare_board(snap: Dictionary) -> void:
 	add_bot_rows(snap, game)
 
 
-## Online the board is dot-server's roster, which lists sessions only, not stand-ins. Adds a row for
+## Online the board is gs-server's roster, which lists sessions only, not stand-ins. Adds a row for
 ## each bot the roster lacks, keyed as `board_snapshot()` keys it so `_decorate_row` finds its team.
 ## Static so a suite can run it on a world.
 static func add_bot_rows(snap: Dictionary, world: HsGame) -> void:

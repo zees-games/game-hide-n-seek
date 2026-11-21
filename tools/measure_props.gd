@@ -56,7 +56,7 @@ func _initialize() -> void:
 			# 0.725000023841858); the Vector3 only for the pieces' frame.
 			var offset_xyz := [_r(-centre.x), _r(-box.position.y * scale), _r(-centre.z)]
 			var offset := Vector3(offset_xyz[0], offset_xyz[1], offset_xyz[2])
-			# Collision shaped like the model (dot-props' GSPropPieces): a trunk and its
+			# Collision shaped like the model (gs-props' GSPropPieces): a trunk and its
 			# branches, a table's top and legs. Empty for a prop one box fits.
 			var pieces := GSPropPieces.measure(node, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * scale), offset))
 			node.free()
@@ -128,7 +128,7 @@ func _initialize() -> void:
 	quit(0)
 
 
-## The part-shaped collision (dot-props' GSPropPieces), one prop a line so a re-measure's diff reads by prop: `pieces` is `{id: [[x, y, z, ...] per convex piece]}` and `tops` is `{id: [TOPS x TOPS heights]}`, where something set down on the prop rests (null where nothing is).
+## The part-shaped collision (gs-props' GSPropPieces), one prop a line so a re-measure's diff reads by prop: `pieces` is `{id: [[x, y, z, ...] per convex piece]}` and `tops` is `{id: [TOPS x TOPS heights]}`, where something set down on the prop rests (null where nothing is).
 ## A prop not listed collides as its catalogue box.
 static func _pieces_text(shaped: Dictionary, tops: Dictionary) -> String:
 	var ids := shaped.keys()
@@ -138,7 +138,7 @@ static func _pieces_text(shaped: Dictionary, tops: Dictionary) -> String:
 	for id: String in ids:
 		lines.append("    %s: %s" % [JSON.stringify(id), JSON.stringify(shaped[id])])
 		top_lines.append("    %s: %s" % [JSON.stringify(id), JSON.stringify(tops[id])])
-	return "{\n  \"format\": 1,\n  \"comment\": \"Written by tools/measure_props.gd with dot-props' GSPropPieces. Do not edit by hand. A prop not listed collides as its catalogue box.\",\n  \"tops_grid\": %d,\n  \"pieces\": {\n%s\n  },\n  \"tops\": {\n%s\n  }\n}\n" % [TOPS, ",\n".join(lines), ",\n".join(top_lines)]
+	return "{\n  \"format\": 1,\n  \"comment\": \"Written by tools/measure_props.gd with gs-props' GSPropPieces. Do not edit by hand. A prop not listed collides as its catalogue box.\",\n  \"tops_grid\": %d,\n  \"pieces\": {\n%s\n  },\n  \"tops\": {\n%s\n  }\n}\n" % [TOPS, ",\n".join(lines), ",\n".join(top_lines)]
 
 
 ## Cells a side of a prop's `tops` grid.

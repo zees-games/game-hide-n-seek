@@ -10,7 +10,7 @@ const CHANNEL := "hs.props"
 
 const CATALOGUE := "res://props/catalogue.json"
 
-## The part-shaped collision `tools/measure_props.gd` cuts out of the models with dot-props'
+## The part-shaped collision `tools/measure_props.gd` cuts out of the models with gs-props'
 ## [GSPropPieces]: a tree as a trunk, branches and a canopy, a table as a top and legs. A prop
 ## not in it collides as its box.
 const PIECES := "res://props/pieces.json"

@@ -147,7 +147,7 @@ func _test_the_tube() -> void:
 	_finished()
 
 
-## Trees and furniture collide as their shapes (dot-props' GSPropPieces, `props/pieces.json`),
+## Trees and furniture collide as their shapes (gs-props' GSPropPieces, `props/pieces.json`),
 ## not as one box: Christian's first play test circled the trees wanting their branches and met
 ## the canopy's box at arm's length. Each prop stands alone in a garden built here.
 const GARDEN := [

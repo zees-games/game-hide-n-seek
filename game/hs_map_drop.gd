@@ -1,24 +1,24 @@
 extends RefCounted
 
 ## Maps handed to Hide & Seek outside the game: a map document (`.json` of kind `hideseek_map`) or a folder holding
-## some, dragged onto the window, dropped on the executable or named by `--map-path=<path>`, through dot-map's
+## some, dragged onto the window, dropped on the executable or named by `--map-path=<path>`, through gs-map's
 ## GSMapDropIntake (API 30). Solo only: each document is checked as the catalogue checks one ([method
 ## HsMapDoc.parse_json]), copied to `user://maps/<id>.json` (read on every start) and joins the open catalogue at once,
 ## so M offers it as "<name> (local)". A map document may also sit in a .zip (read in place). Anything else (a converted BSP
-## folder, a text file) is refused out loud with what the game takes. The document finding is dot-map's GSMapDocDrop.
+## folder, a text file) is refused out loud with what the game takes. The document finding is gs-map's GSMapDocDrop.
 
 const HsConfig := preload("hs_config.gd")
 const HsMapDoc := preload("hs_map_doc.gd")
 
 const CHANNEL := "hs.map_drop"
-## dot-map's API level with GSMapDropIntake. Older builds take no dropped maps.
+## gs-map's API level with GSMapDropIntake. Older builds take no dropped maps.
 const NEEDS_LEVEL := 30
-const INTAKE_SCRIPT := "res://addons/dot_map/core/dot_map_drop_intake.gd"
+const INTAKE_SCRIPT := "res://addons/gs_map/core/gs_map_drop_intake.gd"
 ## What the refusal says this game takes.
 const TAKES := "a Hide & Seek map (.json of kind hideseek_map, or a .zip or folder of them)"
 ## The document kinds a drop may hold.
 const KINDS := [HsMapDoc.KIND]
-## Options dot-core reads whose next argument is their value (never read as a dropped path).
+## Options gs-core reads whose next argument is their value (never read as a dropped path).
 const VALUE_FLAGS := ["--config"]
 ## [method HsConfig.cli_prefix]: `--hs-<key> <value>`.
 const CONFIG_PREFIX := "--hs-"
@@ -26,7 +26,7 @@ const CONFIG_PREFIX := "--hs-"
 
 ## The intake, a child of [param host] watching its window, adding to [param game]'s catalogue; every result is said
 ## line by line through [param say] (`func(line: String)`), and the paths on this process's command line are handled
-## once, deferred. Null, with a warning, on dot-map older than API 30.
+## once, deferred. Null, with a warning, on gs-map older than API 30.
 static func attach(host: Node, game: Node, say: Callable) -> Node:
 	var intake := make(game)
 	if intake == null:
@@ -41,8 +41,8 @@ static func attach(host: Node, game: Node, say: Callable) -> Node:
 
 ## A GSMapDropIntake whose one acceptor takes this game's documents into [param game]'s catalogue.
 static func make(game: Node) -> Node:
-	if GSAddonApi.build_level("dot_map") < NEEDS_LEVEL or not ResourceLoader.exists(INTAKE_SCRIPT):
-		GSLog.warn(CHANNEL, "dropped maps are off: this build's dot-map is older than API %d" % NEEDS_LEVEL)
+	if GSAddonApi.build_level("gs_map") < NEEDS_LEVEL or not ResourceLoader.exists(INTAKE_SCRIPT):
+		GSLog.warn(CHANNEL, "dropped maps are off: this build's gs-map is older than API %d" % NEEDS_LEVEL)
 		return null
 	var intake: Node = load(INTAKE_SCRIPT).new()
 	intake.name = "MapDrop"
@@ -58,7 +58,7 @@ static func make(game: Node) -> Node:
 
 
 ## The acceptor: [code]{}[/code] when [param path] holds no document of [constant KINDS] (the intake then refuses it),
-## else [code]{added, errors}[/code]: dot-map's GSMapDocDrop finds the documents (a .json, a folder, a zip) and
+## else [code]{added, errors}[/code]: gs-map's GSMapDocDrop finds the documents (a .json, a folder, a zip) and
 ## [method _take] checks and stores each. [param depth] folders down at most (0 is no limit).
 static func accept(path: String, into: String, game: Node, depth: int) -> Dictionary:
 	return GSMapDocDrop.accept(path, into, PackedStringArray(KINDS), depth,

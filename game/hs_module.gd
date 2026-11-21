@@ -2,12 +2,12 @@ extends "hs_module_cmds.gd"
 
 ## This game, as a module a dedicated server loads: [GSGameModule] holds the netcode, bridge, roster and teardown; this holds the cvars, console commands, map vote and minimum-players rule.
 ##
-## No `class_name`: [method GSModuleHost.load_module] takes a path, and a module inside a dot-cloud pack cannot have one (a mounted pack's globals are not registered in the host).
+## No `class_name`: [method GSModuleHost.load_module] takes a path, and a module inside a gs-cloud pack cannot have one (a mounted pack's globals are not registered in the host).
 
 # No `const CHANNEL`: [GSGameModule] declares one and a subclass may not redeclare it, which is right, since a second channel would split this module's records.
 
 ## Where the services keep punishments (empty: [GSGameServices]'s default store). Static because
-## dot-server constructs the module from a path, so there is no instance to set a field on; a test
+## gs-server constructs the module from a path, so there is no instance to set a field on; a test
 ## points it at a directory of its own.
 static var punishments_file: String = ""
 
@@ -66,8 +66,8 @@ func _make_services() -> Node:
 	return services
 
 
-## Profiles, avatars and admission: dot-platform's [GSPlatformIdentity] over this game's one-slot schema.
-## Authentication is the host's `dot_auth_server`, the same for every game; this layer is a scoped profile, a name and a face. With authentication off everybody is a guest.
+## Profiles, avatars and admission: gs-platform's [GSPlatformIdentity] over this game's one-slot schema.
+## Authentication is the host's `gs_auth_server`, the same for every game; this layer is a scoped profile, a name and a face. With authentication off everybody is a guest.
 func _make_identity() -> Node:
 	var identity_layer := GSPlatformIdentity.new()
 	identity_layer.avatar_schema = HsAvatars.schema()
@@ -90,7 +90,7 @@ func _game_load() -> GSResult:
 	add_command("hs_status", _cmd_status, "Show the round, the map and who is caught")
 	add_command("hs_net", _cmd_net, "Show what the netcode is doing")
 	# maps.yml, before the commands: its `commands: names:` block renames hs_maps / hs_map (roles
-	# of those names) as it does dot-vote's, and the ballot reads the marks it sets.
+	# of those names) as it does gs-vote's, and the ballot reads the marks it sets.
 	var _rotation := world.load_rotation()
 	add_command(world.command_name("hs_maps", "hs_maps"), _cmd_maps, "List the maps, and any refused file")
 	add_command("hs_reload", _cmd_reload, "Read the map directory again (from the next map)")
@@ -126,7 +126,7 @@ func _game_load() -> GSResult:
 		"Automatic stand-ins: 1 keeps as many as bot_quota and bot_quota_mode say, 0 none at all."
 	)
 
-	# [GSBotQuota] is dot-server's, so `bot_quota` and `bot_quota_mode` mean the same on every server.
+	# [GSBotQuota] is gs-server's, so `bot_quota` and `bot_quota_mode` mean the same on every server.
 	# The default is this game's `minimum_players` in fill mode; `hs_bots` stays the switch it was.
 	_quota = GSBotQuota.install(self, world.config.minimum_players)
 
@@ -148,7 +148,7 @@ func _game_load() -> GSResult:
 
 ## The cvars of the rule sets this game runs under, each bound where it is declared.
 func _bind_rule_cvars(world: HsGame) -> void:
-	# sv_falldamage and its tunables: dot-combat's, on by default in this game. Server-side
+	# sv_falldamage and its tunables: gs-combat's, on by default in this game. Server-side
 	# only, so no REPLICATED: the damage is the server's and arrives as health.
 	var _fall := world.fall_rules.bind_cvars(add_cvar, GSConVar.FLAG_NOTIFY)
 	var _stomp := world.stomp.rules.bind_cvars(add_cvar, GSConVar.FLAG_NOTIFY)
@@ -157,7 +157,7 @@ func _bind_rule_cvars(world: HsGame) -> void:
 	if world.combat != null:
 		var _combat := world.combat.bind_cvars(add_cvar, GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED)
 
-	# dot-player-controller's mp_forceview and mp_solidplayers, REPLICATED: the client places its own
+	# gs-player-controller's mp_forceview and mp_solidplayers, REPLICATED: the client places its own
 	# camera and predicts its own player from them.
 	var _views := world.view_rules.bind_cvars(
 		add_cvar, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED
@@ -165,7 +165,7 @@ func _bind_rule_cvars(world: HsGame) -> void:
 	var _bodies := world.body_rules.bind_cvars(
 		add_cvar, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED
 	)
-	# sv_mobile_*: dot-mobile's touch controls, REPLICATED for the client's overlay.
+	# sv_mobile_*: gs-mobile's touch controls, REPLICATED for the client's overlay.
 	var _mobile := world.mobile_rules.bind_cvars(
 		add_cvar, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED
 	)
@@ -174,18 +174,18 @@ func _bind_rule_cvars(world: HsGame) -> void:
 		add_cvar, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED,
 		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY
 	)
-	# Dead bodies: dot-player-char's sv_ragdoll* set. The server only picks each death's reaction
+	# Dead bodies: gs-player-char's sv_ragdoll* set. The server only picks each death's reaction
 	# from them; REPLICATED, because the clients draw the bodies (see the client's netcode).
 	var _ragdolls := world.ragdoll_rules.bind_cvars(
 		add_cvar, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED
 	)
-	# The map's toys: dot-props' sv_toys* set. REPLICATED, because a client hides the toys the
+	# The map's toys: gs-props' sv_toys* set. REPLICATED, because a client hides the toys the
 	# server took away and draws the rest.
 	var _toys := world.toy_rules.bind_cvars(
 		add_cvar, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED
 	)
 
-	# mp_forcecamera, mp_freeroam, mp_freeroam_speed: dot-spectate's rules, so spectators
+	# mp_forcecamera, mp_freeroam, mp_freeroam_speed: gs-spectate's rules, so spectators
 	# free-roam unless an operator says otherwise. REPLICATED, because each client flies its
 	# own spectator camera under them (HsClient.toggle_roam).
 	for made: Object in world.spectate_rules.bind_cvars(
@@ -196,7 +196,7 @@ func _bind_rule_cvars(world: HsGame) -> void:
 
 
 ## Who somebody is reaches the world: a face as they are seated, and the real name and face
-## once dot-platform has them. All three events end in [method HsNetBridge.refresh_player].
+## once gs-platform has them. All three events end in [method HsNetBridge.refresh_player].
 func _wire_identity() -> void:
 	var link := bridge as HsNetBridge
 
@@ -209,8 +209,8 @@ func _wire_identity() -> void:
 	hook_post("player_renamed", _on_profile)
 
 
-## What a session looks like: what dot-platform resolved for them, or the stock person.
-## Through the platform module's `player_for`, never the hub by a key made here: the hub keys players by their scoped profile key, which only admission knows, so `u<session>` finds nobody. Duck-typed, since a server without dot-platform is a configuration.
+## What a session looks like: what gs-platform resolved for them, or the stock person.
+## Through the platform module's `player_for`, never the hub by a key made here: the hub keys players by their scoped profile key, which only admission knows, so `u<session>` finds nobody. Duck-typed, since a server without gs-platform is a configuration.
 func _avatar_for(session_id: int) -> GSAvatar:
 	var session := server.session_by_userid(session_id) if server != null else null
 	var platform: Object = server.modules.get_module("platform") \
@@ -244,7 +244,7 @@ func _on_profile(event: GSEvent) -> void:
 func _add_tunables(world: HsGame) -> void:
 	var config := world.config
 
-	# [b]How the stand-ins see, hear, turn and know a map is dot-bot's[/b]: `bot_difficulty`
+	# [b]How the stand-ins see, hear, turn and know a map is gs-bot's[/b]: `bot_difficulty`
 	# (easy, medium, hard, nightmare; medium by default) and every `bot_*` setting it bundles,
 	# the names every game in the family uses. On the game as metadata, never the registry.
 	var _bot_cvars := GSBotSettings.of(world).bind_cvars(add_cvar, GSConVar.FLAG_NOTIFY, add_command)
@@ -331,7 +331,7 @@ func _on_config_field(key: String, _value: Variant, _source: String) -> void:
 				vote.refresh_maps()
 
 
-## dot-workbench over the config and the block rules: the F9 panel off a dedicated server, the HTTP page only with `workbench.enabled` in cfg/server.yml. Edits are admitted for dot-auth tickets of the listed admins.
+## gs-workbench over the config and the block rules: the F9 panel off a dedicated server, the HTTP page only with `workbench.enabled` in cfg/server.yml. Edits are admitted for gs-auth tickets of the listed admins.
 func _start_workbench(world: HsGame) -> void:
 	workbench = GSGameWorkbench.new()
 	workbench.name = "Workbench"
@@ -429,7 +429,7 @@ func _game_tick(_tick: int, delta: float) -> void:
 	_note_pings()
 
 
-## Each session's ping onto its player, for the Tab board. dot-server already keeps it.
+## Each session's ping onto its player, for the Tab board. gs-server already keeps it.
 func _note_pings() -> void:
 	var world := game as HsGame
 	if world == null or server == null:
@@ -482,7 +482,7 @@ func _keep_the_round_full() -> void:
 		bridge.call("remove_player", HsNetBridge.session_of(leaving))
 
 
-## A stand-in's name: the game's list through dot-bot's [GSBotNames], never one already in
+## A stand-in's name: the game's list through gs-bot's [GSBotNames], never one already in
 ## [param world], so solo and a server name them alike and a scoreboard never has two Wrens.
 static func _bot_name(world: HsGame) -> String:
 	var taken: Array = []
@@ -508,7 +508,7 @@ func _wire_progress(world: HsGame) -> void:
 	if bridge == null:
 		return
 
-	# Filed under dot-game's stable per-server key (guests too), so it outlives the connection
+	# Filed under gs-game's stable per-server key (guests too), so it outlives the connection
 	# and a restart; see [HsProgress].
 	if world.progress != null:
 		world.progress.durable_key_fn = func(id: StringName) -> String:

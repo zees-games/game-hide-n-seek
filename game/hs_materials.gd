@@ -79,7 +79,7 @@ const SURFACES := {
 	"flat": {"pattern": "flat", "a": Color(0.8, 0.8, 0.8), "b": Color(0.8, 0.8, 0.8), "metres": 2.0, "rough": 0.8},
 }
 
-## surface id -> dot-map's [GSMapSurfaces] kind, for a map whose `look` is "pbr". A surface not here (glass, water, lines, boards, lockers, fabric) keeps its own look.
+## surface id -> gs-map's [GSMapSurfaces] kind, for a map whose `look` is "pbr". A surface not here (glass, water, lines, boards, lockers, fabric) keeps its own look.
 const PBR_KINDS := {
 	"wood_floor": &"wood_floor", "parquet": &"wood_floor", "gym": &"wood_planks", "tile": &"tile_white",
 	"tile_check": &"tile_checker", "tile_small": &"tile_white", "carpet": &"carpet_grey",
@@ -94,7 +94,7 @@ const PBR_TARGET := 0.58
 ## Specular strength of a non-metal photographic kind (Godot's default is 0.5).
 const PBR_SPECULAR := 0.2
 
-## The game's vendored kinds when it carries them (a delivered pack), else dot-map's own.
+## The game's vendored kinds when it carries them (a delivered pack), else gs-map's own.
 const SURFACES_ROOT := "res://assets/surfaces"
 
 static var _textures: Dictionary = {}

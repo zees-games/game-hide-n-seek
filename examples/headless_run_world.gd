@@ -37,7 +37,7 @@ func _test_catalogue() -> void:
 			bad += 1
 	_check(bad == 0, "every prop's model is in the game", "%d missing" % bad)
 
-	# Part-shaped collision (props/pieces.json, dot-props' GSPropPieces): a tree is pieces, a
+	# Part-shaped collision (props/pieces.json, gs-props' GSPropPieces): a tree is pieces, a
 	# fridge stays its box, and no piece reaches outside the prop's measured box by more than
 	# the decomposition's slack, or a player would bump into air beside the model.
 	var outside := PackedStringArray()

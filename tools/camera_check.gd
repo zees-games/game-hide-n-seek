@@ -1,6 +1,6 @@
 extends Node
 
-## The cameras and bodies the first play test caught, in the real offline game: the chase cameras flown round the course (dot-core's GSCameraCheck, armed by the unprotected camera being inside); a player walked into another held still, whose capsules never overlap with `mp_solidplayers 1` and do with 0; and with `--render`, that moment from the player's eyes.
+## The cameras and bodies the first play test caught, in the real offline game: the chase cameras flown round the course (gs-core's GSCameraCheck, armed by the unprotected camera being inside); a player walked into another held still, whose capsules never overlap with `mp_solidplayers 1` and do with 0; and with `--render`, that moment from the player's eyes.
 ##   tools/camera_check.sh [--render]   # headless, exit 1 on a failure; frames in screenshots/cameras/
 
 const HsClient := preload("../game/hs_client.gd")

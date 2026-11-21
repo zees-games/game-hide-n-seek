@@ -36,7 +36,7 @@ const MIN_COVER := 12
 const CUT_OFF_BASELINE := []
 ## The share of all walkable area a spawn's component must hold when it is not the biggest one.
 const MIN_SPAWN_SHARE := 0.5
-## Maps failing the check above: hs_restaurant, hs_apartment, hs_hotel play in a component under half the mesh (the rest is not joined to it), hs_frontyard also has a hider spawn the seekers cannot walk to. (Those four are fixed in hide-n-seek-maps.) hs_mountainresort's starts are all joined now (dot-map-convert's fit_doc --join-spawns moved its stranded seekers and hiders onto the deck), but its deck is 811 of 142471 m2: the mountain terrain around it is a 57087 m2 component of its own. sunken_resort, merged later, still has hiders stranded from the seekers. Map data, in hide-n-seek-maps.
+## Maps failing the check above: hs_restaurant, hs_apartment, hs_hotel play in a component under half the mesh (the rest is not joined to it), hs_frontyard also has a hider spawn the seekers cannot walk to. (Those four are fixed in hide-n-seek-maps.) hs_mountainresort's starts are all joined now (gs-map-convert's fit_doc --join-spawns moved its stranded seekers and hiders onto the deck), but its deck is 811 of 142471 m2: the mountain terrain around it is a 57087 m2 component of its own. sunken_resort, merged later, still has hiders stranded from the seekers. Map data, in hide-n-seek-maps.
 const SPAWN_COMPONENT_BASELINE := ["hs_mountainresort", "sunken_resort"]
 const COVER_HEIGHT := 0.8
 const COVER_WIDTH := 0.6
@@ -319,7 +319,7 @@ func _check_props(game: HsGame) -> void:
 
 
 func _check_toys(game: HsGame, doc: Dictionary) -> void:
-	# The toys (dot-props'): all built, none standing in a wall, a prop or another toy, and two
+	# The toys (gs-props'): all built, none standing in a wall, a prop or another toy, and two
 	# seconds of physics later every loose one still where the map put it, not through a floor
 	# or flung off by an overlap the solver pushed apart.
 	var box := game.map.toys
@@ -335,7 +335,7 @@ func _check_toys(game: HsGame, doc: Dictionary) -> void:
 		if hit != "":
 			stuck.append("%s %d at %s: %s" % [toy.def["id"], toy.index, toy.global_position.snapped(Vector3.ONE * 0.1), hit])
 	_check(box.count() == placed and box.missing.is_empty() and stuck.is_empty(),
-		"every toy is one dot-props has, and stands clear", "%d of %d built%s; %s" % [box.count(), placed,
+		"every toy is one gs-props has, and stands clear", "%d of %d built%s; %s" % [box.count(), placed,
 			" (missing %s)" % ", ".join(box.missing) if not box.missing.is_empty() else "", "; ".join(stuck.slice(0, 6))])
 	for _i in range(120):
 		await get_tree().physics_frame
@@ -527,7 +527,7 @@ func _world(id: StringName, drawn := false) -> HsGame:
 	return game
 
 
-## dot-core's [GSCollisionAudit] over the map as a client draws it: visible geometry with no shape near it, which a player walks through. Lenient (a shape anywhere under the map that the mesh touches covers it), because drawing is in `Drawn` and shapes in `Solid`.
+## gs-core's [GSCollisionAudit] over the map as a client draws it: visible geometry with no shape near it, which a player walks through. Lenient (a shape anywhere under the map that the mesh touches covers it), because drawing is in `Drawn` and shapes in `Solid`.
 ## The exact half: a visible non-solid box thicker than PAINT_THICKNESS must sit inside a solid one (embers in a hearth), never be a wall or a crate.
 func _audit_colliderless(id: StringName, doc: Dictionary) -> void:
 	var drawn := await _world(id, true)

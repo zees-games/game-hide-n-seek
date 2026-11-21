@@ -3,10 +3,10 @@ extends "hs_game_rotation.gd"
 
 const HsFlashlight := preload("hs_flashlight.gd")
 
-## `sv_falldamage*`: landing hard hurts. On in this game (dot-combat's default is off); the
+## `sv_falldamage*`: landing hard hurts. On in this game (gs-combat's default is off); the
 ## server applies it through [member combat], a client never does.
 var fall_rules: GSFallDamageRules = make_fall_rules()
-## `sv_stomp*`: landing on a head hurts. Off by default (dot-combat's); the server applies it through [member combat].
+## `sv_stomp*`: landing on a head hurts. Off by default (gs-combat's); the server applies it through [member combat].
 var stomp: GSStomp = GSStomp.new()
 ## Each player's vertical speed going into this tick's movement, for [method _resolve_stomps].
 var _pre_vy: Dictionary = {}
@@ -14,7 +14,7 @@ var _stomp_hulls: Array = []  # scratch for _resolve_stomps, cleared each call
 ## The ambience cvars (`hs_ambient*`): bound by the module (REPLICATED), followed by a client through its link.
 var ambient_rules: GSAmbienceRules = HsAmbience.make_rules()
 
-## dot-mobile's touch cvars (`sv_mobile_*`): bound by the module (REPLICATED), followed by the client's overlay. Nothing here
+## gs-mobile's touch cvars (`sv_mobile_*`): bound by the module (REPLICATED), followed by the client's overlay. Nothing here
 ## shoots, so aim assist and auto-fire stay at their off defaults.
 var mobile_rules: GSMobileRules = GSMobileRules.new()
 
@@ -28,7 +28,7 @@ var config_binder: GSGameConfigBinder = null
 ## The workbench's profile rows, made on first ask: the bridge's profile link must exist before the netcode seals, the workbench after.
 var profile_runtime: GSProfileRuntime = null
 
-## dot-team's block rules (`!block`, `!noblock`, `mp_teamblock`), set by the server module or `GSGameClient.add_noblock`. They feed [member body_rules]'s `pair_fn`.
+## gs-team's block rules (`!block`, `!noblock`, `mp_teamblock`), set by the server module or `GSGameClient.add_noblock`. They feed [member body_rules]'s `pair_fn`.
 var block_rules: Object = null:
 	set(value):
 		if block_rules != null and block_rules.is_connected(&"changed", body_rules.refresh):
@@ -84,10 +84,10 @@ var _to_respawn: Array[StringName] = []
 ## When the beacon's rule began to apply this round, in seconds of seeking; -1 while it does not.
 var _beacon_since: float = -1.0
 
-## The stand-ins: hiders that hide and seekers that search ([code]hs_bots.gd[/code], on dot-bot).
+## The stand-ins: hiders that hide and seekers that search ([code]hs_bots.gd[/code], on gs-bot).
 var bots: HsBots = HsBots.new(self)
 
-## What the stand-ins are called, solo and on a server alike; past the end dot-bot numbers them.
+## What the stand-ins are called, solo and on a server alike; past the end gs-bot numbers them.
 const BOT_NAMES := ["Pip", "Moss", "Juniper", "Quill", "Basil", "Wren", "Clover", "Sorrel", "Fern", "Rowan", "Hazel", "Linden"]
 
 
@@ -127,7 +127,7 @@ func team_of(player_id: StringName) -> int:
 	return int(sides.get(player_id, 0))
 
 
-## The side id dot-team's block rules compare ("" for none): hiders pass hiders and seekers pass seekers under `mp_teamblock 0`.
+## The side id gs-team's block rules compare ("" for none): hiders pass hiders and seekers pass seekers under `mp_teamblock 0`.
 func team_of_side(player_id: Variant) -> Variant:
 	var key := StringName(str(player_id))
 	var side := team_of(key)
@@ -275,7 +275,7 @@ func map_rows() -> Array:
 
 
 ## The map menu's change: [param id] now, not after this map's rounds. The next map is set and
-## a fresh round begins on it (dot-match's `begin_round_now`: the round called off has no
+## a fresh round begins on it (gs-match's `begin_round_now`: the round called off has no
 ## winner); with no match running it is simply built. Authority only.
 func change_map_now(id: StringName) -> GSResult:
 	if not authoritative:
@@ -540,7 +540,7 @@ var _ray_walls: PhysicsRayQueryParameters3D = null
 var _ray_solid: PhysicsRayQueryParameters3D = null
 
 
-## The fall a death gets: dot-player-char's reaction rule over the server's weights, seeded from
+## The fall a death gets: gs-player-char's reaction rule over the server's weights, seeded from
 ## the player and the tick. Nothing here shoots, so there is no weapon def: an administrator's
 ## slay pushes the body away from whoever did it, and a fall below the map pushes nothing.
 func decide_death(player: HsPlayer, damage: GSDamage) -> GSPlayerDeath:

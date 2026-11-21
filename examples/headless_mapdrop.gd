@@ -1,6 +1,6 @@
 extends GSGameCheckSuite
 
-## Maps handed to Hide & Seek outside the game (HsMapDrop through dot-map's GSMapDropIntake, API 26): a map document or
+## Maps handed to Hide & Seek outside the game (HsMapDrop through gs-map's GSMapDropIntake, API 26): a map document or
 ## a folder of them, dragged onto the window, dropped on the executable or named by `--map-path=`. Each is checked as the
 ## catalogue checks one, copied to user://maps and listed at once; anything else is refused out loud with what the game
 ## takes, and a client of a server refuses every drop.
@@ -31,8 +31,8 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	if GSAddonApi.build_level("dot_map") < HsMapDrop.NEEDS_LEVEL:
-		print("-- skipped: dot-map API %d < %d (no GSMapDropIntake)" % [GSAddonApi.build_level("dot_map"), HsMapDrop.NEEDS_LEVEL])
+	if GSAddonApi.build_level("gs_map") < HsMapDrop.NEEDS_LEVEL:
+		print("-- skipped: gs-map API %d < %d (no GSMapDropIntake)" % [GSAddonApi.build_level("gs_map"), HsMapDrop.NEEDS_LEVEL])
 		_report_sections(0, 0, 0)
 		return
 	var entered := 0
@@ -61,9 +61,9 @@ func _test_args() -> void:
 	var folder := ProjectSettings.globalize_path(SOURCE.path_join("args"))
 	DirAccess.make_dir_recursive_absolute(folder)
 	var intake := HsMapDrop.make(null)
-	if not _check(intake != null, "dot-map 30 makes the shared intake"):
+	if not _check(intake != null, "gs-map 30 makes the shared intake"):
 		return
-	var kept: PackedStringArray = intake.call(&"strip_config_args", PackedStringArray(["--hs-map_directory", folder, "--dot_net.port", folder,
+	var kept: PackedStringArray = intake.call(&"strip_config_args", PackedStringArray(["--hs-map_directory", folder, "--gs_net.port", folder,
 		"--hs-doors_enabled", folder, "--hs-no_such_key", folder, "--hs-seed_value=5", "--headless"]), intake.get(&"config_prefixes"), intake.get(&"option_takes_value"))
 	_check(kept == PackedStringArray([folder, folder, "--headless"]),
 		"a --hs-<key> and --<addon>.<key> value is no drop; a --hs-<bool> switch and an unknown key take none", str(kept))

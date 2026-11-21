@@ -4,7 +4,7 @@ const HsConfig := preload("hs_config.gd")
 const HsGame := preload("hs_game.gd")
 
 ## What a [GSServer] loads as its game scene. Never a client. Small on purpose: everything a dedicated server does is in `hs_module.gd`;
-## dot-server loads a SCENE, and the world must be in the tree (registered under [constant HsGame.SERVICE]) before the module looks for it.
+## gs-server loads a SCENE, and the world must be in the tree (registered under [constant HsGame.SERVICE]) before the module looks for it.
 ## It lives in `game/` not `scenes/`: a game is vendored as `game/` plus only the `.tscn` files, so a script under `scenes/` never reaches the build.
 
 const CHANNEL := "hs.server"

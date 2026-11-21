@@ -57,7 +57,7 @@ func _ready() -> void:
 	_client.name = "Client"
 	_client.set("force_offline", true)
 	add_child(_client)
-	# --view=cover: the loading cover dot-game's GSGameClient puts up first, before it lifts.
+	# --view=cover: the loading cover gs-game's GSGameClient puts up first, before it lifts.
 	if _view == "cover":
 		for _i in 2:
 			await RenderingServer.frame_post_draw
@@ -205,7 +205,7 @@ func _view_door(game: HsGame, local: HsPlayer) -> void:
 
 
 func _view_spots(game: HsGame, local: HsPlayer) -> void:
-	# The annotator's spots, links and chokepoints over the map from above (dot-npc-ai's
+	# The annotator's spots, links and chokepoints over the map from above (gs-npc-ai's
 	# GSNpcAiNavDebug): a hiding spot in the middle of a room passes every count.
 	await _seconds_of(1.0)
 	var ann: GSNpcAiNavAnnotations = game.bots.annotations

@@ -6,7 +6,7 @@ const HsMapConfig := preload("../game/hs_map_config.gd")
 ## Writes a file into the operator tier for the run and removes it; the cvars start away from the file's values.
 
 const CHECKS := 10
-const DIR := "res://cfg/server/game/game-hide-n-seek/dot_map/map"
+const DIR := "res://cfg/server/game/game-hide-n-seek/gs_map/map"
 
 
 func _ready() -> void:
@@ -15,9 +15,9 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("game-hide-n-seek: per-map cvars from cfg/game/game-hide-n-seek/dot_map/map")
-	if not FileAccess.file_exists("res://addons/dot_map/config/dot_map_config.gd"):
-		print("SKIPPED: dot-map is not linked at addons/dot_map")
+	print("game-hide-n-seek: per-map cvars from cfg/game/game-hide-n-seek/gs_map/map")
+	if not FileAccess.file_exists("res://addons/gs_map/config/gs_map_config.gd"):
+		print("SKIPPED: gs-map is not linked at addons/gs_map")
 		get_tree().quit(0)
 		return
 	DirAccess.make_dir_recursive_absolute(DIR)

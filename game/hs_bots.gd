@@ -1,6 +1,6 @@
 extends "hs_bots_hide.gd"
 
-## The stand-ins: hiders that hide and seekers that search, on dot-bot's settings. The map is surveyed once in `_prepare`
+## The stand-ins: hiders that hide and seekers that search, on gs-bot's settings. The map is surveyed once in `_prepare`
 ## (GSBotNav mesh, GSBotHiding.survey scoring places by sight lines); a hider picks a hidden place apart from the others, a seeker searches with GSBotSearch.
 ## Nobody cheats: a bot knows another body only by seeing or hearing it, the last-hiders beacon being the one exception.
 
@@ -366,7 +366,7 @@ func quality(at: Vector3) -> Array:
 
 
 ## Where the old stand-ins' hiders would have gone on this map: [param count] hiders each
-## choosing from the old random survey (dot-bot's own scoring, apart from one another, away from
+## choosing from the old random survey (gs-bot's own scoring, apart from one another, away from
 ## the seekers' start), which is the yardstick the annotator's spots are measured against.
 func legacy_picks(count: int) -> PackedVector3Array:
 	var picks := PackedVector3Array()

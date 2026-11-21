@@ -3,7 +3,7 @@ extends GSGameCheckSuite
 const HsBindings := preload("../game/hs_bindings.gd")
 const HsTouch := preload("../game/hs_touch.gd")
 
-## The touch controls: every button presses an action the bindings or the controller define, no two overlap on a phone, and dot-mobile's overlay
+## The touch controls: every button presses an action the bindings or the controller define, no two overlap on a phone, and gs-mobile's overlay
 ## drives the client's own sampler (a finger on a button is not a look drag, the mouse a touch emulates is dropped, a menu pauses it).
 ## Run: [code]./game.sh --no-parse test headless_touch[/code].
 
@@ -25,7 +25,7 @@ func _run() -> void:
 	_check(ids.size() == 5, "the layout has jump, run, duck, door and taunt")
 	for id in ids:
 		var action: StringName = HsTouch.ACTIONS.get(id, &"")
-		_check(rows.has(String(action)) or action == &"dot_fps_jump" or action == &"dot_fps_sprint" or action == &"dot_fps_crouch", "%s presses an action the bindings or controller define" % id)
+		_check(rows.has(String(action)) or action == &"gs_fps_jump" or action == &"gs_fps_sprint" or action == &"gs_fps_crouch", "%s presses an action the bindings or controller define" % id)
 	_check(ids.has(&"jump") and ids.has(&"sprint") and ids.has(&"crouch"), "jump, run and crouch are on it, under their canonical ids")
 	_check(ids.has(&"use") and ids.has(HsTouch.TAUNT), "the door and the taunt are on it")
 	var held_ids := 0

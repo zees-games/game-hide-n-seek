@@ -2,7 +2,7 @@ extends GSGameClientBench
 
 const HsModule := preload("../game/hs_module.gd")
 
-## Client prediction bench (dot-game's GSGameClientBench): see that class for the flags.
+## Client prediction bench (gs-game's GSGameClientBench): see that class for the flags.
 ## The server's seekers and hiders are real players, so `--bots` is ignored.
 
 

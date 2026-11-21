@@ -281,7 +281,7 @@ func _finish_annotation(doc: Dictionary) -> GSNpcAiNavAnnotations:
 static var _join_cache: Dictionary = {}
 
 
-## dot-bot's own drops, hops and stitches over the rims, which join the islands a bake leaves round stairs, steps and seams; a hop or stitch that climbs is jumped at its foot.
+## gs-bot's own drops, hops and stitches over the rims, which join the islands a bake leaves round stairs, steps and seams; a hop or stitch that climbs is jumped at its foot.
 func _join_islands() -> void:
 	_jump_feet.clear()
 	# By map id, not [member _baked]: that carries the map node's instance id, so every round missed.

@@ -1,4 +1,4 @@
-# Surface kinds this game vendors (dot-map tools/sync-surfaces.sh); one per line.
+# Surface kinds this game vendors (gs-map tools/sync-surfaces.sh); one per line.
 asphalt
 brick
 carpet_grey

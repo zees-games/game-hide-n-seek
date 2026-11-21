@@ -4,7 +4,7 @@ extends "hs_client_base.gd"
 
 const CHANNEL := "hs.client"
 
-## Where the dead lie: dot-player-char's ragdolls under the game's (the server's) rules.
+## Where the dead lie: gs-player-char's ragdolls under the game's (the server's) rules.
 var ragdolls: GSPlayerRagdolls = null
 
 
@@ -137,7 +137,7 @@ func _place_camera() -> void:
 			_fade.focus = null
 		return
 
-	# dot-core's boom, swept from the eye with the height above it added in the world's up:
+	# gs-core's boom, swept from the eye with the height above it added in the world's up:
 	# a pivot above the head can be inside a tree's canopy (the play test, 0:33), and the
 	# spring arm it replaced cast a ray from there and snapped to whatever it hit.
 	_arm = GSCameraBoom.new()
@@ -235,7 +235,7 @@ func _key(action: StringName) -> String:
 	return str(row.get("default", action))
 
 
-## dot-game's chat box and microphone, with this game's channels and voice format.
+## gs-game's chat box and microphone, with this game's channels and voice format.
 func _build_chat() -> void:
 	chat = GSGameChatClient.new()
 	chat.name = "Chat"
@@ -383,7 +383,7 @@ func _player_of(session_id: int) -> HsPlayer:
 	return game.players.get(HsNetBridge.player_key(session_id))
 
 
-## dot-team's block rules followed from the server, or, solo, the F9 tuning panel over this process's own config.
+## gs-team's block rules followed from the server, or, solo, the F9 tuning panel over this process's own config.
 func _add_noblock_and_workbench() -> void:
 	if link != null:
 		GSLog.result(CHANNEL, "noblock", platform.add_noblock(game, Callable(game, "team_of_side")))
@@ -430,7 +430,7 @@ func is_spectating() -> bool:
 		and game.spectate.is_spectating(player.player_id)
 
 
-## Where a roster row's player stands, for dot-game's look-to-gag key (G, K).
+## Where a roster row's player stands, for gs-game's look-to-gag key (G, K).
 func _look_position(row: Dictionary) -> Variant:
 	if game == null:
 		return null

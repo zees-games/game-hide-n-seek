@@ -6,7 +6,7 @@ const HsGame := preload("../game/hs_game.gd")
 const HsVote := preload("../game/hs_vote.gd")
 
 ## Workshop maps: a subscribed pack's map is offered in solo, not online, a kind the game does not accept is left out, and the one chosen in solo is the one built.
-## The fixture is a pack under user:// registered in dot-core's content index as the client shell's Workshop sync does; the entry's `scene` is the JSON document (see hs_catalogue.gd). The "surf" entry arms the kind filter: it must be in neither list.
+## The fixture is a pack under user:// registered in gs-core's content index as the client shell's Workshop sync does; the entry's `scene` is the JSON document (see hs_catalogue.gd). The "surf" entry arms the kind filter: it must be in neither list.
 
 const ROOT := "user://hs_ws_fixture/"
 const CHECKS := 18

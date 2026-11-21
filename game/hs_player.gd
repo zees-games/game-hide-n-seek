@@ -7,7 +7,7 @@ const HsTouch := preload("hs_touch.gd")
 const HsAvatars := preload("hs_avatars.gd")
 
 ## One person: how they move, which side they are on, and how close they are to being caught.
-## Everybody is themselves: the side is a torso tint, and a caught hider changes side in place. No hitboxes or weapons: a catch is a distance or ray the server measures (see [member HsConfig.catch_mode]). Health remains for a fall below the map and an admin's slay, so dot-moderation's god, buddha and slap mean what they do elsewhere.
+## Everybody is themselves: the side is a torso tint, and a caught hider changes side in place. No hitboxes or weapons: a catch is a distance or ray the server measures (see [member HsConfig.catch_mode]). Health remains for a fall below the map and an admin's slay, so gs-moderation's god, buddha and slap mean what they do elsewhere.
 
 ## Metres above a player's feet that their eyes are.
 const EYE_HEIGHT := 1.6
@@ -18,7 +18,7 @@ const BODY_HEIGHT := 1.8
 const BODY_CROUCH := 0.95
 const BODY_STEP := 0.4
 
-## The use key, in the movement command's buttons: one dot-player-controller leaves to games,
+## The use key, in the movement command's buttons: one gs-player-controller leaves to games,
 ## so it rides in every input packet with the movement and needs no field of its own.
 const USE_BUTTON := GSFpsCommand.BUTTON_USER_0
 
@@ -27,7 +27,7 @@ const USE_BUTTON := GSFpsCommand.BUTTON_USER_0
 @export var samples_input: bool = false
 @export var is_bot: bool = false
 
-## What this player looks like, as a dot-user-avatar document; null is the stock person.
+## What this player looks like, as a gs-user-avatar document; null is the stock person.
 var avatar: GSAvatar = null
 
 var config: HsConfig = null

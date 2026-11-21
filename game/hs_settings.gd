@@ -3,14 +3,14 @@ extends GSMenuGameSettings
 const HsBindings := preload("hs_bindings.gd")
 
 ## A player's own settings and the menu that changes them: view turn rate and width, volumes, the window, and the look of the menu. Use: `add_child(settings)`, `setup()` (loads, pushes every value), `bind_look/camera/audio`, `open()` (Escape does this in the client).
-## dot-menu's `GSMenuGameSettings` with this game's spec. The scopes are the family's: `sensitivity` is ACCOUNT, `field_of_view` SERVER_CLAMPED (a wide view is an advantage a server may cap), volumes this machine's.
+## gs-menu's `GSMenuGameSettings` with this game's spec. The scopes are the family's: `sensitivity` is ACCOUNT, `field_of_view` SERVER_CLAMPED (a wide view is an advantage a server may cap), volumes this machine's.
 
 const SCHEMA_VERSION := 1
 
-## Where this game's own document lives. The shared account document is dot-settings'.
+## Where this game's own document lives. The shared account document is gs-settings'.
 const SETTINGS_DIR := "user://hideseek_settings"
 
-## The app's namespace. ACCOUNT settings are shared under dot-menu's `tmc_account`.
+## The app's namespace. ACCOUNT settings are shared under gs-menu's `tmc_account`.
 const APP_NAMESPACE := &"hideseek"
 
 ## The field of view the camera had before this existed, and still the default.

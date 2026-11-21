@@ -1,7 +1,7 @@
 extends "hs_game_play.gd"
 
 ## The simulation. Headless, authoritative, and the only thing that decides anything.
-## A round is hiding and then seeking: one or two players are drawn as seekers, the hiders hide for [member HsConfig.hide_seconds] while the seekers are held blindfolded, then seekers catch hiders (a touch, or watching them, as the server decides) and each caught hider seeks where they stand. The round, sides and scoreboard are dot-match's (via [HsRules]); seeker rotation, taunts and health are dot-team's, dot-props' and dot-combat's.
+## A round is hiding and then seeking: one or two players are drawn as seekers, the hiders hide for [member HsConfig.hide_seconds] while the seekers are held blindfolded, then seekers catch hiders (a touch, or watching them, as the server decides) and each caught hider seeks where they stand. The round, sides and scoreboard are gs-match's (via [HsRules]); seeker rotation, taunts and health are gs-team's, gs-props' and gs-combat's.
 ## A catch is measured by the server between two bodies it simulates: a client cannot say "I touched them" (see [method _advance_catching]).
 
 
@@ -174,7 +174,7 @@ func _build_map() -> void:
 
 
 ## Health, and nothing that shoots. What still takes it away is a fall and an administrator,
-## and both arrive as damage so dot-moderation's god and buddha work as they do everywhere.
+## and both arrive as damage so gs-moderation's god and buddha work as they do everywhere.
 func _build_combat() -> void:
 	combat = GSCombatManager.new()
 	combat.name = "Combat"
@@ -189,7 +189,7 @@ func _build_combat() -> void:
 	var settings := GSCombatConfig.new()
 	settings.lag_compensation = false
 	combat.config = settings
-	# A trace nothing here fires, set anyway: without one dot-combat warns at every boot that
+	# A trace nothing here fires, set anyway: without one gs-combat warns at every boot that
 	# shots pass through walls, and a warning about nothing is how a reader learns to skim.
 	var trace := GSTracePhysics.for_world(get_world_3d())
 
@@ -417,7 +417,7 @@ func add_player(
 		var seated := match_node.add_player(String(player_id), display_name, _tick, side)
 
 		if not seated.ok:
-			GSLog.error(CHANNEL, "dot-match refused a player", {"id": String(player_id), "why": seated.error.message})
+			GSLog.error(CHANNEL, "gs-match refused a player", {"id": String(player_id), "why": seated.error.message})
 
 	place_one(player)
 	apply_pass_through()

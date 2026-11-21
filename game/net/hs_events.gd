@@ -3,7 +3,7 @@ extends RefCounted
 const HsGame := preload("../hs_game.gd")
 
 ## The wire format for everything that is not a snapshot or an input.
-## Encoders and decoders in pairs that nothing checks are inverses, so `headless_net` round-trips every one (dot-moderation once wrote `"voice muted"` and read back a warning).
+## Encoders and decoders in pairs that nothing checks are inverses, so `headless_net` round-trips every one (gs-moderation once wrote `"voice muted"` and read back a warning).
 ## The map travels whole: `MAP` carries the normalised document deflated (see [HsMapDoc]), so a client needs no map files; after that only sides and taunts change.
 
 enum Kind {
@@ -63,7 +63,7 @@ enum Ask {
 }
 
 ## Every decoder returns an `ok` beside its fields, and every caller checks it.
-## A reader past its end returns plausible zeros rather than failing (dot-net's exhaustion was not sticky), so a truncated packet would decode as a valid message about nothing.
+## A reader past its end returns plausible zeros rather than failing (gs-net's exhaustion was not sticky), so a truncated packet would decode as a valid message about nothing.
 const NAME_BYTES := 64
 const ID_BYTES := 64
 const TEXT_BYTES := 256
@@ -262,7 +262,7 @@ static func read_team(r: GSNetReader) -> Dictionary:
 	return {"player_id": player_id, "team": team, "ok": r.ok()}
 
 
-## [param death] is how the body falls (dot-player-char's [GSPlayerDeath], the server's pick),
+## [param death] is how the body falls (gs-player-char's [GSPlayerDeath], the server's pick),
 ## last and optional, so every client draws the same fall and an older one reads the rest.
 static func write_death(player_id: int, by: int, why: StringName, death: GSPlayerDeath = null) -> PackedByteArray:
 	var w := _w()
@@ -360,8 +360,8 @@ static func read_phase(r: GSNetReader) -> Dictionary:
 
 
 
-## A view dot-spectate decided, for the one player it belongs to.
-## The death position travels, or a mirror puts every death camera at the world origin, under the floor. The event is bit-packed and keyed by session (zero is nobody), where dot-spectate's is a string-keyed dictionary.
+## A view gs-spectate decided, for the one player it belongs to.
+## The death position travels, or a mirror puts every death camera at the world origin, under the floor. The event is bit-packed and keyed by session (zero is nobody), where gs-spectate's is a string-keyed dictionary.
 static func write_spectate(
 	viewer: int, mode: int, target: int, killer: int, death_at: Vector3
 ) -> PackedByteArray:
@@ -499,7 +499,7 @@ const CHAT_KEY_BYTES := 48
 const CHAT_KIND_BITS := 4
 
 
-## Whether every [enum GSChatMessage.Kind] fits in [constant CHAT_KIND_BITS]. dot-chat owns
+## Whether every [enum GSChatMessage.Kind] fits in [constant CHAT_KIND_BITS]. gs-chat owns
 ## that enum, so it can grow under this game; headless_net reads this.
 static func chat_kinds_fit() -> bool:
 	return GSChatMessage.KIND_NAMES.size() <= (1 << CHAT_KIND_BITS)

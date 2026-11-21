@@ -3,17 +3,17 @@ extends RefCounted
 const HsBindings := preload("hs_bindings.gd")
 const SelfScript := preload("hs_touch.gd")
 
-## The player's actions as on-screen buttons: dot-mobile's stick, drag-look and buttons over the HUD, driving the client's own [GSFpsTouchSampler].
-## The buttons are dot-game's platformer preset. Jump, run and duck are held on the sampler as the keys are; the door and the taunt press the action
+## The player's actions as on-screen buttons: gs-mobile's stick, drag-look and buttons over the HUD, driving the client's own [GSFpsTouchSampler].
+## The buttons are gs-game's platformer preset. Jump, run and duck are held on the sampler as the keys are; the door and the taunt press the action
 ## their key is bound to, so the client's one key path, the door use and the rebinding stay as they are. Nothing here aims or fires: a hider has no weapon.
 
 const TAUNT := &"taunt"
 
 ## Layout id to the input action it presses.
 const ACTIONS := {
-	GSGameTouchLayout.JUMP: &"dot_fps_jump",
-	GSGameTouchLayout.SPRINT: &"dot_fps_sprint",
-	GSGameTouchLayout.CROUCH: &"dot_fps_crouch",
+	GSGameTouchLayout.JUMP: &"gs_fps_jump",
+	GSGameTouchLayout.SPRINT: &"gs_fps_sprint",
+	GSGameTouchLayout.CROUCH: &"gs_fps_crouch",
 	GSGameTouchLayout.USE: HsBindings.USE,
 	TAUNT: HsBindings.TAUNT,
 }
@@ -26,7 +26,7 @@ const HOLDS := {
 }
 
 var controls: GSMobileControls = null
-## dot-ui's buttons inside the overlay, for the shell's DPI fit.
+## gs-ui's buttons inside the overlay, for the shell's DPI fit.
 var buttons: GSTouchButtons:
 	get:
 		return controls.buttons if controls != null else null
@@ -48,7 +48,7 @@ static func touch_layout() -> GSGameTouchLayout:
 	return res.value
 
 
-## The layout's rows with the held command bits, as dot-mobile takes them.
+## The layout's rows with the held command bits, as gs-mobile takes them.
 static func layout() -> Array[Dictionary]:
 	var rows := touch_layout().buttons()
 	for row in rows:

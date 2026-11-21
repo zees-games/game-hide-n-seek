@@ -1,6 +1,6 @@
 extends "hs_bots_move.gd"
 
-## Bodies in sight, natively: dot-sim's GSSimBodySight asks [method _sees], [method _nearest_seen_seeker] and
+## Bodies in sight, natively: gs-sim's GSSimBodySight asks [method _sees], [method _nearest_seen_seeker] and
 ## [method _visible_prey] over one table of the tick's bodies, each ask one call, every line of sight the same ray as
 ## `_clear_between`. The table is written once a tick before the bots are driven ([method _sight_bind]); with no library,
 ## [member sight_mode] "script" or a body moved mid-tick, the script answers. `HS_SIGHT_VERIFY=1` asks the script beside

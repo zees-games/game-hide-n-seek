@@ -21,7 +21,7 @@ driver/enable_input=true
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/dot_lighting/plugin.cfg")
+enabled=PackedStringArray("res://addons/gs_lighting/plugin.cfg")
 
 [importer_defaults]
 

@@ -57,7 +57,7 @@ func _test_the_client() -> void:
 	hud.call("_process", 0.0)
 	var xh: GSCrosshair = hud.get("_crosshair")
 	_check(xh != null and xh.suppressed and not xh.is_shown(), "the blindfolded seeker's crosshair is suppressed")
-	# The clock is dot-ui's GSScoreStrip, the two sides still in it as its plates.
+	# The clock is gs-ui's GSScoreStrip, the two sides still in it as its plates.
 	hud.call("_process", 0.0)
 	var strip: GSScoreStrip = hud.get("strip")
 	_check(
@@ -143,7 +143,7 @@ func _client_theme(client: Node, hud: Node, strip: GSScoreStrip) -> void:
 	_t = themed.settings.set_value(&"ui_theme", &"midnight")
 
 
-## A slain stand-in falls as dot-player-char's ragdoll, copied by the client from the figure it draws.
+## A slain stand-in falls as gs-player-char's ragdoll, copied by the client from the figure it draws.
 func _client_ragdoll(client: Node, world: HsGame) -> void:
 	world._set_phase(HsGame.Phase.SEEK)
 	var ragdolls: GSPlayerRagdolls = client.get("ragdolls")
@@ -237,7 +237,7 @@ func _client_death_codec() -> void:
 	_check(bool(bare["ok"]) and not bare.has("death"), "and one without a fall still reads")
 
 
-## A hider in front of a door is prompted with the use key as bound; then the pack's dot-ui floor.
+## A hider in front of a door is prompted with the use key as bound; then the pack's gs-ui floor.
 func _client_door_prompt(client: Node, world: HsGame, hud: Node) -> void:
 	# The seek first, which lets this seeker's blindfold hold go; then a hider.
 	world._set_phase(HsGame.Phase.SEEK)
@@ -258,13 +258,13 @@ func _client_door_prompt(client: Node, world: HsGame, hud: Node) -> void:
 		"at a door, GSKeyPrompt names it with the use key as bound", prompt.text()
 	)
 
-	# A pack naming these classes does not parse on a shell whose dot-ui predates them, so
-	# the requires.json dot-ci derives must ask for dot-ui 4, and nothing may lower it.
+	# A pack naming these classes does not parse on a shell whose gs-ui predates them, so
+	# the requires.json gs-ci derives must ask for gs-ui 4, and nothing may lower it.
 	var asks := GSAddonApi.derive()
 	_check(
-		int(asks.get("dot_ui", 0)) >= 4 and not FileAccess.file_exists("res://" + GSAddonApi.FLOOR_FILE),
-		"the pack asks a shell for dot-ui level 4, the glance pieces",
-		str(asks.get("dot_ui"))
+		int(asks.get("gs_ui", 0)) >= 4 and not FileAccess.file_exists("res://" + GSAddonApi.FLOOR_FILE),
+		"the pack asks a shell for gs-ui level 4, the glance pieces",
+		str(asks.get("gs_ui"))
 	)
 
 
@@ -304,7 +304,7 @@ func _test_help_and_menu() -> void:
 
 
 ## The family's rule since the first play test: M opens the map list, and solo a choice
-## changes it now. The server's half (the owner's flag, the vote) is in `dedicated` and dot-vote.
+## changes it now. The server's half (the owner's flag, the vote) is in `dedicated` and gs-vote.
 func _test_the_map_menu() -> void:
 	_section("M opens the map list, and solo a choice changes it")
 	var game := await _world(func(c: HsConfig) -> void: c.map_ids = PackedStringArray())
@@ -359,7 +359,7 @@ func _test_wheel_jump() -> void:
 	var rows := 0
 	var found := 0
 	for row in settings.bindings.rows:
-		if StringName(row["action"]) == &"dot_fps_jump":
+		if StringName(row["action"]) == &"gs_fps_jump":
 			rows += 1
 			if str(row["default"]) == "Wheel up" or str(row["default"]) == "Wheel down":
 				found += 1

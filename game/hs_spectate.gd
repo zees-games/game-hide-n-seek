@@ -2,7 +2,7 @@ extends GSSpectatorHost
 
 const HsPlayer := preload("hs_player.gd")
 
-## Where somebody who is out looks, and what the server lets them see: dot-spectate's host with this game's roster and rules. A client runs a MIRROR told each view change in a `SPECTATE` event.
+## Where somebody who is out looks, and what the server lets them see: gs-spectate's host with this game's roster and rules. A client runs a MIRROR told each view change in a `SPECTATE` event.
 ## No delay: every player is always relevant here, so every client already receives every live position and a delayed camera would hide nothing.
 ## No `class_name`; reached by preload from [HsGame], which it does not preload back.
 

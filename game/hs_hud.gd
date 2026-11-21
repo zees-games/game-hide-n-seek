@@ -34,8 +34,8 @@ static func piece_theme() -> Theme:
 	return t
 
 
-## The Escape menu, whose theme this HUD follows (dot-menu's `follow_hud`): the menu sets the theme on the HUD's root and applies the player's HUD size.
-## Duck-typed and called by name, for a client shell older than dot-menu 7.
+## The Escape menu, whose theme this HUD follows (gs-menu's `follow_hud`): the menu sets the theme on the HUD's root and applies the player's HUD size.
+## Duck-typed and called by name, for a client shell older than gs-menu 7.
 var _menu: Object = null
 
 
@@ -220,7 +220,7 @@ func _build_crosshair() -> void:
 	_crosshair.dot_radius = 3.0
 	_crosshair.colour = Color(1.0, 1.0, 1.0, 0.75)
 	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if GSAddonApi.build_level("dot_ui") >= 14:
+	if GSAddonApi.build_level("gs_ui") >= 14:
 		_crosshair.set(&"alive_source", func() -> bool: return player != null and player.is_alive())
 	_root.add_child(_crosshair)
 

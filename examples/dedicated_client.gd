@@ -3,10 +3,10 @@ extends "dedicated_vote.gd"
 
 ## A reload keeps the maps the server names: `hs_reload` reads the map directory again, which
 ## forgets everything read before. A pack "mounted" on the disk and a descriptor naming it
-## stand in for dot-cloud and the deployment's map config, which a suite has neither of.
+## stand in for gs-cloud and the deployment's map config, which a suite has neither of.
 func _test_a_reload_keeps_delivered_maps() -> void:
 	_section("a reload keeps the maps the server names")
-	var key := "dot-test/hs-delivered@1.0.0"
+	var key := "gs-test/hs-delivered@1.0.0"
 	var mount := GSGameContent.mount_of(key)
 	var dir := mount.path_join("maps")
 	var id := &"hs_delivered_check"
@@ -43,10 +43,10 @@ func _test_a_reload_keeps_delivered_maps() -> void:
 
 	DirAccess.remove_absolute(dir.path_join("delivered_check.json"))
 	var path := dir
-	while path != "res://dot_cloud":
+	while path != "res://gs_cloud":
 		DirAccess.remove_absolute(path)
 		path = path.get_base_dir()
-	DirAccess.remove_absolute("res://dot_cloud")
+	DirAccess.remove_absolute("res://gs_cloud")
 	_finished()
 
 

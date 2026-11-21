@@ -45,7 +45,7 @@ func _run() -> void:
 
 
 ## Every encoder against its decoder. Nothing checks that two ends of a serialisation are
-## inverses for you: dot-moderation once wrote "voice muted" and read back a warning.
+## inverses for you: gs-moderation once wrote "voice muted" and read back a warning.
 func _test_the_codec() -> void:
 	_section("every event decodes to what was encoded")
 
@@ -169,7 +169,7 @@ func _build() -> bool:
 
 	_server_net = _make_manager(true, &"server", 1, server_side, SERVER_TICK_RATE)
 	_client_net = _make_manager(false, &"client", CLIENT_PEER, client_side, CLIENT_ENGINE_TICK_RATE)
-	# This harness stamps every command itself (`_tick + INPUT_LEAD`), so the client must not ask for dot-net's input-lead report: steered by reports about commands it never stamped, the clock runs away. By the constant map, so it parses against a dot-net from before the report.
+	# This harness stamps every command itself (`_tick + INPUT_LEAD`), so the client must not ask for gs-net's input-lead report: steered by reports about commands it never stamped, the clock runs away. By the constant map, so it parses against a gs-net from before the report.
 	var lead_bit := int((GSNetMessageRegistry as Script).get_script_constant_map().get("FEATURE_INPUT_LEAD", 0))
 	_client_net.messages.features &= ~lead_bit
 
@@ -254,7 +254,7 @@ func _test_a_client_joins() -> void:
 		"the client knows who is seeking and who is hiding")
 	_check(_client_game.phase == HsGame.Phase.HIDE, "and that the hiders are hiding")
 
-	# The online board is dot-server's roster (sessions only); the stand-ins must be added by the
+	# The online board is gs-server's roster (sessions only); the stand-ins must be added by the
 	# game. Both stand-ins here have is_bot false on the client, as in a browser.
 	var client_script: GDScript = load("res://game/hs_client.gd")
 	var roster := {"players": [{"id": SESSION, "name": "Ada", "ping": 20, "seconds": 5, "bot": false}]}
@@ -409,7 +409,7 @@ func _test_the_toys_cross() -> void:
 	_finished()
 
 
-## A client whose MAP never came still reads every snapshot: dot-net stops at the first entity a client does not know, so the TOYS for an unbuilt map are registered as mirrors anyway and paired when the map arrives. Armed: registering them only once built froze every player seated after the toys.
+## A client whose MAP never came still reads every snapshot: gs-net stops at the first entity a client does not know, so the TOYS for an unbuilt map are registered as mirrors anyway and paired when the map arrives. Armed: registering them only once built froze every player seated after the toys.
 func _test_a_client_without_the_map() -> void:
 	_section("a client without the server's map still follows every player, and pairs the toys when it comes")
 	_server_game._set_phase(HsGame.Phase.SEEK)
@@ -642,7 +642,7 @@ func _test_leaving() -> void:
 func _test_the_remote_workbench() -> void:
 	_section("[a flagged admin edits the server's profiles, and nobody else can]")
 	if not GSGameWorkbench.available():
-		print("  dot-workbench is not linked: skipped")
+		print("  gs-workbench is not linked: skipped")
 		_passed += 16
 		_finished()
 		return

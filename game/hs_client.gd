@@ -1,7 +1,7 @@
 extends "hs_client_view.gd"
 
 ## One local player, a camera and a HUD over a [HsGame] — offline, or against a server.
-## One client for both: offline is the same world class with `authoritative` true and stand-ins on both sides; only [HsNetBridge] differs. Which runs depends on a `dot_client_link` in the registry (`--offline` forces it). First person for everybody; F5 hangs the camera behind, presentation only.
+## One client for both: offline is the same world class with `authoritative` true and stand-ins on both sides; only [HsNetBridge] differs. Which runs depends on a `gs_client_link` in the registry (`--offline` forces it). First person for everybody; F5 hangs the camera behind, presentation only.
 
 
 func _ready() -> void:
@@ -95,7 +95,7 @@ func _start_offline() -> void:
 	GSLog.result(CHANNEL, "chat, offline", chat.attach(null))
 
 
-## A solo stand-in's name: the server's list, through dot-bot's pick, so solo and a server
+## A solo stand-in's name: the server's list, through gs-bot's pick, so solo and a server
 ## name them alike.
 static func _bot_name(index: int) -> String:
 	var taken: Array = []

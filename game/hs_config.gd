@@ -190,7 +190,7 @@ const CAUGHT_SEEK_START := 1
 ## Where map documents are read from, relative to this game's root.
 @export var map_directory: String = "maps"
 
-## The file that says which maps a server ROTATES: `cfg/maps.yml` over the shipped `res://maps.yml` (dot-map's `GSMapRotationFile`). Empty or absent rotates every map.
+## The file that says which maps a server ROTATES: `cfg/maps.yml` over the shipped `res://maps.yml` (gs-map's `GSMapRotationFile`). Empty or absent rotates every map.
 ## A map the rotation leaves out stays installed (`hs_map <id>` queues it); it is only never drawn or balloted. `sv_map_rotation_file`.
 @export var map_rotation_file: String = "cfg/maps.yml"
 
@@ -225,7 +225,7 @@ const CAUGHT_SEEK_START := 1
 @export_range(0, 255, 1, "or_greater") var minimum_players: int = 5
 
 # How far a stand-in sees and hears, how fast it turns and notices, and how well it knows a
-# map are dot-bot's `bot_*` settings, shared by every game (`bot_difficulty`, `bot_sight`,
+# map are gs-bot's `bot_*` settings, shared by every game (`bot_difficulty`, `bot_sight`,
 # `bot_fov`, `bot_hearing`, `bot_reaction`, `bot_map_knowledge`, ...).
 
 

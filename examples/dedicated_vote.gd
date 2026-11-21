@@ -58,7 +58,7 @@ func _vote_offers_maps(vote: Node) -> void:
 
 
 ## The map menu's server half (M): the owner's flag changes the map now, anybody else gets a
-## nomination and a rock-the-vote. Contexts as dot-server makes them for a chat line.
+## nomination and a rock-the-vote. Contexts as gs-server makes them for a chat line.
 func _vote_map_menu(vote: Node) -> void:
 	var menu_half: Object = vote.get("commands").get("map_menu")
 	_check(menu_half != null and server.console.find_command("mapmenu") != null
@@ -114,7 +114,7 @@ func _vote_next_map(vote: Node, director: GSVoteDirector, choice: StringName) ->
 		"the new map starts the vote over", "%s / %s" % [director.current_id(), laid])
 
 
-## Typed at the console as a player's !rtv reaches it. Past dot-vote's cooldown, on the
+## Typed at the console as a player's !rtv reaches it. Past gs-vote's cooldown, on the
 ## director alone so the map's own ballot timer does not open one first.
 func _vote_rock_the_vote(vote: Node, director: GSVoteDirector) -> void:
 	vote.set("voters_fn", func() -> Array: return [&"console"])
@@ -133,7 +133,7 @@ func _vote_rock_the_vote(vote: Node, director: GSVoteDirector) -> void:
 	director.vote_opened.disconnect(counter)
 
 
-## The config as cvars and a workbench set, the old cvar names as aliases, and dot-team's block rules through dot-game.
+## The config as cvars and a workbench set, the old cvar names as aliases, and gs-team's block rules through gs-game.
 func _test_config_and_noblock() -> void:
 	_section("config and noblock")
 	var console := server.console
@@ -290,7 +290,7 @@ func _rotation_cleared(vote: Node) -> void:
 
 
 ## `time_up: finish_round` waits for a round being played, never for warmup: the game hands
-## dot-vote its match's answer (`round_in_progress_fn`). Run on a director of its own, so the
+## gs-vote its match's answer (`round_in_progress_fn`). Run on a director of its own, so the
 ## real vote's clock is untouched; the match's state is set by hand and put back.
 func _test_finish_round_waits_for_a_live_round() -> void:
 	_section("finish_round waits for a live round, not warmup")
@@ -329,7 +329,7 @@ func _test_finish_round_waits_for_a_live_round() -> void:
 
 
 ## A director under `time_up: finish_round` carrying [param hook], its clock run out with a
-## winner already decided: what dot-vote's own suite builds, with the game's answer in it.
+## winner already decided: what gs-vote's own suite builds, with the game's answer in it.
 func _finish_round_probe(hook: Callable, applied: Array) -> GSVoteDirector:
 	var source := GSVoteListSource.new()
 	var _a := source.add(GSVoteChoice.of(&"a", "A"))

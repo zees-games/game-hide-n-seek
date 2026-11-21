@@ -5,7 +5,7 @@ extends "hs_game_base.gd"
 ## The server's maps.yml, or null when there is none (every map rotates, as it always did).
 var rotation_file: GSMapRotationFile = null
 
-# dot-map's rotation file marks and orders [GSMapDef]s in a [GSMapCatalogue]; this game keeps
+# gs-map's rotation file marks and orders [GSMapDef]s in a [GSMapCatalogue]; this game keeps
 # its maps as documents, so a def per map id is mirrored here and the file applied to those.
 var _rot_catalogue: GSMapCatalogue = null
 var _rot: GSMapRotation = null

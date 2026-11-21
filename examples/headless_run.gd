@@ -163,7 +163,7 @@ func _door_bot(game: HsGame) -> void:
 		"at %s; the door is %s" % [bot.controller.state.position.snapped(Vector3.ONE * 0.1), "open" if doors.is_open(GARDEN_DOOR) else "shut"])
 
 
-## The practice house's garden toys (dot-props'): the beach ball at 16.5, -2.5, the football at
+## The practice house's garden toys (gs-props'): the beach ball at 16.5, -2.5, the football at
 ## 14, 3, the tyre, and the lamp (3) on its switch (4) at 12, -3.
 func _test_toys() -> void:
 	_section("toys: walked into, kicked, switched, bounced on, home again at the next round")
@@ -235,7 +235,7 @@ func _toys_ride(game: HsGame, hider: HsPlayer) -> void:
 	_check(tramp.count >= 2, "and every bounce is counted, which is what a client hears", str(tramp.count))
 
 	# A roundabout: a person standing on it a metre from the hub goes round with it, in their
-	# movement (HsController.carrier, dot-props' carry_for), and is still a metre out after.
+	# movement (HsController.carrier, gs-props' carry_for), and is still a metre out after.
 	var hub := deck.global_position
 	hider.place_at(hub + Vector3(1.0, 0.5, 0.0), 0.0)
 	for _i in range(TICK_RATE / 2):

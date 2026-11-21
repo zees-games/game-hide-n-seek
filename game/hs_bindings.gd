@@ -1,8 +1,8 @@
 extends RefCounted
 
 ## Every key this game reads, as one [GSMenuBindings] table: action, setting, words, default and card. Four things read it: the client's event matching, the settings document, the Controls page and the help screen.
-## Short on purpose: moving, crouching and looking are the movement rows. H is help in every game of the family (dot-menu adds the row), so nothing here may default to it.
-## Chat is two rows on dot-ui's chat window's own actions (Y to all, U to your side), so the help screen lists them and the Controls page moves them.
+## Short on purpose: moving, crouching and looking are the movement rows. H is help in every game of the family (gs-menu adds the row), so nothing here may default to it.
+## Chat is two rows on gs-ui's chat window's own actions (Y to all, U to your side), so the help screen lists them and the Controls page moves them.
 
 const TAUNT := &"hs_taunt"
 const TAUNT_MENU := &"hs_taunt_menu"
@@ -13,7 +13,7 @@ const USE := &"hs_use"
 const ROAM := &"hs_roam"
 ## The flashlight, on and off, for both sides.
 const FLASHLIGHT := &"hs_flashlight"
-## dot-ui's chat window's actions, which dot-game's chat client leaves at their defaults.
+## gs-ui's chat window's actions, which gs-game's chat client leaves at their defaults.
 const CHAT := &"chat_open"
 const CHAT_TEAM := &"chat_open_team"
 
@@ -21,10 +21,10 @@ const CHAT_TEAM := &"chat_open_team"
 static func make() -> GSMenuBindings:
 	var keys := GSMenuBindings.new()
 	keys.add_movement("Movement", "Ctrl", "Crouch")
-	# dot-player-controller's own sprint and walk actions, as rows so the Controls page and the
+	# gs-player-controller's own sprint and walk actions, as rows so the Controls page and the
 	# help screen have them.
-	keys.add(&"dot_fps_sprint", &"bind_sprint", "Sprint", "Shift", "Movement")
-	keys.add(&"dot_fps_walk", &"bind_walk", "Walk quietly", "Alt", "Movement")
+	keys.add(&"gs_fps_sprint", &"bind_sprint", "Sprint", "Shift", "Movement")
+	keys.add(&"gs_fps_walk", &"bind_walk", "Walk quietly", "Alt", "Movement")
 	keys.add_wheel_jump("Movement")
 	keys.add(USE, &"bind_use", "Open or shut a door", "E", "General")
 	keys.add(FLASHLIGHT, &"bind_flashlight", "Flashlight", "F", "General")

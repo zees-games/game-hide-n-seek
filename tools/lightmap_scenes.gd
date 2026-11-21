@@ -1,6 +1,6 @@
 extends Node
 
-## Writes one bake scene per map for dot-lighting's baker: the map built as a client builds it, opaque box batches (with UV2), lamps and sun kept,
+## Writes one bake scene per map for gs-lighting's baker: the map built as a client builds it, opaque box batches (with UV2), lamps and sun kept,
 ## a LightmapGI added and the fingerprint recorded (GSMapBoxBake); tools/bake_lightmaps.sh runs this then the bake.
 ## Needs a display (xvfb-run), not --headless: a headless process keeps no mesh data to save.
 

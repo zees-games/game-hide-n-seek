@@ -3,12 +3,12 @@ extends Node
 const HsPlayer := preload("hs_player.gd")
 
 ## What a player keeps from a round: the numbers this game produces, and what they earn.
-## The numbers are the ones only this game has (rounds got through unseen on a map, hiders caught), declared once in [method schema] and reported to dot-stats as a DELTA ("add one"), so two servers reporting one player add up.
+## The numbers are the ones only this game has (rounds got through unseen on a map, hiders caught), declared once in [method schema] and reported to gs-stats as a DELTA ("add one"), so two servers reporting one player add up.
 ## Achievements are rules over those numbers, through [GSAchievementStatsLink] (the differencer between SESSION and lifetime totals). Stand-ins are never counted. Server side and on an offline client. Numbers are filed under the scoped profile key when there is one ([member durable_key_fn]), else the world's id, which lasts a connection.
 
 const CHANNEL := "hs.progress"
 
-## The published skill figure the site orders by (dot-stats' GSStatsRank).
+## The published skill figure the site orders by (gs-stats' GSStatsRank).
 const RANK_SCORE := &"rank_score"
 
 
@@ -48,7 +48,7 @@ var feed: GSStatsEventFeed = null
 var achievements: GSAchievementTracker = null
 var link: GSAchievementStatsLink = null
 
-## The skill rank (dot-stats' GSStatsRank): weighted lifetime figures, filed as rank_score.
+## The skill rank (gs-stats' GSStatsRank): weighted lifetime figures, filed as rank_score.
 var rank: GSStatsRank = null
 
 ## The world's own dictionaries, shared. See [HsSpectate] for why not a reference to it.
@@ -65,7 +65,7 @@ var _round_found: Dictionary = {}
 var _caught_this_round: int = 0
 
 ## `func(player_id: StringName) -> String`: the durable key to file this player under, or
-## "" for none. Set by the module from dot-platform; see the class note.
+## "" for none. Set by the module from gs-platform; see the class note.
 var durable_key_fn: Callable = Callable()
 
 ## World id -> the key their numbers are filed under, and back. Fixed at [method record]'s

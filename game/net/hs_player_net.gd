@@ -5,7 +5,7 @@ const HsPlayer := preload("../hs_player.gd")
 const HsController := preload("../hs_controller.gd")
 
 ## What a networked player replicates: the movement state, their health, and the numbers a hider needs about itself.
-## The movement half is [GSFpsNetSync.state_specs], dot-player-controller's own table (type names are STRINGS so the addon can describe a layout without naming dot-net). The game fields are the server's decisions about a player, which a client must not work out for itself.
+## The movement half is [GSFpsNetSync.state_specs], gs-player-controller's own table (type names are STRINGS so the addon can describe a layout without naming gs-net). The game fields are the server's decisions about a player, which a client must not work out for itself.
 ## Which side somebody is on is not here: it changes once a round, and arrives reliably in a JOIN and a TEAM. A per-tick property for what changes per tick, an event for what changes on a decision.
 
 var player: HsPlayer = null
@@ -19,7 +19,7 @@ var net_crouch: float = 0.0
 var net_flags: int = 0
 var net_modifiers: int = 0
 
-## The jump timers (coyote, jump buffer, cooldown), owner only, for the owner's rewind. Opt-in on dot-player-controller API 10; see its docs/networking.md.
+## The jump timers (coyote, jump buffer, cooldown), owner only, for the owner's rewind. Opt-in on gs-player-controller API 10; see its docs/networking.md.
 var net_timers: int = 0
 
 ## Hit points, and the one field with a hard cap on the wire.
@@ -93,7 +93,7 @@ func _register_net_vars() -> void:
 
 	# Owner-only jump timers, appended after the movement specs (declaration order is wire order).
 	# Guarded: a shell without API 10 has no GSFpsNetSync.rewind_specs().
-	if GSAddonApi.build_level("dot_player_controller") >= 10:
+	if GSAddonApi.build_level("gs_player_controller") >= 10:
 		for spec in GSFpsNetSync.rewind_specs():
 			var _timers := replicate(spec["property"], GSNetVar.Type[spec["type"]]).bits(int(spec["bits"])).to_owner_only()
 

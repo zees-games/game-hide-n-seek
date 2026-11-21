@@ -78,7 +78,7 @@ func add_directory(root: String) -> int:
 
 ## Follows a [GSContentIndex]: subscribed (solo) and delivered (online) map entries of an
 ## accepted kind become maps here, for the index's CURRENT session only. Empty kinds is none and
-## "*" every kind, as for dot-map. The game's own and an operator's maps always win an id.
+## "*" every kind, as for gs-map. The game's own and an operator's maps always win an id.
 func follow_content(index: GSContentIndex, accepted_kinds: PackedStringArray) -> void:
 	_index = index
 	_kinds = accepted_kinds
@@ -425,7 +425,7 @@ static func practice() -> Dictionary:
 		{"id": "nature_flower_red_a", "at": [12.0, 0.0, -7.0]},
 	]
 
-	# Toys in the garden (dot-props'): balls to kick about, a tyre, and a lamp on a switch by the
+	# Toys in the garden (gs-props'): balls to kick about, a tyre, and a lamp on a switch by the
 	# door. The suites lean on these too: headless_net pushes the beach ball and presses the
 	# switch, and checks a client sees both.
 	var toys: Array = [

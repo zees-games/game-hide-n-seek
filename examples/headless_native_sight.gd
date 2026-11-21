@@ -5,7 +5,7 @@ const HsGame := preload("../game/hs_game.gd")
 const HsPlayer := preload("../game/hs_player.gd")
 const HsBots := preload("../game/hs_bots.gd")
 
-## The stand-ins' bodies in sight in dot-sim (`HsBots.sight_mode`, native by default) answer exactly as the script does:
+## The stand-ins' bodies in sight in gs-sim (`HsBots.sight_mode`, native by default) answer exactly as the script does:
 ## `_sees`, `_nearest_seen_seeker` and `_visible_prey` over every pair of bodies a live round has, on real maps with their
 ## walls, props and toys, every few ticks, and every ask the bots make themselves under `sight_verify`. Then what one ask
 ## costs either way, and the whole server tick with the mode flipped every few ticks in the same round. With no library
@@ -37,8 +37,8 @@ func _run() -> void:
 	_check(HsBots.sight_mode == "native", "HsBots.sight_mode is native without the game turning it on")
 	var loaded := GSSim.has(&"body_sight") and GSSim.has(&"sight")
 	if not loaded:
-		print("  dot-sim's body_sight module is not loaded: the native half is skipped")
-		_check((OS.get_environment("GS_SIM_REQUIRE_NATIVE") if OS.has_environment("GS_SIM_REQUIRE_NATIVE") else OS.get_environment("DOT_SIM_REQUIRE_NATIVE")) != "1", "the library is loaded (GS_SIM_REQUIRE_NATIVE=1)")
+		print("  gs-sim's body_sight module is not loaded: the native half is skipped")
+		_check((OS.get_environment("GS_SIM_REQUIRE_NATIVE") if OS.has_environment("GS_SIM_REQUIRE_NATIVE") else OS.get_environment("GS_SIM_REQUIRE_NATIVE")) != "1", "the library is loaded (GS_SIM_REQUIRE_NATIVE=1)")
 		_finished += 1
 		_report_sections(_entered, _finished, SECTIONS - 3, 2)
 		return

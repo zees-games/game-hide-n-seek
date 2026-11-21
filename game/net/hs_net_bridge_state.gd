@@ -91,8 +91,8 @@ var _entities: Node = null
 ## session id -> [HsPlayerNet].
 var _behaviours: Dictionary = {}
 
-## The next session id for somebody the world made itself, well above anything dot-server issues. Every wire id is `u<session>` and a player
-## called `bot` parses to session ZERO, so two bots would be one entry in [member _behaviours] and carry dot-net's broadcast address.
+## The next session id for somebody the world made itself, well above anything gs-server issues. Every wire id is `u<session>` and a player
+## called `bot` parses to session ZERO, so two bots would be one entry in [member _behaviours] and carry gs-net's broadcast address.
 const FIRST_BOT_SESSION := 900000
 
 var _next_bot_session: int = FIRST_BOT_SESSION
@@ -288,7 +288,7 @@ func _release_toys() -> void:
 	_toy_nets.clear()
 
 
-## Client: TOYS. A mirror for every id at once, whether this end has built that map or not: dot-net stops reading a snapshot at the first
+## Client: TOYS. A mirror for every id at once, whether this end has built that map or not: gs-net stops reading a snapshot at the first
 ## entity it does not know, so a client whose MAP never arrived had every later player frozen. Paired with this end's toys by index when both are here.
 func _apply_toys(reader: GSNetReader) -> void:
 	var told := HsEvents.read_toys(reader)
@@ -388,7 +388,7 @@ func _broadcast(kind: int, body: PackedByteArray) -> void:
 		_tell(int(peer_id), kind, body)
 
 
-## One peer, and never zero: `net.send(msg, 0)` is a BROADCAST in dot-net, so passing a missing peer id straight
+## One peer, and never zero: `net.send(msg, 0)` is a BROADCAST in gs-net, so passing a missing peer id straight
 ## through would send one player's private message to everybody.
 func _tell(peer_id: int, kind: int, body: PackedByteArray) -> void:
 	if peer_id <= 0 or net == null or body.is_empty():
@@ -451,9 +451,9 @@ func _adopt_tick_rate(rate: int) -> void:
 	# The LIVE one, which is built from the config back at `setup()` and is therefore not
 	# updated by writing the config alone.
 	net.clock.tick_rate = game.tick_rate
-	# dot-net API 7 has GSNetClock.adopt_tick_rate(), which also raises the engine's step cap to a quarter second of ticks. A shell built
+	# gs-net API 7 has GSNetClock.adopt_tick_rate(), which also raises the engine's step cap to a quarter second of ticks. A shell built
 	# before it gets the same rule here; remove this branch when the oldest shell is API 7.
-	if GSAddonApi.build_level("dot_net") >= 7:
+	if GSAddonApi.build_level("gs_net") >= 7:
 		GSNetClock.adopt_tick_rate(game.tick_rate)
 	else:
 		Engine.max_physics_steps_per_frame = maxi(Engine.max_physics_steps_per_frame, ceili(0.25 * float(game.tick_rate)))

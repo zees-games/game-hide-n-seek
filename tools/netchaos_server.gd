@@ -2,7 +2,7 @@ extends GSGameNetchaosServer
 
 const HsModule := preload("../game/hs_module.gd")
 
-## Hide And Seek's side of `tools/netchaos.sh` (dot-game's GSGameNetchaosServer): the world scene and the module, as a dedicated server loads them, with no stand-ins.
+## Hide And Seek's side of `tools/netchaos.sh` (gs-game's GSGameNetchaosServer): the world scene and the module, as a dedicated server loads them, with no stand-ins.
 
 var _scene: Node = null
 

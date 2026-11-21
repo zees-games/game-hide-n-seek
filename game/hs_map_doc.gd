@@ -119,7 +119,7 @@ static func validate(source: Dictionary) -> GSResult:
 
 	doc["boxes"] = boxes
 
-	# A converted map's displacement ground (dot-map's heightfield), which the boxes cannot be: a
+	# A converted map's displacement ground (gs-map's heightfield), which the boxes cannot be: a
 	# stepped field stops a walker at the first hill. `tint` is the colour it is drawn in.
 	if source.has("terrain"):
 		if not (source["terrain"] is Dictionary):
@@ -131,7 +131,7 @@ static func validate(source: Dictionary) -> GSResult:
 		raw_ground["tint"] = _floats(raw_ground.get("tint", [1.0, 1.0, 1.0]), 3)
 		doc["terrain"] = raw_ground
 
-	# "pbr" draws the building surfaces with dot-map's photographic kinds (HsMaterials.PBR_KINDS) instead of the pastel grid.
+	# "pbr" draws the building surfaces with gs-map's photographic kinds (HsMaterials.PBR_KINDS) instead of the pastel grid.
 	if source.has("look"):
 		if not (str(source["look"]) in LOOKS):
 			return _refuse("look is not one of %s" % [LOOKS], source)
@@ -217,9 +217,9 @@ static func _lights(source: Dictionary, out: Dictionary) -> String:
 
 
 static func _toys(source: Dictionary, out: Dictionary) -> String:
-	# Toys: dot-props' GSPropBodyBox placements, `{toy, at, yaw, links?, on?}`. Which ids exist
+	# Toys: gs-props' GSPropBodyBox placements, `{toy, at, yaw, links?, on?}`. Which ids exist
 	# is the catalogue's to say when the map is built (an unknown one is left out and listed),
-	# so a map with a toy a newer dot-props has still plays on an older server.
+	# so a map with a toy a newer gs-props has still plays on an older server.
 	var toys: Array = []
 	for raw: Variant in source.get("toys", []):
 		var toy := GSPropBodyBox.normal_placement(raw)

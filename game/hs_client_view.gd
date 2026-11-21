@@ -34,7 +34,7 @@ func _drive_spectator_camera() -> bool:
 			_arm.queue_free()
 			_arm = null
 
-	# Chase and death cameras pulled out of the house by dot-spectate, given the level.
+	# Chase and death cameras pulled out of the house by gs-spectate, given the level.
 	var manager: GSSpectatorManager = game.spectate.manager
 	if manager != null and manager.camera_world == null and game.physics != null:
 		manager.camera_world = camera.get_world_3d()
@@ -99,13 +99,13 @@ func _fly_free_camera() -> Transform3D:
 
 	if _pointer_ours() and not _covered():
 		move = Vector3(
-			_strength(&"dot_fps_right") - _strength(&"dot_fps_left"),
-			_strength(&"dot_fps_jump") - _strength(&"dot_fps_crouch"),
-			_strength(&"dot_fps_forward") - _strength(&"dot_fps_back"),
+			_strength(&"gs_fps_right") - _strength(&"gs_fps_left"),
+			_strength(&"gs_fps_jump") - _strength(&"gs_fps_crouch"),
+			_strength(&"gs_fps_forward") - _strength(&"gs_fps_back"),
 		)
 
 	var pose := _free_cam.step(
-		move, _held(&"dot_fps_sprint"), _held(&"dot_fps_walk"), get_process_delta_time()
+		move, _held(&"gs_fps_sprint"), _held(&"gs_fps_walk"), get_process_delta_time()
 	)
 	var _kept := game.spectate.manager.move_free(String(player.player_id), pose.origin, pose.basis)
 	return pose

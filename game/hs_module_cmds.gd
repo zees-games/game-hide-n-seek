@@ -68,7 +68,7 @@ func _wire_chat() -> void:
 	services.connect("command_entered", _on_chat_command)
 
 
-## The players' vote for the next map over dot-vote: `!vote`, `!rtv`, `!nominate` (see `game/hs_vote.gd`).
+## The players' vote for the next map over gs-vote: `!vote`, `!rtv`, `!nominate` (see `game/hs_vote.gd`).
 ## A vote that cannot be built is a WARN and the rotation alone, never a server that will not start.
 func _build_vote(world: HsGame) -> void:
 	if world.catalogue == null:
@@ -100,7 +100,7 @@ func _wire_vote_hooks(world: HsGame) -> void:
 		var out: Array = []
 
 		for id in world.catalogue.playable(world.config.map_ids):
-			# A pack map is dot-vote's to list, with its pack's name.
+			# A pack map is gs-vote's to list, with its pack's name.
 			if world.catalogue.is_content(id):
 				continue
 
@@ -169,9 +169,9 @@ func _wire_vote_hooks(world: HsGame) -> void:
 
 ## The map menu and the events that tell the vote where the round is.
 func _wire_vote_menu_and_events(world: HsGame) -> void:
-	# The map menu (M), dot-vote's: a player holding the owner's `sv_map_menu_flag` changes the
+	# The map menu (M), gs-vote's: a player holding the owner's `sv_map_menu_flag` changes the
 	# map now, not after its rounds, and sees the same rows a solo player does. Read by name,
-	# because a server on a dot-vote older than the menu has no `map_menu` and runs without it.
+	# because a server on a gs-vote older than the menu has no `map_menu` and runs without it.
 	var menu_half: Variant = vote.commands.get(&"map_menu") if vote.commands != null else null
 	if menu_half is Object:
 		(menu_half as Object).set(&"change_fn", world.change_map_now)

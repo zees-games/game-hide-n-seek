@@ -1,7 +1,7 @@
 extends "hs_net_bridge_io.gd"
 
 ## Joins an [HsGame] to a [GSNetManager]: the netcode seam, and the only file here that names both. Map arrives once as `MAP`;
-## then only `CAUGHT`, `TEAM` and `TAUNT` cross. dot-net simulates per entity but this game ticks as a whole world,
+## then only `CAUGHT`, `TEAM` and `TAUNT` cross. gs-net simulates per entity but this game ticks as a whole world,
 ## so [method ensure_game_ticked] lets the first behaviour on a tick run everything and the rest find it done.
 
 
@@ -210,7 +210,7 @@ func _on_player_added(id: StringName) -> void:
 	if _behaviours.has(session_id):
 		return
 
-	# Every wire id is `u<session>` and anything else parses to zero (also dot-net's broadcast address), so a second player called `bot`
+	# Every wire id is `u<session>` and anything else parses to zero (also gs-net's broadcast address), so a second player called `bot`
 	# would silently replace the first in this table. Refused with a line rather than accepted quietly.
 	if player_key(session_id) != id:
 		GSLog.warn(CHANNEL, "a player whose id is not a session key is not replicated", {
@@ -307,7 +307,7 @@ func _on_request(message: GSNetMessage) -> void:
 	if ask == null or net == null or not net.is_server:
 		return
 
-	# [b]From the message, which dot-net stamped from the TRANSPORT.[/b] A peer id inside a
+	# [b]From the message, which gs-net stamped from the TRANSPORT.[/b] A peer id inside a
 	# body is a claim; `sender_peer_id` is what the socket said, which is the only version
 	# of it a server may act on.
 	var peer_id := ask.sender_peer_id
@@ -339,7 +339,7 @@ func _on_request(message: GSNetMessage) -> void:
 				var _said := game.taunt(player_key(player_for_peer(peer_id)), asked["taunt_id"])
 
 
-## Everything in the world, to one peer, once its own copy exists. On READY and not on connect: dot-server's signon finishes and THEN the client
+## Everything in the world, to one peer, once its own copy exists. On READY and not on connect: gs-server's signon finishes and THEN the client
 ## builds its scene, so JOIN and MAP sent at connect land on a node that does not exist yet.
 func _admit(peer_id: int) -> void:
 	if peer_id <= 0:

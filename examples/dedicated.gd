@@ -82,7 +82,7 @@ func _shut_down() -> void:
 func _boot() -> void:
 	_section("booting")
 
-	# `startup_config`, because `sv_tickrate` is startup-only and dot-server execs this file
+	# `startup_config`, because `sv_tickrate` is startup-only and gs-server execs this file
 	# before the listener for exactly that reason.
 	var cfg_path := "%s/server.cfg" % SERVER_DIR
 	var cfg := FileAccess.open(cfg_path, FileAccess.WRITE)
@@ -155,7 +155,7 @@ func _test_the_module_loads() -> void:
 
 	var module := _module()
 	_check(game != null and game.progress != null and game.progress.durable_key_fn.is_valid(),
-		"progress is filed under dot-game's stable stats key")
+		"progress is filed under gs-game's stable stats key")
 	_check(module != null and module.get("net") != null and module.get("bridge") != null,
 		"with its netcode and the game's bridge")
 
@@ -226,7 +226,7 @@ func _stand_in_quota() -> void:
 	var quota_bridge: Object = quota_module.get("bridge") if quota_module != null else null
 	_check(server.console.find_cvar("bot_quota") != null and server.console.find_cvar("bot_quota_mode") != null,
 		"the shared bot_quota cvars are registered")
-	# How the stand-ins see, hear and know a map is dot-bot's: the family's names, medium by default.
+	# How the stand-ins see, hear and know a map is gs-bot's: the family's names, medium by default.
 	var bot_settings := GSBotSettings.of(game)
 	_check(server.console.get_string("bot_difficulty", "") == "medium" and bot_settings.difficulty() == "medium",
 		"bot_difficulty is the module's and medium is the default")

@@ -72,11 +72,11 @@ There is a small practice house built in, plus the maps from [hide-n-seek-maps](
 
 ## Getting started
 
-You need [Godot 4.7](https://godotengine.org/download). The game is built from many GameSpice addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons in:
+You need [Godot 4.7](https://godotengine.org/download). The game is built from many GameSpice addons, each in its own repository. The easiest way to get everything is [gs-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons in:
 
 ```bash
 git clone https://github.com/gamespice-platform/bootstrap.git
-cd dot-bootstrap
+cd gs-bootstrap
 ./bootstrap.sh
 cd projects/game-hide-n-seek
 ./game.sh
@@ -84,7 +84,7 @@ cd projects/game-hide-n-seek
 
 On Windows, run `bootstrap.ps1` and open the project in Godot.
 
-The maps come from the hide-n-seek-maps checkout, which bootstrap links into `maps/`. On a deployed server the game ships only its practice map, and the server owner picks the maps pack (`gamemann/hide-n-seek-maps`, or their own) in dot-server-deploy's `cfg/content.yml`.
+The maps come from the hide-n-seek-maps checkout, which bootstrap links into `maps/`. On a deployed server the game ships only its practice map, and the server owner picks the maps pack (`gamemann/hide-n-seek-maps`, or their own) in gs-server-deploy's `cfg/content.yml`.
 
 | Command | What it does |
 | --- | --- |
@@ -96,7 +96,7 @@ The maps come from the hide-n-seek-maps checkout, which bootstrap links into `ma
 | `./game.sh shot` | Save a screenshot to `screenshots/` (`tools/shot.sh` lists the views) |
 | `./game.sh help` | All options |
 
-`online` and `server` use [dot-server-deploy](https://github.com/gamespice-platform/server-deploy), which bootstrap clones next to this project. Run its `./setup.sh` once first.
+`online` and `server` use [gs-server-deploy](https://github.com/gamespice-platform/server-deploy), which bootstrap clones next to this project. Run its `./setup.sh` once first.
 
 ## Running a server
 
@@ -139,15 +139,15 @@ Every field of the game's configuration (`game/hs_config.gd`) is an `hs_<field>`
 | `bot_quota` | 5 | Players a round is kept at with bots; each person who joins replaces one |
 | `bot_quota_mode` | `fill` | `fill`, `fixed` (that many bots), `per_player` or `off` |
 
-Bot cvars are the family's shared ones: [dot-bot](https://github.com/gamespice-platform/bot)'s `bot_difficulty` (easy, medium, hard, nightmare) and its `bot_*` settings (`bot_settings` lists them). The same names work at the solo console, and `./game.sh -- --bot_difficulty hard` sets it at launch. `hs_min_players` and `hs_spectate_camera` still work but are deprecated (they set `bot_quota` and `mp_forcecamera`).
+Bot cvars are the family's shared ones: [gs-bot](https://github.com/gamespice-platform/bot)'s `bot_difficulty` (easy, medium, hard, nightmare) and its `bot_*` settings (`bot_settings` lists them). The same names work at the solo console, and `./game.sh -- --bot_difficulty hard` sets it at launch. `hs_min_players` and `hs_spectate_camera` still work but are deprecated (they set `bot_quota` and `mp_forcecamera`).
 
 The map's toys follow `sv_toys` (0 removes them), `sv_toys_awake` (how many may simulate at once; 0 picks a default by machine) and `sv_toys_push` (how hard walking into one sends it).
 
-Somebody slain by an administrator, or killed by a fall, drops as a ragdoll ([dot-player-char](https://github.com/gamespice-platform/player-char)). `sv_ragdoll 0` makes it a quick fall; `sv_ragdoll_style` picks ragdoll, stiff, topple or hide; `sv_ragdoll_time` and `sv_ragdoll_max` say how long and how many; `sv_ragdoll_reactions` weights the falls.
+Somebody slain by an administrator, or killed by a fall, drops as a ragdoll ([gs-player-char](https://github.com/gamespice-platform/player-char)). `sv_ragdoll 0` makes it a quick fall; `sv_ragdoll_style` picks ragdoll, stiff, topple or hide; `sv_ragdoll_time` and `sv_ragdoll_max` say how long and how many; `sv_ragdoll_reactions` weights the falls.
 
 A map document has no size limit. A map larger than one message (60,000 bytes deflated) is sent in pieces, so a browser client gets it too. A server can still set limits with `--hs-max-map-boxes`, `-props`, `-lights`, `-spawns`, `-doors` and `-toys` (default 0, no limit). A document over a limit is refused with its count, never cut down. `--hs-map-lights-warn` (default 128, 0 for none) logs a warning past that many lights; the cost of a light stays the map author's choice.
 
-`--hs-map-ids=<ids>` limits a server to some maps. Any other setting in `game/hs_config.gd` can be given the same way (`--hs-sprint-scale=1.5`, `--hs-taunt-range=80`). Taunts are listed in `taunts/taunts.json`; edit it to add your own sounds. The vote's settings go in `user://cfg/hideseek_vote.json` (`{"enabled": false}` turns it off); dot-vote's README lists them.
+`--hs-map-ids=<ids>` limits a server to some maps. Any other setting in `game/hs_config.gd` can be given the same way (`--hs-sprint-scale=1.5`, `--hs-taunt-range=80`). Taunts are listed in `taunts/taunts.json`; edit it to add your own sounds. The vote's settings go in `user://cfg/hideseek_vote.json` (`{"enabled": false}` turns it off); gs-vote's README lists them.
 
 ### Console commands
 
@@ -163,7 +163,7 @@ A map document has no size limit. A map larger than one message (60,000 bytes de
 
 ### Admin commands
 
-These come from [dot-moderation](https://github.com/gamespice-platform/moderation): `noclip`, `freeze`, `speed`, `gravity`, `god`, `buddha`, `hp`, `slay`, `slap`, `rename`, the teleports, `blind` and `beacon`. `respawn` puts somebody back at their side's spawn. `give` and `strip` are turned off because nobody carries anything.
+These come from [gs-moderation](https://github.com/gamespice-platform/moderation): `noclip`, `freeze`, `speed`, `gravity`, `god`, `buddha`, `hp`, `slay`, `slap`, `rename`, the teleports, `blind` and `beacon`. `respawn` puts somebody back at their side's spawn. `give` and `strip` are turned off because nobody carries anything.
 
 ## Writing a map
 
@@ -201,14 +201,14 @@ A map is a JSON file: the building as boxes, the furniture as props, the doors, 
 | Furniture | Kenney, Furniture Kit (most-used pieces, rebuilt by `art-src/build_props.py`) | CC0 | `assets/props/furniture/CREDITS.md` |
 | Trees, bushes, stones, logs, melon and pumpkin patches | Kenney, Nature Kit, rebuilt the same way; colours toned down at load | CC0 | `assets/props/nature/CREDITS.md` |
 | The two climbing trees | Made for this game in the Nature Kit's style by `tools/climb_trees.py` | CC0 | `tools/` |
-| Players | Quaternius, [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html), skins chosen from the blocky kit | CC0 1.0 | dot-player-char |
+| Players | Quaternius, [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html), skins chosen from the blocky kit | CC0 1.0 | gs-player-char |
 | Taunts | Kenney, Voiceover Pack and Music Jingles ([kenney.nl](https://kenney.nl)) | CC0 | `taunts/` |
 | Floors, walls, roofs | Kenney, Prototype Textures under a pastel | CC0 | each kit's licence is next to its files |
 | Glass, boards, lockers, lines | Drawn in code | none | in code |
-| Footsteps | Kenney, Impact Sounds | CC0 | dot-audio, `addons/dot_audio/stock/CREDITS.md` |
-| Ambience beds | Generated by dot-audio | none (synthesized) | dot-audio |
-| Toys | [dot-props](https://github.com/gamespice-platform/props), drawn in code; sounds from Kenney (Impact, Interface, Foley, Digital Audio) plus a horn made for it | CC0 | `addons/dot_props/toys/sounds/CREDITS.md` |
-| Death sounds | Kenney, via dot-player-char | CC0 | dot-player-char |
+| Footsteps | Kenney, Impact Sounds | CC0 | gs-audio, `addons/gs_audio/stock/CREDITS.md` |
+| Ambience beds | Generated by gs-audio | none (synthesized) | gs-audio |
+| Toys | [gs-props](https://github.com/gamespice-platform/props), drawn in code; sounds from Kenney (Impact, Interface, Foley, Digital Audio) plus a horn made for it | CC0 | `addons/gs_props/toys/sounds/CREDITS.md` |
+| Death sounds | Kenney, via gs-player-char | CC0 | gs-player-char |
 
 ## License
 

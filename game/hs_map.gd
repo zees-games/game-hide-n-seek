@@ -8,22 +8,22 @@ const HsPaths := preload("hs_paths.gd")
 
 ## A map document, built: the building, the furniture, the lights and the sky. The same document on every machine; a server builds only what collides (one static body of box shapes for the world, one for props), a client also draws them.
 ## Boxes are drawn batched by material and by twelve-metre chunk: a mesh per box is a draw call per box, and one mesh per material would be lit by at most eight of the Compatibility renderer's omni lights, leaving other rooms dark. Props are one MultiMesh per model mesh.
-## A prop's collision is its catalogue pieces or its box (dot-props' [GSPropPieces]), so sight and walking share the same shapes and a player can crawl under a table.
+## A prop's collision is its catalogue pieces or its box (gs-props' [GSPropPieces]), so sight and walking share the same shapes and a player can crawl under a table.
 
 const CHANNEL := "hs.map"
 
-## dot-lighting's contact shade, loaded by path (API 4): see [method _add_contact_shade].
-const CONTACT_SHADE_SCRIPT := "res://addons/dot_lighting/runtime/dot_contact_shade.gd"
+## gs-lighting's contact shade, loaded by path (API 4): see [method _add_contact_shade].
+const CONTACT_SHADE_SCRIPT := "res://addons/gs_lighting/runtime/gs_contact_shade.gd"
 
 ## Where a document's converted world pack is: hide-n-seek-maps/world, linked; rebased.
 const WORLD_ROOT := "res://world"
 
-## The surface kinds a drawn world's generic faces use, when the game vendors them (dot-map's tools/sync-surfaces.sh); else the addon's.
+## The surface kinds a drawn world's generic faces use, when the game vendors them (gs-map's tools/sync-surfaces.sh); else the addon's.
 const SURFACES_ROOT := "res://assets/surfaces"
 ## Meta on every drawn box batch; by name they were "@Boxes@N" after the first, which a prefix test missed.
 const BOX_BATCH := &"hs_box_batch"
 
-## Where a map's baked light is shipped (made by `tools/bake_lightmaps.sh`; dot-map's GSMapBoxBake), and the version of what this game bakes.
+## Where a map's baked light is shipped (made by `tools/bake_lightmaps.sh`; gs-map's GSMapBoxBake), and the version of what this game bakes.
 const BAKE_PATH := "res://lightmaps/%s.res"
 const BAKE_VERSION := 1
 
@@ -57,7 +57,7 @@ var doors: HsDoors = null
 ## The tick rate a door's seconds are counted in. Set by the game before it builds.
 var tick_rate: int = 64
 
-## The map's toys (dot-props' [GSPropBodyBox]): balls, swings, see-saws, switches. Simulated
+## The map's toys (gs-props' [GSPropBodyBox]): balls, swings, see-saws, switches. Simulated
 ## where [member authoritative], posed from snapshots elsewhere; under the game's `sv_toys*`
 ## [member toy_rules]. Set by the game before it builds.
 var toys: GSPropBodyBox = null
@@ -171,7 +171,7 @@ func clear() -> void:
 	world_credits = ""
 
 
-## Draws the document's converted `world` pack (dot-map's [GSMapDrawnWorld]) in place of the box meshes, on a client. The boxes,
+## Draws the document's converted `world` pack (gs-map's [GSMapDrawnWorld]) in place of the box meshes, on a client. The boxes,
 ## props, doors and toys still collide and the bots' mesh is baked from them; the pack is only what is seen. A pack that is not
 ## here, will not read or was made at another scale leaves the boxes drawn. Succeeds with true when the world is drawn.
 func load_world() -> GSResult:
@@ -182,7 +182,7 @@ func load_world() -> GSResult:
 	var prefix := HsPaths.rebase(WORLD_ROOT).path_join(str(spec["pack"])).path_join(String(wanted))
 	if not FileAccess.file_exists(prefix + ".json"):
 		return GSResult.success(false)
-	var read: GSResult = await GSMapDrawnWorld.read(prefix, GSRegistry.get_service(&"dot_cloud_client"))
+	var read: GSResult = await GSMapDrawnWorld.read(prefix, GSRegistry.get_service(&"gs_cloud_client"))
 	if id() != wanted or _drawn == null:
 		return GSResult.success(false)
 	if not read.ok:
@@ -211,7 +211,7 @@ func attach_world(world: GSMapBspMesh, offset: Vector3) -> void:
 		"surfaces_root": surfaces if DirAccess.dir_exists_absolute(surfaces) else GSMapSurfaces.DEFAULT_ROOT,
 		"environment": _environment.environment if _environment != null else null,
 		"lamps": lamps,
-		"cloud": GSRegistry.get_service(&"dot_cloud_client"),
+		"cloud": GSRegistry.get_service(&"gs_cloud_client"),
 	})
 	world_credits = drawn_world.credits
 	GSLog.info(CHANNEL, "the map is drawn from its world pack", {"map": String(id()), "lit": drawn_world.lit != null, "credits": world_credits})
@@ -298,7 +298,7 @@ func _build_boxes() -> void:
 			cube.size = size
 			shape.shape = cube
 			shape.transform = frame
-			# What a footstep on it sounds like (dot-audio's GSAudioFootsteps reads the hit
+			# What a footstep on it sounds like (gs-audio's GSAudioFootsteps reads the hit
 			# shape's meta; "stone", "hedge", "fabric" and the rest fold onto its surfaces).
 			shape.set_meta(&"surface", str(box.get("mat", "")))
 			_solid.add_child(shape)
@@ -338,8 +338,8 @@ func _build_boxes() -> void:
 		mesh.set_meta(BOX_BATCH, true)
 		if not bool(batch["solid"]):
 			# Floor paint, water, a light fitting, embers in a hearth: drawn on purpose and
-			# walked over or through (dot-core GSCollisionAudit).
-			mesh.set_meta(&"dot_no_collision", true)
+			# walked over or through (gs-core GSCollisionAudit).
+			mesh.set_meta(&"gs_no_collision", true)
 		if batch["sheet"] != null:
 			mesh.mesh = GSMapBoxBake.commit(tool, batch["sheet"])
 			mesh.set_meta(GSMapBoxBake.META_BAKEABLE, true)
@@ -387,10 +387,10 @@ func _shades_floor(prop_id: StringName, raw: Dictionary) -> bool:
 	return is_zero_approx(float(raw.get("pitch", 0.0))) and is_zero_approx(float(raw.get("roll", 0.0)))
 
 
-## dot-lighting's contact shade (API 4) where a box meets the floor, a wall or another box; the Compatibility renderer has no ambient occlusion. Glass, water, doors and secret panels neither cast nor take one.
+## gs-lighting's contact shade (API 4) where a box meets the floor, a wall or another box; the Compatibility renderer has no ambient occlusion. Glass, water, doors and secret panels neither cast nor take one.
 ## By path, behind the level, so a client shell older than the helper still runs the map without it.
 func _add_contact_shade(boxes: Array) -> void:
-	if boxes.is_empty() or _drawn == null or GSAddonApi.build_level("dot_lighting") < 4 \
+	if boxes.is_empty() or _drawn == null or GSAddonApi.build_level("gs_lighting") < 4 \
 			or not ResourceLoader.exists(CONTACT_SHADE_SCRIPT):
 		return
 	var shade: Variant = (load(CONTACT_SHADE_SCRIPT) as GDScript).call(&"node", boxes)
@@ -501,7 +501,7 @@ func _build_lights() -> void:
 		_drawn.add_child(omni)
 
 
-## The sky and the sun: a dot-lighting document made from the map's `environment` ([method light_document]), giving every map the family's light while keeping its own sun angle, colour and sky.
+## The sky and the sun: a gs-lighting document made from the map's `environment` ([method light_document]), giving every map the family's light while keeping its own sun angle, colour and sky.
 func _build_environment() -> void:
 	var env_doc: Dictionary = doc["environment"]
 	var lighting := Node3D.new()
@@ -512,7 +512,7 @@ func _build_environment() -> void:
 
 	if _sun != null:
 		# The map's own angle, in Godot's degrees as the map document has always written it,
-		# rather than through dot-lighting's source convention.
+		# rather than through gs-lighting's source convention.
 		_sun.rotation_degrees = Vector3(float(env_doc["sun_pitch"]), float(env_doc["sun_yaw"]), 0.0)
 		# The rig aimed its fill opposite the sun it was given; turned with the sun here, or it
 		# lights the faces the sun already does.
@@ -538,7 +538,7 @@ func _build_environment() -> void:
 				material.ground_bottom_color = material.sky_top_color
 
 
-## The dot-lighting document a map's `environment` describes.
+## The gs-lighting document a map's `environment` describes.
 ## Brightness is 380 times the square of `sun_energy`. The ambient is a near-neutral pale grey at the map's strength ([method light_profile]), because a cool fill turned every room lavender. The fog is the map's horizon from 120 m out, hazing the distance and never a room.
 static func light_document(env_doc: Dictionary) -> Dictionary:
 	var sun := HsMapDoc.colour(env_doc["sun_colour"])
@@ -561,7 +561,7 @@ static func light_document(env_doc: Dictionary) -> Dictionary:
 	}
 
 
-## What this machine draws of a map's light: dot-lighting's `painted()`, with the map's fill.
+## What this machine draws of a map's light: gs-lighting's `painted()`, with the map's fill.
 ## Shadows stay on in the browser, unlike `web()`: a hider's shadow is part of what a seeker reads, and the boxes are batched. `painted()` is matched to the Compatibility renderer (which clips a sunlit pastel to white) and adds a shadowless fill from the side the sun is not on, so a room's walls are different shades, which is where a hider hides.
 ## Ambient is `ambient_energy` times 4 of `painted()`'s and the fill times 2.8, keeping rooms as light as before while the ground outside loses its glare.
 static func light_profile(ambient_energy: float = 0.5) -> GSLightProfile:
@@ -574,7 +574,7 @@ static func light_profile(ambient_energy: float = 0.5) -> GSLightProfile:
 	# trunks, pines and furniture in shade went to black at 1.12.
 	p.contrast = 1.04
 	# Glow only from what is brighter than white (the lamps), not from every pale wall: at
-	# dot-lighting's 0.85 a room of near-white pastels glowed into one milky veil.
+	# gs-lighting's 0.85 a room of near-white pastels glowed into one milky veil.
 	p.glow_threshold = 1.0
 	return p
 
