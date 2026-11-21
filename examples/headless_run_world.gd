@@ -37,7 +37,7 @@ func _test_catalogue() -> void:
 			bad += 1
 	_check(bad == 0, "every prop's model is in the game", "%d missing" % bad)
 
-	# Part-shaped collision (props/pieces.json, dot-props' DotPropPieces): a tree is pieces, a
+	# Part-shaped collision (props/pieces.json, dot-props' GSPropPieces): a tree is pieces, a
 	# fridge stays its box, and no piece reaches outside the prop's measured box by more than
 	# the decomposition's slack, or a player would bump into air beside the model.
 	var outside := PackedStringArray()
@@ -49,7 +49,7 @@ func _test_catalogue() -> void:
 		shaped += 1
 		var size := props.size_of(id)
 		var box := AABB(Vector3(-size.x * 0.5, 0.0, -size.z * 0.5), size).grow(0.08)
-		var inner := DotPropPieces.bounds(pieces)
+		var inner := GSPropPieces.bounds(pieces)
 		if not box.encloses(inner):
 			outside.append(String(id))
 	_check(not props.pieces_of(&"nature_tree_default").is_empty() and props.pieces_of(&"furniture_kitchen_fridge").is_empty()
@@ -312,13 +312,13 @@ func _test_free_roam() -> void:
 	_check(game.spectate_rules.roaming_permitted() and game.spectate.manager.rules == game.spectate_rules,
 		"the game's rules allow roaming and are the manager's own")
 	var playing := game.spectate.toggle_roam(id)
-	_check(not playing.ok and playing.error.code == DotError.CODE_STATE and not game.spectate.can_roam(id),
+	_check(not playing.ok and playing.error.code == GSError.CODE_STATE and not game.spectate.can_roam(id),
 		"a viewer who is still playing cannot roam")
 	_check(game.catch(id, seeker.player_id, HsGame.CAUGHT_TAG), "a hider is caught and sits out")
-	game.spectate.manager.set_mode(String(id), DotSpectatorView.Mode.CHASE)
+	game.spectate.manager.set_mode(String(id), GSSpectatorView.Mode.CHASE)
 	_check(game.spectate.can_roam(id), "and may roam")
 	_check(game.spectate.toggle_roam(id).ok and game.spectate.is_roaming(id), "the key enters the free camera")
-	var cam := DotSpectatorFreeCam.new()
+	var cam := GSSpectatorFreeCam.new()
 	cam.rules = game.spectate_rules
 	cam.seed_from(Transform3D(Basis.IDENTITY, Vector3(0, 2, 0)))
 	var pose := cam.step(Vector3(0, 0, 1), false, false, 0.5)
@@ -329,7 +329,7 @@ func _test_free_roam() -> void:
 
 	var _off := game.spectate_rules.set_cvar("mp_freeroam", "0")
 	var refused := game.spectate.toggle_roam(id)
-	_check(not refused.ok and refused.error.code == DotError.CODE_FORBIDDEN and not game.spectate.is_roaming(id),
+	_check(not refused.ok and refused.error.code == GSError.CODE_FORBIDDEN and not game.spectate.is_roaming(id),
 		"mp_freeroam 0 refuses it")
 	var _on := game.spectate_rules.set_cvar("mp_freeroam", "1")
 	var _own := game.spectate_rules.set_cvar("mp_forcecamera", "1")
@@ -387,11 +387,11 @@ func _test_the_flashlight() -> void:
 	var seeker: HsPlayer = game.players_on(HsGame.SEEKERS)[0]
 	_check(cfg.key == "F" and game.flashlight_binder != null, "the key is F and the config has a binder", cfg.key)
 
-	cfg.default_state = DotFlashlightConfig.START_ON
+	cfg.default_state = GSFlashlightConfig.START_ON
 	hider.flashlight_ready = false
 	await _step(game, 2)
 	_check(hider.flashlight, "a map that starts lit lights the player")
-	cfg.default_state = DotFlashlightConfig.START_OFF
+	cfg.default_state = GSFlashlightConfig.START_OFF
 	hider.flashlight_ready = false
 	await _step(game, 2)
 	_check(not hider.flashlight, "and one that starts dark does not")
@@ -403,7 +403,7 @@ func _test_the_flashlight() -> void:
 	cfg.allowed_maps = PackedStringArray(["no_such_map"])
 	_check(not game.toggle_flashlight(hider.player_id) and not hider.flashlight, "a map outside allowed_maps has no light")
 	cfg.allowed_maps = PackedStringArray()
-	cfg.default_state = DotFlashlightConfig.START_DARK
+	cfg.default_state = GSFlashlightConfig.START_DARK
 	_finished()
 
 
@@ -457,11 +457,11 @@ func _test_falls() -> void:
 
 
 func _death_sounds_listed() -> bool:
-	var catalogue: DotAudioCatalogue = (load("res://game/hs_audio.gd") as GDScript).call("sound_catalogue")
-	for row: Dictionary in DotPlayerDeathSounds.rows():
+	var catalogue: GSAudioCatalogue = (load("res://game/hs_audio.gd") as GDScript).call("sound_catalogue")
+	for row: Dictionary in GSPlayerDeathSounds.rows():
 		if catalogue.find(row["id"]) == null:
 			return false
-	return not DotPlayerDeathSounds.rows().is_empty()
+	return not GSPlayerDeathSounds.rows().is_empty()
 
 
 func _test_the_beacon() -> void:
@@ -503,8 +503,8 @@ func _test_interest() -> void:
 	hider.player_id = &"u2"
 	game.sides[&"u1"] = HsGame.SEEKERS
 	game.sides[&"u2"] = HsGame.HIDERS
-	var watcher := DotNetIdentity.new()
-	var seen := DotNetIdentity.new()
+	var watcher := GSNetIdentity.new()
+	var seen := GSNetIdentity.new()
 	seeker.add_child(watcher)
 	hider.add_child(seen)
 
@@ -539,10 +539,10 @@ func _test_progress() -> void:
 	_check(second.get_value(HsProgress.SPOTTED) == 1.0 and first.get_value(HsProgress.SPOTTED) == 0.0,
 		"and only the one seen was spotted")
 
-	var _held := DotStatsValues.new()
+	var _held := GSStatsValues.new()
 	_held.values = {String(HsProgress.CAUGHT_OTHERS): 10.0}
 	game.progress.rank.seed_baseline(&"rank-probe", _held)
-	var _life: float = game.progress.rank.publish_lifetime(&"rank-probe", DotStatsValues.new(), game.progress.stats.schema)
+	var _life: float = game.progress.rank.publish_lifetime(&"rank-probe", GSStatsValues.new(), game.progress.stats.schema)
 	_check(game.progress.stats.schema.has(HsProgress.RANK_SCORE) and _life == 10.0,
 		"rank_score is declared and ranks on a stored lifetime baseline", "%.1f" % _life)
 	game.progress.rank.forget(&"rank-probe")

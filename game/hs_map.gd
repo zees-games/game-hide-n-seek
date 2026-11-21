@@ -8,7 +8,7 @@ const HsPaths := preload("hs_paths.gd")
 
 ## A map document, built: the building, the furniture, the lights and the sky. The same document on every machine; a server builds only what collides (one static body of box shapes for the world, one for props), a client also draws them.
 ## Boxes are drawn batched by material and by twelve-metre chunk: a mesh per box is a draw call per box, and one mesh per material would be lit by at most eight of the Compatibility renderer's omni lights, leaving other rooms dark. Props are one MultiMesh per model mesh.
-## A prop's collision is its catalogue pieces or its box (dot-props' [DotPropPieces]), so sight and walking share the same shapes and a player can crawl under a table.
+## A prop's collision is its catalogue pieces or its box (dot-props' [GSPropPieces]), so sight and walking share the same shapes and a player can crawl under a table.
 
 const CHANNEL := "hs.map"
 
@@ -23,7 +23,7 @@ const SURFACES_ROOT := "res://assets/surfaces"
 ## Meta on every drawn box batch; by name they were "@Boxes@N" after the first, which a prefix test missed.
 const BOX_BATCH := &"hs_box_batch"
 
-## Where a map's baked light is shipped (made by `tools/bake_lightmaps.sh`; dot-map's DotMapBoxBake), and the version of what this game bakes.
+## Where a map's baked light is shipped (made by `tools/bake_lightmaps.sh`; dot-map's GSMapBoxBake), and the version of what this game bakes.
 const BAKE_PATH := "res://lightmaps/%s.res"
 const BAKE_VERSION := 1
 
@@ -36,7 +36,7 @@ const HIT_MARGIN := 0.06
 
 signal built()
 
-var physics: DotPhysicsLayout = null
+var physics: GSPhysicsLayout = null
 
 ## The catalogue every prop's size and model come from.
 var catalogue: HsProps = null
@@ -57,25 +57,25 @@ var doors: HsDoors = null
 ## The tick rate a door's seconds are counted in. Set by the game before it builds.
 var tick_rate: int = 64
 
-## The map's toys (dot-props' [DotPropBodyBox]): balls, swings, see-saws, switches. Simulated
+## The map's toys (dot-props' [GSPropBodyBox]): balls, swings, see-saws, switches. Simulated
 ## where [member authoritative], posed from snapshots elsewhere; under the game's `sv_toys*`
 ## [member toy_rules]. Set by the game before it builds.
-var toys: DotPropBodyBox = null
+var toys: GSPropBodyBox = null
 var authoritative: bool = true
-var toy_rules: DotPropBodyRules = null
+var toy_rules: GSPropBodyRules = null
 var gravity: float = 20.0
 
 ## Whether a client draws a document's `world` pack in place of its boxes ([method load_world]).
 var use_worlds: bool = true
 
 ## The drawn world pack, or null while the boxes are what is seen.
-var drawn_world: DotMapDrawnWorld = null
+var drawn_world: GSMapDrawnWorld = null
 
 ## The drawn world's credit line (its author, and the art whose licence asks for a name); empty without one.
 var world_credits: String = ""
 
 ## The converted map's displacement ground (the document's `terrain`), or null.
-var terrain: DotMapTerrain = null
+var terrain: GSMapTerrain = null
 var _solid: StaticBody3D = null
 var _furniture: StaticBody3D = null
 var _drawn: Node3D = null
@@ -98,7 +98,7 @@ func id() -> StringName:
 
 
 ## Builds [param p_doc], which [HsMapDoc.validate] has already normalised.
-func build(p_doc: Dictionary) -> DotResult:
+func build(p_doc: Dictionary) -> GSResult:
 	clear()
 	doc = p_doc
 
@@ -139,15 +139,15 @@ func build(p_doc: Dictionary) -> DotResult:
 		_attach_bake()
 
 	if not _missing.is_empty():
-		DotLog.warn(CHANNEL, "a map names props this server's catalogue does not have; they are left out", {
+		GSLog.warn(CHANNEL, "a map names props this server's catalogue does not have; they are left out", {
 			"map": String(id()), "missing": ", ".join(_missing),
 		})
 
-	DotLog.debug(CHANNEL, "built a map", {
+	GSLog.debug(CHANNEL, "built a map", {
 		"id": String(id()), "boxes": (doc["boxes"] as Array).size(), "props": props.size(),
 	})
 	built.emit()
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 func clear() -> void:
@@ -171,55 +171,55 @@ func clear() -> void:
 	world_credits = ""
 
 
-## Draws the document's converted `world` pack (dot-map's [DotMapDrawnWorld]) in place of the box meshes, on a client. The boxes,
+## Draws the document's converted `world` pack (dot-map's [GSMapDrawnWorld]) in place of the box meshes, on a client. The boxes,
 ## props, doors and toys still collide and the bots' mesh is baked from them; the pack is only what is seen. A pack that is not
 ## here, will not read or was made at another scale leaves the boxes drawn. Succeeds with true when the world is drawn.
-func load_world() -> DotResult:
+func load_world() -> GSResult:
 	var spec: Dictionary = doc.get("world", {})
 	if not draw_world or not use_worlds or spec.is_empty() or _drawn == null:
-		return DotResult.success(false)
+		return GSResult.success(false)
 	var wanted := id()
 	var prefix := HsPaths.rebase(WORLD_ROOT).path_join(str(spec["pack"])).path_join(String(wanted))
 	if not FileAccess.file_exists(prefix + ".json"):
-		return DotResult.success(false)
-	var read: DotResult = await DotMapDrawnWorld.read(prefix, DotRegistry.get_service(&"dot_cloud_client"))
+		return GSResult.success(false)
+	var read: GSResult = await GSMapDrawnWorld.read(prefix, GSRegistry.get_service(&"dot_cloud_client"))
 	if id() != wanted or _drawn == null:
-		return DotResult.success(false)
+		return GSResult.success(false)
 	if not read.ok:
-		DotLog.warn(CHANNEL, "a map's world would not read; its boxes are drawn", {"map": String(wanted), "at": prefix, "why": read.error.message})
+		GSLog.warn(CHANNEL, "a map's world would not read; its boxes are drawn", {"map": String(wanted), "at": prefix, "why": read.error.message})
 		return read
-	var world: DotMapBspMesh = read.value
+	var world: GSMapBspMesh = read.value
 	var mpu := float((world.manifest.get("units", {}) as Dictionary).get("metres_per_unit", 0.0))
 	if absf(mpu - float(spec["metres_per_unit"])) > 1e-5:
-		DotLog.warn(CHANNEL, "a map's world was made at another scale; its boxes are drawn", {"map": String(wanted), "pack": mpu, "doc": spec["metres_per_unit"]})
-		return DotResult.fail(DotError.CODE_INVALID, "world pack scale differs", prefix)
+		GSLog.warn(CHANNEL, "a map's world was made at another scale; its boxes are drawn", {"map": String(wanted), "pack": mpu, "doc": spec["metres_per_unit"]})
+		return GSResult.fail(GSError.CODE_INVALID, "world pack scale differs", prefix)
 	attach_world(world, HsMapDoc.v3(spec["offset"]))
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 ## Lays [param world] over the map at [param offset] (the importer's shift, undone): the box meshes and their contact shade
 ## out, the document's lamps freed when the bake holds them. Props, doors and toys stay drawn: they are this game's, not the pack's.
-func attach_world(world: DotMapBspMesh, offset: Vector3) -> void:
+func attach_world(world: GSMapBspMesh, offset: Vector3) -> void:
 	for child in _drawn.get_children():
 		if child.has_meta(BOX_BATCH) or String(child.name) == "ContactShade":
 			_drawn.remove_child(child)
 			child.queue_free()
 	var lamps := _drawn.get_children().filter(func(n: Node) -> bool: return n is OmniLight3D)
 	var surfaces := HsPaths.rebase(SURFACES_ROOT)
-	drawn_world = DotMapDrawnWorld.attach(_drawn, world, {
+	drawn_world = GSMapDrawnWorld.attach(_drawn, world, {
 		"transform": Transform3D(Basis.IDENTITY, offset),
-		"surfaces_root": surfaces if DirAccess.dir_exists_absolute(surfaces) else DotMapSurfaces.DEFAULT_ROOT,
+		"surfaces_root": surfaces if DirAccess.dir_exists_absolute(surfaces) else GSMapSurfaces.DEFAULT_ROOT,
 		"environment": _environment.environment if _environment != null else null,
 		"lamps": lamps,
-		"cloud": DotRegistry.get_service(&"dot_cloud_client"),
+		"cloud": GSRegistry.get_service(&"dot_cloud_client"),
 	})
 	world_credits = drawn_world.credits
-	DotLog.info(CHANNEL, "the map is drawn from its world pack", {"map": String(id()), "lit": drawn_world.lit != null, "credits": world_credits})
+	GSLog.info(CHANNEL, "the map is drawn from its world pack", {"map": String(id()), "lit": drawn_world.lit != null, "credits": world_credits})
 
 
 ## The toys, on their own layers: a loose one on `toy` (people walk through and push it), one somebody stands on and every frame on `prop`, and footprints on `footprint`, which nothing collides with and a bot's walkable mesh is baked round.
 func _build_toys() -> void:
-	toys = DotPropBodyBox.new()
+	toys = GSPropBodyBox.new()
 	toys.name = "Toys"
 	toys.authoritative = authoritative
 	toys.draw = draw_world
@@ -237,7 +237,7 @@ func _build_toys() -> void:
 	add_child(toys)
 	var built := toys.build(doc.get("toys", []))
 	if not built.ok:
-		DotLog.warn(CHANNEL, "a map's toys would not build", {"map": String(id()), "why": built.error.message})
+		GSLog.warn(CHANNEL, "a map's toys would not build", {"map": String(id()), "why": built.error.message})
 
 
 func _put_on(body: CollisionObject3D, layer: StringName) -> void:
@@ -247,7 +247,7 @@ func _put_on(body: CollisionObject3D, layer: StringName) -> void:
 	var applied := physics.apply_to(body, layer)
 
 	if not applied.ok:
-		DotLog.warn(CHANNEL, "a map body could not be put on its layer", {"layer": String(layer)})
+		GSLog.warn(CHANNEL, "a map body could not be put on its layer", {"layer": String(layer)})
 
 
 
@@ -255,9 +255,9 @@ func _put_on(body: CollisionObject3D, layer: StringName) -> void:
 func _build_terrain() -> void:
 	if not doc.has("terrain"):
 		return
-	var res := DotMapTerrain.from_dict(doc["terrain"])
+	var res := GSMapTerrain.from_dict(doc["terrain"])
 	if not res.ok:
-		DotLog.warn(CHANNEL, "a map's terrain would not read; it has no ground there", {"map": String(id()), "error": str(res)})
+		GSLog.warn(CHANNEL, "a map's terrain would not read; it has no ground there", {"map": String(id()), "error": str(res)})
 		return
 	terrain = res.value
 	var shape := CollisionShape3D.new()
@@ -281,7 +281,7 @@ func _build_boxes() -> void:
 	var look := str(doc.get("look", "pastel"))
 	var batches := {}
 	var any := false
-	var bakeable := draw_world and DotMapBoxBake.can_bake()
+	var bakeable := draw_world and GSMapBoxBake.can_bake()
 
 	for box: Dictionary in doc["boxes"]:
 		var size := HsMapDoc.v3(box["size"])
@@ -298,7 +298,7 @@ func _build_boxes() -> void:
 			cube.size = size
 			shape.shape = cube
 			shape.transform = frame
-			# What a footstep on it sounds like (dot-audio's DotAudioFootsteps reads the hit
+			# What a footstep on it sounds like (dot-audio's GSAudioFootsteps reads the hit
 			# shape's meta; "stone", "hedge", "fabric" and the rest fold onto its surfaces).
 			shape.set_meta(&"surface", str(box.get("mat", "")))
 			_solid.add_child(shape)
@@ -317,11 +317,11 @@ func _build_boxes() -> void:
 			var tool := SurfaceTool.new()
 			tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 			var lit := bakeable and solid and not HsMaterials.is_transparent(str(box["mat"]))
-			batches[key] = {"tool": tool, "mat": str(box["mat"]), "tint": tint, "solid": solid, "sheet": DotMapBoxBake.new_sheet() if lit else null}
+			batches[key] = {"tool": tool, "mat": str(box["mat"]), "tint": tint, "solid": solid, "sheet": GSMapBoxBake.new_sheet() if lit else null}
 
 		var sheet: RefCounted = (batches[key] as Dictionary)["sheet"]
 		if sheet != null:
-			DotMapBoxBake.add_faces(sheet, frame, size)
+			GSMapBoxBake.add_faces(sheet, frame, size)
 		else:
 			_add_box((batches[key] as Dictionary)["tool"], frame, size)
 		if not HsMaterials.is_transparent(str(box["mat"])):
@@ -338,11 +338,11 @@ func _build_boxes() -> void:
 		mesh.set_meta(BOX_BATCH, true)
 		if not bool(batch["solid"]):
 			# Floor paint, water, a light fitting, embers in a hearth: drawn on purpose and
-			# walked over or through (dot-core DotCollisionAudit).
+			# walked over or through (dot-core GSCollisionAudit).
 			mesh.set_meta(&"dot_no_collision", true)
 		if batch["sheet"] != null:
-			mesh.mesh = DotMapBoxBake.commit(tool, batch["sheet"])
-			mesh.set_meta(DotMapBoxBake.META_BAKEABLE, true)
+			mesh.mesh = GSMapBoxBake.commit(tool, batch["sheet"])
+			mesh.set_meta(GSMapBoxBake.META_BAKEABLE, true)
 		else:
 			mesh.mesh = tool.commit()
 		mesh.material_override = HsMaterials.material_in(batch["mat"], batch["tint"], look)
@@ -390,7 +390,7 @@ func _shades_floor(prop_id: StringName, raw: Dictionary) -> bool:
 ## dot-lighting's contact shade (API 4) where a box meets the floor, a wall or another box; the Compatibility renderer has no ambient occlusion. Glass, water, doors and secret panels neither cast nor take one.
 ## By path, behind the level, so a client shell older than the helper still runs the map without it.
 func _add_contact_shade(boxes: Array) -> void:
-	if boxes.is_empty() or _drawn == null or DotAddonApi.build_level("dot_lighting") < 4 \
+	if boxes.is_empty() or _drawn == null or GSAddonApi.build_level("dot_lighting") < 4 \
 			or not ResourceLoader.exists(CONTACT_SHADE_SCRIPT):
 		return
 	var shade: Variant = (load(CONTACT_SHADE_SCRIPT) as GDScript).call(&"node", boxes)
@@ -473,7 +473,7 @@ func _build_props() -> void:
 
 ## What this map's bake must have been made from: the boxes, lamps and environment, and the versions of everything that lays them out.
 func light_fingerprint() -> String:
-	return DotMapBoxBake.fingerprint({
+	return GSMapBoxBake.fingerprint({
 		"hs": BAKE_VERSION, "boxes": doc.get("boxes", []), "lights": doc.get("lights", []), "environment": doc.get("environment", {}),
 		"look": doc.get("look", ""),
 	})
@@ -484,7 +484,7 @@ func _attach_bake() -> void:
 	if not use_bakes or not doc.get("world", {}).is_empty():
 		return
 	var lamps := _drawn.get_children().filter(func(n: Node) -> bool: return n is OmniLight3D)
-	var res := DotMapBoxBake.attach(self, HsPaths.rebase(BAKE_PATH % String(id())), light_fingerprint(), lamps)
+	var res := GSMapBoxBake.attach(self, HsPaths.rebase(BAKE_PATH % String(id())), light_fingerprint(), lamps)
 	if res.ok:
 		baked = res.value
 
@@ -507,7 +507,7 @@ func _build_environment() -> void:
 	var lighting := Node3D.new()
 	lighting.name = "Lighting"
 	add_child(lighting)
-	_sun = DotLightRig.apply(lighting, DotLightDocument.from_dictionary(light_document(env_doc)),
+	_sun = GSLightRig.apply(lighting, GSLightDocument.from_dictionary(light_document(env_doc)),
 		light_profile(float(env_doc["ambient_energy"])))
 
 	if _sun != null:
@@ -518,7 +518,7 @@ func _build_environment() -> void:
 		# lights the faces the sun already does.
 		var fill := lighting.get_node_or_null("Fill") as DirectionalLight3D
 		if fill != null:
-			var aimed := DotLightRig.fill(DotLightDocument.from_dictionary(light_document(env_doc)), _sun.rotation,
+			var aimed := GSLightRig.fill(GSLightDocument.from_dictionary(light_document(env_doc)), _sun.rotation,
 				light_profile(float(env_doc["ambient_energy"])))
 			fill.rotation = aimed.rotation
 			aimed.free()
@@ -564,8 +564,8 @@ static func light_document(env_doc: Dictionary) -> Dictionary:
 ## What this machine draws of a map's light: dot-lighting's `painted()`, with the map's fill.
 ## Shadows stay on in the browser, unlike `web()`: a hider's shadow is part of what a seeker reads, and the boxes are batched. `painted()` is matched to the Compatibility renderer (which clips a sunlit pastel to white) and adds a shadowless fill from the side the sun is not on, so a room's walls are different shades, which is where a hider hides.
 ## Ambient is `ambient_energy` times 4 of `painted()`'s and the fill times 2.8, keeping rooms as light as before while the ground outside loses its glare.
-static func light_profile(ambient_energy: float = 0.5) -> DotLightProfile:
-	var p := DotLightProfile.painted()
+static func light_profile(ambient_energy: float = 0.5) -> GSLightProfile:
+	var p := GSLightProfile.painted()
 	p.sun_shadows = true
 	p.sky_below_horizon = true
 	p.ambient_energy *= ambient_energy * 4.0
@@ -633,7 +633,7 @@ func prop_containing(point: Vector3) -> int:
 		var pieces := catalogue.pieces_of(prop["id"]) if catalogue != null else []
 
 		if not pieces.is_empty():
-			if DotPropPieces.contains(pieces, local, HIT_MARGIN):
+			if GSPropPieces.contains(pieces, local, HIT_MARGIN):
 				return index
 			continue
 

@@ -1,4 +1,4 @@
-extends DotCoverServer
+extends GSCoverServer
 
 const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
@@ -26,5 +26,5 @@ func _boot(dir: String) -> void:
 	await get_tree().process_frame
 
 	(load("res://game/hs_module.gd") as GDScript).set("punishments_file", "%s/punishments.json" % dir)
-	var loaded: DotResult = await server.modules.load_module("res://game/hs_module.gd")
+	var loaded: GSResult = await server.modules.load_module("res://game/hs_module.gd")
 	print("cover_server: module loaded=%s port=%d" % [loaded.ok, port])

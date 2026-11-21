@@ -1,6 +1,6 @@
 extends "hs_net_bridge_io.gd"
 
-## Joins an [HsGame] to a [DotNetManager]: the netcode seam, and the only file here that names both. Map arrives once as `MAP`;
+## Joins an [HsGame] to a [GSNetManager]: the netcode seam, and the only file here that names both. Map arrives once as `MAP`;
 ## then only `CAUGHT`, `TEAM` and `TAUNT` cross. dot-net simulates per entity but this game ticks as a whole world,
 ## so [method ensure_game_ticked] lets the first behaviour on a tick run everything and the rest find it done.
 
@@ -13,16 +13,16 @@ func _exit_tree() -> void:
 		profile_link = null
 
 
-## [param p_game] and [param p_net], in the shape [DotGameNetcode] calls it.
-func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
+## [param p_game] and [param p_net], in the shape [GSGameNetcode] calls it.
+func attach(p_game: Object, p_net: GSNetManager) -> GSResult:
 	var world := p_game as HsGame
 
 	if world == null or p_net == null:
-		return DotResult.fail(DotError.CODE_INVALID, "A bridge needs a world and a manager.")
+		return GSResult.fail(GSError.CODE_INVALID, "A bridge needs a world and a manager.")
 
 	if world.authoritative != p_net.is_server:
-		return DotResult.fail(
-			DotError.CODE_STATE,
+		return GSResult.fail(
+			GSError.CODE_STATE,
 			"The world and the manager disagree about who is authoritative.",
 			"world=%s net.is_server=%s" % [world.authoritative, p_net.is_server]
 		)
@@ -38,7 +38,7 @@ func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
 
 	var event := net.messages.register(
 		HsEvent.NAME, HsEvent,
-		DotNetMessage.Delivery.RELIABLE, DotNetMessage.Direction.TO_CLIENT
+		GSNetMessage.Delivery.RELIABLE, GSNetMessage.Direction.TO_CLIENT
 	)
 
 	if not event.ok:
@@ -46,7 +46,7 @@ func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
 
 	var request := net.messages.register(
 		HsRequest.NAME, HsRequest,
-		DotNetMessage.Delivery.RELIABLE, DotNetMessage.Direction.TO_SERVER
+		GSNetMessage.Delivery.RELIABLE, GSNetMessage.Direction.TO_SERVER
 	)
 
 	if not request.ok:
@@ -56,7 +56,7 @@ func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
 	net.messages.on(HsRequest.NAME, _on_request)
 
 	# Edited profiles reach every client, so a remote admin's panel shows what the server holds; edits themselves go through the remote workbench.
-	profile_link = DotNetProfileLink.attach(net, world.ensure_runtime())
+	profile_link = GSNetProfileLink.attach(net, world.ensure_runtime())
 
 	# Both ends. The server's tick is `server_tick` and the client's is `client_tick`, which
 	# simulates what it predicts and leaves the rest to interpolation. A world still running
@@ -74,7 +74,7 @@ func attach(p_game: Object, p_net: DotNetManager) -> DotResult:
 	if net.is_server:
 		_wire_server()
 
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 func _wire_server() -> void:
@@ -109,7 +109,7 @@ func _wire_server() -> void:
 		game.spectate.view_changed.connect(_on_spectate_changed)
 
 
-## Opens the link under [param parent], whose NAME is half the RPC routing: a [DotServer] and a [DotClientLink] both called `Server`, this node under each.
+## Opens the link under [param parent], whose NAME is half the RPC routing: a [GSServer] and a [GSClientLink] both called `Server`, this node under each.
 ## Godot routes an RPC by node path, so a link opened anywhere else lands nowhere, with no error on either side.
 func open_link(parent: Node) -> void:
 	if parent == null or link != null:
@@ -119,14 +119,14 @@ func open_link(parent: Node) -> void:
 	# Not parent.add_child: the link has to sit under `Server` (RPCs route by path) but must
 	# die with this bridge. A bare add_child left a second link after every module reload, and
 	# Godot renamed the live one `@Node@n`, so RPCs to real clients were silently lost.
-	DotGameLink.attach(link, parent, self, HsNetLink.NODE_NAME)
+	GSGameLink.attach(link, parent, self, HsNetLink.NODE_NAME)
 
 
 
-## Puts a connected peer into the game. What [DotGameRoster] calls.
-func add_player(peer_id: int, session_id: int, display_name: String) -> DotResult:
+## Puts a connected peer into the game. What [GSGameRoster] calls.
+func add_player(peer_id: int, session_id: int, display_name: String) -> GSResult:
 	if net == null or not net.is_server:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only the server adds players.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "Only the server adds players.")
 
 	if peer_id > 0:
 		# FIRST, because `game.add_player` emits `player_added` and the handler has to be
@@ -139,13 +139,13 @@ func add_player(peer_id: int, session_id: int, display_name: String) -> DotResul
 	if player == null:
 		_player_of_peer.erase(peer_id)
 		_peer_of_player.erase(session_id)
-		return DotResult.fail(DotError.CODE_STATE, "The game refused the player.")
+		return GSResult.fail(GSError.CODE_STATE, "The game refused the player.")
 
 	if _ready_unseated.has(peer_id):
 		_ready_unseated.erase(peer_id)
 		_admit(peer_id)
 
-	return DotResult.success(player)
+	return GSResult.success(player)
 
 
 ## Somebody the world drives itself: a stand-in, or a test's player. The same entity a peer gets, with a peer id of zero;
@@ -213,7 +213,7 @@ func _on_player_added(id: StringName) -> void:
 	# Every wire id is `u<session>` and anything else parses to zero (also dot-net's broadcast address), so a second player called `bot`
 	# would silently replace the first in this table. Refused with a line rather than accepted quietly.
 	if player_key(session_id) != id:
-		DotLog.warn(CHANNEL, "a player whose id is not a session key is not replicated", {
+		GSLog.warn(CHANNEL, "a player whose id is not a session key is not replicated", {
 			"id": String(id), "hint": "use add_bot() or HsNetBridge.player_key()",
 		})
 		return
@@ -227,13 +227,13 @@ func _on_player_added(id: StringName) -> void:
 	var registered := net.registry.register(identity, 0, net.clock.tick, net.config)
 
 	if not registered.ok:
-		DotLog.warn(CHANNEL, "could not replicate a player", {"error": str(registered.error)})
+		GSLog.warn(CHANNEL, "could not replicate a player", {"error": str(registered.error)})
 		return
 
 	# Before the JOIN, so the first thing anybody hears about this person is their face.
 	if player.avatar == null and avatar_fn.is_valid():
 		var avatar: Variant = avatar_fn.call(session_id)
-		player.avatar = avatar as DotAvatar if avatar is DotAvatar else null
+		player.avatar = avatar as GSAvatar if avatar is GSAvatar else null
 
 	_broadcast(HsEvents.Kind.JOIN, _join_body(session_id))
 	roster_changed.emit(session_id)
@@ -262,7 +262,7 @@ func _on_world_rebuilt() -> void:
 	_map_messages = HsEvents.write_map_parts(encoded, HsMapDoc.PART_BYTES)
 
 	if _map_messages.size() > 1:
-		DotLog.info(CHANNEL, "a large map goes in pieces", {
+		GSLog.info(CHANNEL, "a large map goes in pieces", {
 			"map": String(game.map.id()), "bytes": encoded.size(), "pieces": _map_messages.size(),
 		})
 
@@ -279,7 +279,7 @@ func server_tick(tick: int) -> void:
 
 	if net != null:
 		# The toys where the physics left them, before the snapshot goes.
-		for behaviour: DotGameToyNet in _toy_nets:
+		for behaviour: GSGameToyNet in _toy_nets:
 			behaviour.pull()
 
 		_in_server_tick = true
@@ -301,7 +301,7 @@ func server_tick(tick: int) -> void:
 
 
 
-func _on_request(message: DotNetMessage) -> void:
+func _on_request(message: GSNetMessage) -> void:
 	var ask := message as HsRequest
 
 	if ask == null or net == null or not net.is_server:
@@ -320,7 +320,7 @@ func _on_request(message: DotNetMessage) -> void:
 
 			if bool(said["ok"]):
 				# Emitted rather than acted on: everything about what a line means is
-				# [DotChatRouter]'s, and the router is the module's.
+				# [GSChatRouter]'s, and the router is the module's.
 				say_requested.emit(
 					peer_id, StringName(str(said["channel"])), str(said["text"])
 				)
@@ -394,7 +394,7 @@ func _admit(peer_id: int) -> void:
 
 ## Tells everybody who somebody is now: a late profile, a wardrobe change, a rename. Server only. Through JOIN, which a client already applies
 ## and which is idempotent, rather than a second message with a second arrival order. An empty [param display_name] keeps the current one.
-func refresh_player(session_id: int, display_name: String, avatar: DotAvatar) -> bool:
+func refresh_player(session_id: int, display_name: String, avatar: GSAvatar) -> bool:
 	if net == null or not net.is_server or game == null:
 		return false
 
@@ -411,7 +411,7 @@ func refresh_player(session_id: int, display_name: String, avatar: DotAvatar) ->
 	return true
 
 
-func _on_event(message: DotNetMessage) -> void:
+func _on_event(message: GSNetMessage) -> void:
 	var event := message as HsEvent
 
 	if event == null or game == null or net == null or net.is_server:
@@ -485,7 +485,7 @@ func _on_event(message: DotNetMessage) -> void:
 					who.sight_meter = 0.0
 				caught_received.emit(int(got["player_id"]), int(got["by"]), got["how"])
 
-func _apply_team(reader: DotNetReader) -> void:
+func _apply_team(reader: GSNetReader) -> void:
 	var side := HsEvents.read_team(reader)
 
 	if bool(side["ok"]):
@@ -498,7 +498,7 @@ func _apply_team(reader: DotNetReader) -> void:
 		roster_changed.emit(int(side["player_id"]))
 
 
-func _apply_round(reader: DotNetReader) -> void:
+func _apply_round(reader: GSNetReader) -> void:
 	var round_info := HsEvents.read_round(reader)
 
 	if bool(round_info["ok"]):
@@ -520,7 +520,7 @@ func _apply_round(reader: DotNetReader) -> void:
 		)
 
 
-func _apply_death(reader: DotNetReader) -> void:
+func _apply_death(reader: GSNetReader) -> void:
 	var death := HsEvents.read_death(reader)
 
 	if bool(death["ok"]):
@@ -535,7 +535,7 @@ func _apply_death(reader: DotNetReader) -> void:
 		)
 
 
-func _apply_spectate(reader: DotNetReader) -> void:
+func _apply_spectate(reader: GSNetReader) -> void:
 	var view := HsEvents.read_spectate(reader)
 
 	if bool(view["ok"]) and game.spectate != null:
@@ -551,7 +551,7 @@ func _apply_spectate(reader: DotNetReader) -> void:
 		)
 
 
-func _apply_hello(reader: DotNetReader) -> void:
+func _apply_hello(reader: GSNetReader) -> void:
 	var hello := HsEvents.read_hello(reader)
 
 	if not bool(hello["ok"]):
@@ -576,7 +576,7 @@ func _apply_hello(reader: DotNetReader) -> void:
 	hello_received.emit(local_player_id)
 
 
-func _apply_join(reader: DotNetReader) -> void:
+func _apply_join(reader: GSNetReader) -> void:
 	var join := HsEvents.read_join(reader)
 
 	if not bool(join["ok"]):
@@ -606,7 +606,7 @@ func _apply_join(reader: DotNetReader) -> void:
 		)
 
 		if not registered.ok:
-			DotLog.warn(CHANNEL, "could not mirror a player", {"error": str(registered.error)})
+			GSLog.warn(CHANNEL, "could not mirror a player", {"error": str(registered.error)})
 			return
 	else:
 		player.display_name = str(join["name"])

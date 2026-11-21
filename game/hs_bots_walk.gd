@@ -117,7 +117,7 @@ func _body_clear(at: Vector3, to: Vector3) -> bool:
 	if world == null:
 		return true
 	var space := world.direct_space_state
-	var physics: DotPhysicsLayout = game.get("physics")
+	var physics: GSPhysicsLayout = game.get("physics")
 	var mask := physics.layer_mask(&"world") | physics.layer_mask(&"prop") if physics != null else 1
 	var side := flat.normalized().cross(Vector3.UP) * HsPlayer.BODY_RADIUS
 	for height in [0.47, 0.97]:
@@ -142,7 +142,7 @@ static func _pass_within(path: PackedVector3Array, i: int) -> float:
 
 
 ## Moves along [param world_dir] (flat) whatever way the view is turned.
-static func _walk(command: DotFpsCommand, world_dir: Vector3) -> void:
+static func _walk(command: GSFpsCommand, world_dir: Vector3) -> void:
 	var flat := Vector3(world_dir.x, 0.0, world_dir.z)
 	if flat.length() < 0.01:
 		command.move = Vector2.ZERO
@@ -156,7 +156,7 @@ static func _walk(command: DotFpsCommand, world_dir: Vector3) -> void:
 
 ## Steps round anybody within a metre: people pass through people here, and a bot that walks
 ## through somebody walks through their camera.
-func _step_round_people(player: HsPlayer, command: DotFpsCommand, players: Dictionary) -> void:
+func _step_round_people(player: HsPlayer, command: GSFpsCommand, players: Dictionary) -> void:
 	if command.move.length() < 0.1:
 		return
 	var at := player.controller.state.position
@@ -189,7 +189,7 @@ func _step_round_people(player: HsPlayer, command: DotFpsCommand, players: Dicti
 
 ## Opens a shut door it is walking into, and leaves open ones alone. Released between presses,
 ## so the game sees an edge.
-func _wants_door(player: HsPlayer, command: DotFpsCommand) -> bool:
+func _wants_door(player: HsPlayer, command: GSFpsCommand) -> bool:
 	var map: Node3D = game.get("map")
 	var doors: Object = map.get("doors") if map != null else null
 	if doors == null or int(doors.call("count")) == 0 or command.move.length() < 0.1 or player.wants_use:
@@ -204,7 +204,7 @@ func _wants_door(player: HsPlayer, command: DotFpsCommand) -> bool:
 
 ## Which way to step aside when caught on something ahead: towards a wall within a body's width when there is one on one side only,
 ## else by chance. A stair along a wall is climbed against the wall; the path runs down the middle of the mesh.
-func _sidestep_side(at: Vector3, ahead: Vector3, stream: DotRandomStream) -> float:
+func _sidestep_side(at: Vector3, ahead: Vector3, stream: GSRandomStream) -> float:
 	if ahead.length() > 0.01:
 		var waist := at + Vector3(0.0, 0.6, 0.0)
 		var heading := ahead.normalized()

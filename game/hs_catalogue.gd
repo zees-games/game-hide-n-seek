@@ -26,7 +26,7 @@ var _order: Array[StringName] = []
 ## `scene` field (a map here is a document, not a scene; see hs_map_doc.gd).
 const CONTENT_KIND := "hideseek"
 
-var _index: DotContentIndex = null
+var _index: GSContentIndex = null
 var _kinds := PackedStringArray()
 ## Parsed documents by entry key, so a pack's file is read once, not on every menu draw.
 var _content_docs: Dictionary = {}
@@ -63,7 +63,7 @@ func load_from(directory: String) -> int:
 	loaded += _read_directory(USER_MAPS)
 	_rebuild_order()
 
-	DotLog.info(CHANNEL, "maps loaded", {"maps": maps.size(), "refused": refused.size()})
+	GSLog.info(CHANNEL, "maps loaded", {"maps": maps.size(), "refused": refused.size()})
 	return loaded
 
 
@@ -72,21 +72,21 @@ func load_from(directory: String) -> int:
 func add_directory(root: String) -> int:
 	var loaded := _read_directory(root)
 	_rebuild_order()
-	DotLog.info(CHANNEL, "maps added", {"from": root, "read": loaded, "maps": maps.size()})
+	GSLog.info(CHANNEL, "maps added", {"from": root, "read": loaded, "maps": maps.size()})
 	return loaded
 
 
-## Follows a [DotContentIndex]: subscribed (solo) and delivered (online) map entries of an
+## Follows a [GSContentIndex]: subscribed (solo) and delivered (online) map entries of an
 ## accepted kind become maps here, for the index's CURRENT session only. Empty kinds is none and
 ## "*" every kind, as for dot-map. The game's own and an operator's maps always win an id.
-func follow_content(index: DotContentIndex, accepted_kinds: PackedStringArray) -> void:
+func follow_content(index: GSContentIndex, accepted_kinds: PackedStringArray) -> void:
 	_index = index
 	_kinds = accepted_kinds
 	sync_content()
 
 
 ## Re-reads the index into [member maps]. Called from [method playable] rather than on a signal:
-## [method DotContentIndex.tag_pack] adds a session without announcing it, and a stale list is
+## [method GSContentIndex.tag_pack] adds a session without announcing it, and a stale list is
 ## worse than a cheap loop over a handful of entries.
 func sync_content() -> void:
 	var wanted: Dictionary = {}
@@ -150,10 +150,10 @@ func pack_title(id: StringName) -> String:
 ## The name a menu shows: the document's name, with " (local)" after a map from the user folder (a dropped one).
 func display_name(id: StringName) -> String:
 	var shown := str(maps.get(id, {}).get("name", id))
-	return shown + DotMapDocDrop.TAG if _local.has(id) else shown
+	return shown + GSMapDocDrop.TAG if _local.has(id) else shown
 
 
-func _content_doc(entry: DotContentEntry) -> Dictionary:
+func _content_doc(entry: GSContentEntry) -> Dictionary:
 	if _content_docs.has(entry.key):
 		return _content_docs[entry.key]
 
@@ -174,7 +174,7 @@ func _content_doc(entry: DotContentEntry) -> Dictionary:
 			doc = parsed.value
 		else:
 			refused[entry.key] = parsed.error.message
-			DotLog.warn(CHANNEL, "a subscribed map was refused", {
+			GSLog.warn(CHANNEL, "a subscribed map was refused", {
 				"key": entry.key, "why": parsed.error.message,
 			})
 
@@ -186,7 +186,7 @@ func _read_directory(root: String) -> int:
 	var dir := DirAccess.open(root)
 
 	if dir == null:
-		DotLog.info(CHANNEL, "no map directory here", {"looked_at": root})
+		GSLog.info(CHANNEL, "no map directory here", {"looked_at": root})
 		return 0
 
 	var files := PackedStringArray()
@@ -209,7 +209,7 @@ func _read_directory(root: String) -> int:
 
 		if not parsed.ok:
 			refused[file] = parsed.error.message
-			DotLog.warn(CHANNEL, "a map was refused", {
+			GSLog.warn(CHANNEL, "a map was refused", {
 				"file": file, "why": parsed.error.message, "detail": parsed.error.detail,
 			})
 			continue
@@ -317,12 +317,12 @@ func drawable(allowed: PackedStringArray) -> Array[StringName]:
 
 ## The next map: drawn from [param stream] when shuffling, in order otherwise, and never the
 ## same one twice running when there is a choice.
-func next_map(allowed: PackedStringArray, shuffle: bool, stream: DotRandomStream,
+func next_map(allowed: PackedStringArray, shuffle: bool, stream: GSRandomStream,
 		previous: StringName) -> Dictionary:
 	var ids := drawable(allowed)
 
 	if ids.is_empty():
-		DotLog.warn(CHANNEL, "no map matches the allowed list; playing practice", {
+		GSLog.warn(CHANNEL, "no map matches the allowed list; playing practice", {
 			"allowed": ",".join(allowed),
 		})
 		return maps.get(PRACTICE, practice())

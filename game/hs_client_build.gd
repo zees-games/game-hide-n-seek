@@ -5,11 +5,11 @@ extends "hs_client_base.gd"
 const CHANNEL := "hs.client"
 
 ## Where the dead lie: dot-player-char's ragdolls under the game's (the server's) rules.
-var ragdolls: DotPlayerRagdolls = null
+var ragdolls: GSPlayerRagdolls = null
 
 
 func _build_ragdolls() -> void:
-	ragdolls = DotPlayerRagdolls.new()
+	ragdolls = GSPlayerRagdolls.new()
 	ragdolls.name = "Ragdolls"
 	ragdolls.rules = game.ragdoll_rules
 	ragdolls.sound_fn = _ragdoll_sound
@@ -36,7 +36,7 @@ func _fall(who: HsPlayer) -> void:
 		# The rooms and the props: a body lands on them and on nothing else (not on a person).
 		game.ragdoll_rules.collision_mask = game.physics.layer_mask(&"world") | game.physics.layer_mask(&"prop")
 	var velocity := who.controller.state.velocity if who.controller != null else Vector3.ZERO
-	var _body := ragdolls.spawn(who.figure, who.death if who.death != null else DotPlayerDeath.new(), velocity)
+	var _body := ragdolls.spawn(who.figure, who.death if who.death != null else GSPlayerDeath.new(), velocity)
 
 
 ## A hider was caught. Everybody hears it; the one caught is told what they are now.
@@ -102,7 +102,7 @@ func _build_camera() -> void:
 	# Other hiders, seekers and stand-ins, handed over (their hulls are off while players pass
 	# through each other): hidden at the lens, faded in third person between the camera and
 	# you. It rides the camera wherever the camera goes.
-	_fade = DotCameraFade.new()
+	_fade = GSCameraFade.new()
 	_fade.name = "Fade"
 	_fade.bodies_fn = _other_players
 	camera.add_child(_fade)
@@ -140,7 +140,7 @@ func _place_camera() -> void:
 	# dot-core's boom, swept from the eye with the height above it added in the world's up:
 	# a pivot above the head can be inside a tree's canopy (the play test, 0:33), and the
 	# spring arm it replaced cast a ray from there and snapped to whatever it hit.
-	_arm = DotCameraBoom.new()
+	_arm = GSCameraBoom.new()
 	_arm.name = "Chase"
 	_arm.spring_length = CHASE_BACK
 	# Against the building and the furniture, never the player's own body.
@@ -202,7 +202,7 @@ func _build_hud() -> void:
 
 ## The phone's buttons, on the HUD's layer, only where a finger is the input.
 func _build_touch() -> void:
-	if not DotPlatform.has_touch():
+	if not GSPlatform.has_touch():
 		return
 	touch = HsTouch.build(self, hud, _touch_sampler(), game.mobile_rules, _menu_button) as HsTouch
 	if platform != null and platform.has_method(&"fit_touch_buttons"):
@@ -215,7 +215,7 @@ func _menu_button() -> Button:
 
 
 ## The sampler the keys drive now: the player's own offline, the netcode's online.
-func _touch_sampler() -> DotFpsSampler:
+func _touch_sampler() -> GSFpsSampler:
 	return player.sampler if _offline and player != null and player.sampler != null else _sampler
 
 
@@ -237,7 +237,7 @@ func _key(action: StringName) -> String:
 
 ## dot-game's chat box and microphone, with this game's channels and voice format.
 func _build_chat() -> void:
-	chat = DotGameChatClient.new()
+	chat = GSGameChatClient.new()
 	chat.name = "Chat"
 	chat.channels = [
 		{"id": HsServices.CH_ALL, "label": "All", "colour": Color(0.93, 0.94, 0.96)},
@@ -247,7 +247,7 @@ func _build_chat() -> void:
 	chat.max_length = HsServices.chat_rules().max_length
 	chat.voice_config = HsServices.voice_format()
 	# A phone: three narrow rows in the corner, so a log line is not drawn across the thumbstick and the buttons.
-	if DotPlatform.has_touch():
+	if GSPlatform.has_touch():
 		chat.window_settings = {"max_lines": 3, "width": 200.0, "margin_left": 12.0, "margin_bottom": 8.0}
 	add_child(chat)
 
@@ -260,7 +260,7 @@ func _build_audio() -> void:
 	var ready_now := audio.setup()
 
 	if not ready_now.ok:
-		DotLog.warn(CHANNEL, "no sound", {"why": ready_now.error.message})
+		GSLog.warn(CHANNEL, "no sound", {"why": ready_now.error.message})
 		remove_child(audio)
 		audio.queue_free()
 		audio = null
@@ -280,10 +280,10 @@ func _build_settings() -> void:
 	# `sv_map_menu_flag` and anybody without it votes (wired in [HsModule]). Its choice goes
 	# to the map menu, never to the taunt list's `picked` handler.
 	platform.maps_rows_fn = func() -> Array: return game.map_rows() if game != null else []
-	platform.maps_change_fn = func(id: StringName) -> DotResult: return game.change_map_now(id)
-	DotLog.result(CHANNEL, "the platform", platform.setup())
+	platform.maps_change_fn = func(id: StringName) -> GSResult: return game.change_map_now(id)
+	GSLog.result(CHANNEL, "the platform", platform.setup())
 	# The starter set: the equipped list needs a credential the client does not hold (the server reads it).
-	DotLog.result(CHANNEL, "avatar actions", platform.add_avatar_actions(net, _avatar_figure))
+	GSLog.result(CHANNEL, "avatar actions", platform.add_avatar_actions(net, _avatar_figure))
 	_add_noblock_and_workbench()
 	# Walking is off while the cover is up, a menu is open or a line is typed: the sampler polls
 	# the keyboard.
@@ -291,7 +291,7 @@ func _build_settings() -> void:
 	_suspend_input(platform.is_input_blocked())
 
 	settings = platform.settings as HsSettings
-	console = platform.console as DotConsoleController
+	console = platform.console as GSConsoleController
 
 	if settings == null:
 		return
@@ -312,7 +312,7 @@ func _build_settings() -> void:
 		if hud != null:
 			hud.follow_menu(settings.menu)
 		_bind_bot_console()
-		board = platform.board as DotMenuScoreboard
+		board = platform.board as GSMenuScoreboard
 		_dress_board()
 
 
@@ -367,7 +367,7 @@ func _session(id: StringName) -> int:
 	return _watch_id if id == &"local" else HsNetBridge.session_of(id)
 
 
-## The figure an avatar action plays on (the drawn person, a DotHumanoidFigure): that peer's player, or the local one offline.
+## The figure an avatar action plays on (the drawn person, a GSHumanoidFigure): that peer's player, or the local one offline.
 func _avatar_figure(peer_id: int) -> Object:
 	var who: HsPlayer = null
 	if bridge != null and peer_id != 0:
@@ -386,26 +386,26 @@ func _player_of(session_id: int) -> HsPlayer:
 ## dot-team's block rules followed from the server, or, solo, the F9 tuning panel over this process's own config.
 func _add_noblock_and_workbench() -> void:
 	if link != null:
-		DotLog.result(CHANNEL, "noblock", platform.add_noblock(game, Callable(game, "team_of_side")))
+		GSLog.result(CHANNEL, "noblock", platform.add_noblock(game, Callable(game, "team_of_side")))
 		return
-	var wb := DotGameWorkbench.new()
+	var wb := GSGameWorkbench.new()
 	wb.name = "Workbench"
 	wb.listen_host_fn = func() -> bool: return true
 	workbench = wb
 	if game.config_binder != null:
-		for set: DotProfileSet in game.config_binder.profile_sets():
+		for set: GSProfileSet in game.config_binder.profile_sets():
 			wb.add_set(set, "Game settings: %s" % set.rel_path.trim_prefix("config_"))
 	var _fl := game.flashlight_conf()
 	if game.flashlight_binder != null:
-		for set: DotProfileSet in game.flashlight_binder.profile_sets():
+		for set: GSProfileSet in game.flashlight_binder.profile_sets():
 			wb.add_set(set, "Flashlight")
 	add_child(wb)
 	var started := wb.start()
-	DotLog.result(CHANNEL, "the workbench", started)
+	GSLog.result(CHANNEL, "the workbench", started)
 	if started.ok and game.config_binder != null and wb.api != null:
-		game.config_binder.attach(wb.api.runtime as DotProfileRuntime)
+		game.config_binder.attach(wb.api.runtime as GSProfileRuntime)
 	if started.ok and game.flashlight_binder != null and wb.api != null:
-		game.flashlight_binder.attach(wb.api.runtime as DotProfileRuntime)
+		game.flashlight_binder.attach(wb.api.runtime as GSProfileRuntime)
 	platform.add_workbench(wb)
 
 
@@ -416,13 +416,13 @@ func _bind_bot_console() -> void:
 	if not _offline or console == null or game == null:
 		return
 	var sources: Array = console.sources()
-	if sources.is_empty() or not (sources[0] is DotConsoleLocal):
+	if sources.is_empty() or not (sources[0] is GSConsoleLocal):
 		return
-	var _bound := DotBotSettings.of(game).bind_console(sources[0])
+	var _bound := GSBotSettings.of(game).bind_console(sources[0])
 	var args := OS.get_cmdline_user_args()
 	var index := args.find("--bot_difficulty")
 	if index >= 0 and index + 1 < args.size():
-		DotLog.result(CHANNEL, "bot difficulty from the command line", DotBotSettings.of(game).set_difficulty(args[index + 1]))
+		GSLog.result(CHANNEL, "bot difficulty from the command line", GSBotSettings.of(game).set_difficulty(args[index + 1]))
 
 
 func is_spectating() -> bool:

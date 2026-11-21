@@ -9,8 +9,8 @@ func _state_of(player: HsPlayer) -> Dictionary:
 	if not _state.has(player.player_id):
 		var seed := hash(String(player.player_id))
 		_state[player.player_id] = {
-			"aim": DotBotAim.new(seed, settings()),
-			"stream": DotRandomStream.new(seed, &"hs_bot"),
+			"aim": GSBotAim.new(seed, settings()),
+			"stream": GSRandomStream.new(seed, &"hs_bot"),
 			"goal": Vector3.INF, "path": PackedVector3Array(), "corner": 0, "path_at": -INF,
 			"mode": &"", "since": now(), "stuck": [player.controller.state.position, now()],
 			"spot": {}, "threat": Vector3.INF, "threat_at": -INF, "moved_at": -INF,
@@ -20,7 +20,7 @@ func _state_of(player: HsPlayer) -> Dictionary:
 	return _state[player.player_id]
 
 
-func _aim_of(player: HsPlayer) -> DotBotAim:
+func _aim_of(player: HsPlayer) -> GSBotAim:
 	return _state_of(player)["aim"]
 
 
@@ -76,14 +76,14 @@ func _sees(player: HsPlayer, other: HsPlayer) -> bool:
 		# Creeping draws the eye less than walking.
 		sight *= 0.5
 	var eye := player.eye_position()
-	var forward := DotBotAim.direction(player.controller.state.yaw, player.controller.state.pitch)
+	var forward := GSBotAim.direction(player.controller.state.yaw, player.controller.state.pitch)
 	var head := other.eye_position()
 	var chest := other.controller.state.position + Vector3(0.0, 0.6, 0.0)
 	# At arm's length a person is felt whichever way they face.
 	if eye.distance_to(chest) < FELT_WITHIN and _los(eye, chest):
 		return true
-	var head_seen := DotBotHiding.sees(eye, forward, profile.fov, sight, head, _los)
-	var chest_seen := DotBotHiding.sees(eye, forward, profile.fov, sight, chest, _los)
+	var head_seen := GSBotHiding.sees(eye, forward, profile.fov, sight, head, _los)
+	var chest_seen := GSBotHiding.sees(eye, forward, profile.fov, sight, chest, _los)
 	# Somebody keeping still and low in cover is made out only whole: a head over a sofa's back,
 	# or a body half behind a hedge, still, is passed over.
 	if still_low:
@@ -145,7 +145,7 @@ func _note_doorway(player: HsPlayer, state: Dictionary, goal: Vector3) -> void:
 
 ## Turns to the door in `state.shut` and presses use until it is shut or the moment has passed.
 ## Returns true while it is at it.
-func _shut_door(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> bool:
+func _shut_door(player: HsPlayer, command: GSFpsCommand, state: Dictionary) -> bool:
 	var shut: Dictionary = state.get("shut", {})
 	if shut.is_empty():
 		return false
@@ -162,7 +162,7 @@ func _shut_door(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> 
 		return false
 	var panel_at: Vector3 = (doors.call("panel_transform", index, 0.0) as Transform3D).origin
 	command.move = Vector2.ZERO
-	command.set_button(DotFpsCommand.BUTTON_CROUCH, bool(state["crouch"]))
+	command.set_button(GSFpsCommand.BUTTON_CROUCH, bool(state["crouch"]))
 	_look(player, command, panel_at)
 	var facing: int = doors.call("door_for", player.eye_position(), player.aim_direction())
 	state["use_now"] = facing == index and not bool(doors.call("moving", index, int(game.get("_tick"))))
@@ -238,7 +238,7 @@ func _plan_shut_from_clear(player: HsPlayer, state: Dictionary, index: int) -> b
 
 ## Walks back to `state.opening`'s point, facing the door, and presses use once it is out of the
 ## swing: to open it, or (`open` false) to shut it. Returns true while it is at it.
-func _open_from_clear(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> bool:
+func _open_from_clear(player: HsPlayer, command: GSFpsCommand, state: Dictionary) -> bool:
 	var opening: Dictionary = state.get("opening", {})
 	if opening.is_empty():
 		return false
@@ -352,23 +352,23 @@ func _detour_step(player: HsPlayer, state: Dictionary, at: Vector3, corner: Vect
 
 
 ## Hops at a jump-up link's foot and crouches under a low ceiling ahead.
-func _hop_and_duck(command: DotFpsCommand, at: Vector3, corner: Vector3, dir: Vector3, player: HsPlayer) -> void:
+func _hop_and_duck(command: GSFpsCommand, at: Vector3, corner: Vector3, dir: Vector3, player: HsPlayer) -> void:
 	# A jump-up link (the annotator found a ledge within a body's jump): hop at its foot.
 	if corner.y - at.y > HsPlayer.BODY_STEP + 0.05 and player.controller.state.is_grounded():
 		for foot in _jump_feet:
 			if Vector2(foot.x - at.x, foot.z - at.z).length() < 1.2 and absf(foot.y - at.y) < 0.6:
-				command.set_button(DotFpsCommand.BUTTON_JUMP, true)
+				command.set_button(GSFpsCommand.BUTTON_JUMP, true)
 				break
 
 	# A ceiling low ahead: crouch under it.
 	if dir.length() > 0.01:
 		var ahead := at + dir.normalized() * 0.6
 		if not _los(ahead + Vector3(0.0, 0.5, 0.0), ahead + Vector3(0.0, HsPlayer.BODY_HEIGHT + 0.05, 0.0)):
-			command.set_button(DotFpsCommand.BUTTON_CROUCH, true)
+			command.set_button(GSFpsCommand.BUTTON_CROUCH, true)
 
 
 ## Walks [param player] along the mesh to [param goal]. Returns true when there.
-func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal: Vector3, sprint: bool, look: bool = true, seeker: bool = false) -> bool:
+func _walk_to(player: HsPlayer, command: GSFpsCommand, state: Dictionary, goal: Vector3, sprint: bool, look: bool = true, seeker: bool = false) -> bool:
 	# Shutting a door that stands open across the way (see the detour below).
 	if _shut_door(player, command, state):
 		return false
@@ -430,7 +430,7 @@ func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal:
 		_look(player, command, Vector3(corner.x, player.eye_position().y + (corner.y - at.y) * 0.5, corner.z))
 	state["walk_dir"] = dir
 	_walk(command, dir)
-	command.set_button(DotFpsCommand.BUTTON_SPRINT, sprint)
+	command.set_button(GSFpsCommand.BUTTON_SPRINT, sprint)
 
 	_hop_and_duck(command, at, corner, dir, player)
 	_unstick(player, command, state)
@@ -438,7 +438,7 @@ func _walk_to(player: HsPlayer, command: DotFpsCommand, state: Dictionary, goal:
 
 
 ## Turns toward [param point] at the bot's turn rate.
-func _look(player: HsPlayer, command: DotFpsCommand, point: Vector3) -> void:
+func _look(player: HsPlayer, command: GSFpsCommand, point: Vector3) -> void:
 	var view := _aim_of(player).look_at_point(player.eye_position(), point, dt())
 	command.yaw = view.x
 	command.pitch = clampf(view.y, -60.0, 60.0)
@@ -447,7 +447,7 @@ func _look(player: HsPlayer, command: DotFpsCommand, point: Vector3) -> void:
 
 ## Hops, then steps aside, then asks for somewhere else, when it has made no headway for [constant STUCK_SECONDS]. The count resets only once
 ## the bot is [constant STUCK_LEFT] from where it first stuck: a reset on any small move let a step aside and back reset it every time.
-func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> void:
+func _unstick(player: HsPlayer, command: GSFpsCommand, state: Dictionary) -> void:
 	var mark: Array = state["stuck"]
 	var at := player.controller.state.position
 	var t := now()
@@ -462,8 +462,8 @@ func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> vo
 	# On the ground, or caught on an edge in the air without rising or falling: a bot pressed
 	# into a door's jamb at the top of a camp cabin's steps hung a few centimetres up for half a
 	# minute, never on the ground, so it was never stuck (`headless_bots` round 18).
-	var hung := player.controller.state.mode == DotFpsState.Mode.AIR and absf(player.controller.state.velocity.y) < 1.0
-	if stuck and (player.controller.state.mode == DotFpsState.Mode.GROUND or hung):
+	var hung := player.controller.state.mode == GSFpsState.Mode.AIR and absf(player.controller.state.velocity.y) < 1.0
+	if stuck and (player.controller.state.mode == GSFpsState.Mode.GROUND or hung):
 		if first == Vector3.INF:
 			state["stuck_at"] = at
 		# A panel it could not see coming: round it, before anything blinder.
@@ -474,7 +474,7 @@ func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> vo
 			state["stuck_count"] = 1
 			state["stuck"] = [at, t]
 			return
-		var stream: DotRandomStream = state["stream"]
+		var stream: GSRandomStream = state["stream"]
 		# Every other time a hop (a kerb, a step), else a step aside. Never a hop at something
 		# waist-high: that is a desk, and a bot hopped up on one stood there for half a minute
 		# (`headless_bots` round 11, a school classroom).
@@ -490,7 +490,7 @@ func _unstick(player: HsPlayer, command: DotFpsCommand, state: Dictionary) -> vo
 		var up := _next_corner(state, at).y - at.y
 		var hop_up := up > 0.3 and up < 0.8 and ahead.length() < 0.8 and headroom
 		if (int(state.get("stuck_count", 0)) % 2 == 0 and low_only) or hop_up:
-			command.set_button(DotFpsCommand.BUTTON_JUMP, true)
+			command.set_button(GSFpsCommand.BUTTON_JUMP, true)
 		else:
 			state["sidestep_until"] = t + 0.7
 			state["sidestep_side"] = _sidestep_side(at, ahead, stream)
@@ -646,14 +646,14 @@ func _pick_spot(player: HsPlayer, state: Dictionary, avoid: PackedVector3Array, 
 					return false
 		return length < maxf(left - 4.0, 8.0) * speed * 0.9 and length < walk_limit
 
-	var stream: DotRandomStream = state["stream"]
-	var chosen := DotBotHiding.choose(pool, at, threats, taken, stream, settings().profile.map_knowledge, reachable)
+	var stream: GSRandomStream = state["stream"]
+	var chosen := GSBotHiding.choose(pool, at, threats, taken, stream, settings().profile.map_knowledge, reachable)
 
 	# Asked three times and nothing reachable from here (a spawn just off the walkable mesh):
 	# the best spot regardless, and the walk will find its way or hop.
 	if chosen.is_empty() and int(state.get("retries", 0)) >= 3:
 		# Still only where the seekers can walk: a hider shut in a basement is a round nobody wins.
-		chosen = DotBotHiding.choose(pool, at, threats, taken, stream, settings().profile.map_knowledge,
+		chosen = GSBotHiding.choose(pool, at, threats, taken, stream, settings().profile.map_knowledge,
 				func(spot: Vector3) -> bool: return seeker_start == Vector3.INF or nav.joined(seeker_start, spot))
 	state["retries"] = int(state.get("retries", 0)) + 1
 
@@ -671,7 +671,7 @@ func _pick_spot(player: HsPlayer, state: Dictionary, avoid: PackedVector3Array, 
 
 
 ## The hiding spots as a hider sees them: out of sight first (exposure), tucked in (enclosure), best behind cover from the seekers' start
-## ([method cover_from]). Folded into `exposure` so [DotBotHiding.choose] ranks them as before; the measured share stays in `seen_exposure`.
+## ([method cover_from]). Folded into `exposure` so [GSBotHiding.choose] ranks them as before; the measured share stays in `seen_exposure`.
 func _hider_pool(threats: PackedVector3Array) -> Array[Dictionary]:
 	if not _pool.is_empty() and _pool_threats == threats:
 		return _pool

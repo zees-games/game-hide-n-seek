@@ -1,4 +1,4 @@
-extends DotGameVisualQaCapture
+extends GSGameVisualQaCapture
 
 ## Visual QA capture for the six people a player can be, as a hider (blue) and as a seeker (orange): idle, walk, run, sprint, crouch walk and a jump, three cameras, every frame at 60 fps.
 ## Renders, so it runs on a GPU box through tools/visual_qa_shot.sh, never in the headless suites (addons/dot_game/docs/visual-qa.md).
@@ -35,9 +35,9 @@ func _build() -> void:
 	build_stage()
 
 
-func _stage(item: String, clip: String) -> DotResult:
+func _stage(item: String, clip: String) -> GSResult:
 	if not SPEEDS.has(clip):
-		return DotResult.fail(DotError.CODE_INVALID, "no %s clip" % clip)
+		return GSResult.fail(GSError.CODE_INVALID, "no %s clip" % clip)
 	if _figure == null:
 		_figure = HsFigure.new()
 		root.add_child(_figure)
@@ -47,12 +47,12 @@ func _stage(item: String, clip: String) -> DotResult:
 		var letter: int = 0 if item == SEEKER_ITEM else int(ITEM_LETTERS[item])
 		var side: int = 1 if item == SEEKER_ITEM else 0
 		_figure.build(1.8, HsFigure.ATLASES[letter], HsGameBase.TEAM_COLOURS[side])
-		DotGameVisualQaViews.tag_layers(_figure, 1 << 18)
+		GSGameVisualQaViews.tag_layers(_figure, 1 << 18)
 		_built_for = item
 	_figure.global_position = Vector3(0.0, 0.0, 6.0 if clip != "idle" else 0.0)
 	_figure.rotation = Vector3.ZERO
 	_figure.set_motion({"on_floor": true, "crouched": clip == "crouch_walk", "aim": 0.0})
-	return DotResult.success(clip)
+	return GSResult.success(clip)
 
 
 func _subject(_item: String) -> Node3D:

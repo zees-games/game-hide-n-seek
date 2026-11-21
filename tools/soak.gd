@@ -3,8 +3,8 @@ extends Node
 const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
 
-## Bot soak on the real game: N stand-ins play rounds back to back on one map for M simulated minutes through DotBotSoak, fed by DotSpawnWatch.
-## Run `./game.sh soak [map] [minutes]`; --probe prints a PROBE line per bot per second, and DotBotSoakConfig flags are accepted.
+## Bot soak on the real game: N stand-ins play rounds back to back on one map for M simulated minutes through GSBotSoak, fed by GSSpawnWatch.
+## Run `./game.sh soak [map] [minutes]`; --probe prints a PROBE line per bot per second, and GSBotSoakConfig flags are accepted.
 ## Writes .godot/test-logs/soak-<map>.json, prints the SOAK line, exits 1 on failure. No navigation mesh query here, so off-nav and unreachable are off.
 
 const DEFAULT_MAP := &"hs_manor"
@@ -19,7 +19,7 @@ var _probe := false
 
 func _ready() -> void:
 	_probe = OS.get_cmdline_user_args().has("--probe")
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = 1920
 	Engine.max_physics_steps_per_frame = 64
 	_run.call_deferred()
@@ -35,7 +35,7 @@ func _arg(name: String, fallback: String) -> String:
 
 func _run() -> void:
 	var map_id := _arg("map", String(DEFAULT_MAP))
-	var cfg := DotBotSoakConfig.new()
+	var cfg := GSBotSoakConfig.new()
 	cfg.minutes = DEFAULT_MINUTES
 	cfg.bots = DEFAULT_BOTS
 	# A stand-in may take 20 s to get out of a pit up a stair with a 0.43 m last riser, past a
@@ -71,11 +71,11 @@ func _run() -> void:
 		_fail("the game built no map for %s" % map_id)
 		return
 
-	var watch := DotSpawnWatch.new()
+	var watch := GSSpawnWatch.new()
 	watch.rules.enabled = true
 	watch.rules.kill_y = -400.0
 
-	var soak := DotBotSoak.new(cfg)
+	var soak := GSBotSoak.new(cfg)
 	soak.watch = watch
 	soak.movers_fn = _movers
 	soak.object_count_fn = func() -> int: return int(Performance.get_monitor(Performance.OBJECT_COUNT))
@@ -90,8 +90,8 @@ func _run() -> void:
 	var report := soak.finish()
 	report["map"] = map_id
 	report["catches"] = _game.players.values().filter(func(p) -> bool: return p.caught).size()
-	print(DotBotSoak.summary(report))
-	print(DotBotSoak.report_line(report))
+	print(GSBotSoak.summary(report))
+	print(GSBotSoak.report_line(report))
 	var path := ProjectSettings.globalize_path("res://.godot/test-logs/soak-%s.json" % map_id)
 	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 	if soak.write_report(report, path) != OK:

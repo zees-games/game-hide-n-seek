@@ -102,26 +102,26 @@ signal achievement_earned(player_id: StringName, title: String, points: int)
 var map: HsMap = null
 var catalogue: HsCatalogue = null
 var props_catalogue: HsProps = null
-var combat: DotCombatManager = null
-var match_node: DotMatch = null
-var random: DotRandomManager = null
-var physics: DotPhysicsLayout = null
+var combat: GSCombatManager = null
+var match_node: GSMatch = null
+var random: GSRandomManager = null
+var physics: GSPhysicsLayout = null
 
 ## What a dead body does, and which death reactions the server allows: dot-player-char's
 ## `sv_ragdoll*` cvars, bound by the module (REPLICATED) and followed by a client through its
 ## link, because the client draws the bodies.
-var ragdoll_rules: DotPlayerRagdollRules = DotPlayerRagdollRules.new()
+var ragdoll_rules: GSPlayerRagdollRules = GSPlayerRagdollRules.new()
 
 ## dot-props' `sv_toys*` (whether a map's toys are there, how many simulate at once, how hard a
 ## walk pushes one). Bound by the module (REPLICATED) and followed by a client, which draws them.
-var toy_rules: DotPropBodyRules = DotPropBodyRules.new()
+var toy_rules: GSPropBodyRules = GSPropBodyRules.new()
 
 ## What a person weighs on a see-saw, kg.
 const PERSON_MASS := 70.0
-var effects: DotFxManager = null
+var effects: GSFxManager = null
 var spectate: HsSpectate = null
 var progress: HsProgress = null
-var taunts: DotPropTaunts = null
+var taunts: GSPropTaunts = null
 
 ## player id -> HsPlayer.
 var players: Dictionary = {}
@@ -129,9 +129,9 @@ var players: Dictionary = {}
 ## dot-player-controller's `mp_forceview` (may a player switch to third person) and
 ## `mp_solidplayers` (do players and stand-ins block each other). Bound by the module
 ## (REPLICATED) and followed by a client through its link.
-var view_rules: DotPlayerViewRules = DotPlayerViewRules.new()
+var view_rules: GSPlayerViewRules = GSPlayerViewRules.new()
 ## Who a spectator may watch and whether they may fly a free camera: dot-spectate's `mp_forcecamera`,
 ## `mp_freeroam` and `mp_freeroam_speed`. Shared with [HsSpectate]'s manager, bound by the module
 ## (REPLICATED) and followed by a client, which is the end that flies the camera.
-var spectate_rules: DotSpectatorRules = DotSpectatorRules.new()
-var body_rules: DotPlayerBodyRules = DotPlayerBodyRules.new()
+var spectate_rules: GSSpectatorRules = GSSpectatorRules.new()
+var body_rules: GSPlayerBodyRules = GSPlayerBodyRules.new()

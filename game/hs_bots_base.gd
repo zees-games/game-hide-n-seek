@@ -132,7 +132,7 @@ const MARKED_SETTLE := 1.0
 
 var game: Node = null
 
-var nav: DotBotNav = DotBotNav.new()
+var nav: GSBotNav = GSBotNav.new()
 
 ## `[{at, exposure, ...}]`, the annotator's hiding spots for the map built (the random survey
 ## when the map has no annotations), or empty.
@@ -141,8 +141,8 @@ var spots: Array[Dictionary] = []
 ## A few random places beside [member spots] that the seekers' sweep looks at too.
 var sweep: Array[Dictionary] = []
 
-## The map's annotations ([DotNpcAiNavAnnotator]): links, spots, chokepoints. Null until made.
-var annotations: DotNpcAiNavAnnotations = null
+## The map's annotations ([GSNpcAiNavAnnotator]): links, spots, chokepoints. Null until made.
+var annotations: GSNpcAiNavAnnotations = null
 
 ## How long the annotation took (or was loaded), milliseconds, and whether it came from the cache.
 var annotate_ms: float = 0.0
@@ -152,9 +152,9 @@ var annotate_cached: bool = false
 var links_used: int = 0
 var _islands_joined := false
 
-var _annotator: DotNpcAiNavAnnotator = null
-var _cached: DotNpcAiNavAnnotations = null
-var _job: DotJob = null
+var _annotator: GSNpcAiNavAnnotator = null
+var _cached: GSNpcAiNavAnnotations = null
+var _job: GSJob = null
 var _job_done: bool = false
 var _job_steps: int = 0
 

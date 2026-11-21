@@ -12,7 +12,7 @@ var _sections_finished := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -49,41 +49,41 @@ func _run() -> void:
 func _test_the_codec() -> void:
 	_section("every event decodes to what was encoded")
 
-	var hello := HsEvents.read_hello(DotNetReader.new(HsEvents.write_hello(SESSION, 64, 1234, 40.0, 240.0, 2.0, 60.0)))
+	var hello := HsEvents.read_hello(GSNetReader.new(HsEvents.write_hello(SESSION, 64, 1234, 40.0, 240.0, 2.0, 60.0)))
 	_check(bool(hello["ok"]) and int(hello["player_id"]) == SESSION
 		and absf(float(hello["round_seconds"]) - 240.0) < 0.1 and absf(float(hello["hide_seconds"]) - 40.0) < 0.05
 		and absf(float(hello["beacon_period"]) - 2.0) < 0.02 and absf(float(hello["taunt_range"]) - 60.0) < 0.2,
 		"HELLO", str(hello))
 
 	var doc := HsCatalogue.practice()
-	var sent := HsEvents.read_map(DotNetReader.new(HsEvents.write_map(HsMapDoc.encode(doc))))
-	var decoded := HsMapDoc.decode(sent["encoded"]) if bool(sent["ok"]) else DotResult.fail(DotError.CODE_PARSE, "no map")
+	var sent := HsEvents.read_map(GSNetReader.new(HsEvents.write_map(HsMapDoc.encode(doc))))
+	var decoded := HsMapDoc.decode(sent["encoded"]) if bool(sent["ok"]) else GSResult.fail(GSError.CODE_PARSE, "no map")
 	_check(decoded.ok and HsMapDoc.digest(decoded.value) == HsMapDoc.digest(doc), "MAP carries the document whole")
 
-	var join := HsEvents.read_join(DotNetReader.new(HsEvents.write_join(SESSION, 9, "Ada", HsGame.SEEKERS, null)))
+	var join := HsEvents.read_join(GSNetReader.new(HsEvents.write_join(SESSION, 9, "Ada", HsGame.SEEKERS, null)))
 	_check(bool(join["ok"]) and int(join["team"]) == HsGame.SEEKERS, "JOIN carries the side", str(join.get("team")))
 
-	var round_info := HsEvents.read_round(DotNetReader.new(HsEvents.write_round(3, false, HsGame.HIDERS, "time: 2 stayed hidden")))
+	var round_info := HsEvents.read_round(GSNetReader.new(HsEvents.write_round(3, false, HsGame.HIDERS, "time: 2 stayed hidden")))
 	_check(bool(round_info["ok"]) and int(round_info["winner"]) == HsGame.HIDERS
 		and str(round_info["why"]) == "time: 2 stayed hidden", "ROUND carries the winning side and the sentence")
 
-	var taunt := HsEvents.read_taunt(DotNetReader.new(HsEvents.write_taunt(SESSION, &"laugh", true)))
+	var taunt := HsEvents.read_taunt(GSNetReader.new(HsEvents.write_taunt(SESSION, &"laugh", true)))
 	_check(bool(taunt["ok"]) and taunt["taunt_id"] == &"laugh" and bool(taunt["forced"]), "TAUNT", str(taunt))
 
-	var got := HsEvents.read_caught(DotNetReader.new(HsEvents.write_caught(SESSION, 900001, HsGame.CAUGHT_SIGHT)))
-	var fell := HsEvents.read_caught(DotNetReader.new(HsEvents.write_caught(SESSION, 0, HsGame.CAUGHT_FELL)))
+	var got := HsEvents.read_caught(GSNetReader.new(HsEvents.write_caught(SESSION, 900001, HsGame.CAUGHT_SIGHT)))
+	var fell := HsEvents.read_caught(GSNetReader.new(HsEvents.write_caught(SESSION, 0, HsGame.CAUGHT_FELL)))
 	_check(bool(got["ok"]) and int(got["by"]) == 900001 and got["how"] == HsGame.CAUGHT_SIGHT
 		and bool(fell["ok"]) and int(fell["by"]) == 0 and fell["how"] == HsGame.CAUGHT_FELL,
 		"CAUGHT carries who, by whom (or nobody) and how", "%s, %s" % [got, fell])
 
-	var toys := HsEvents.read_toys(DotNetReader.new(HsEvents.write_toys(&"hs_camp", PackedInt64Array([7, 300, 9001]))))
+	var toys := HsEvents.read_toys(GSNetReader.new(HsEvents.write_toys(&"hs_camp", PackedInt64Array([7, 300, 9001]))))
 	_check(bool(toys["ok"]) and toys["map_id"] == &"hs_camp" and toys["ids"] == PackedInt64Array([7, 300, 9001]),
 		"TOYS carries the map and its toys' ids in order", str(toys))
 
-	var asked := HsEvents.read_ask_taunt(DotNetReader.new(HsEvents.write_ask_taunt(&"whistle")))
+	var asked := HsEvents.read_ask_taunt(GSNetReader.new(HsEvents.write_ask_taunt(&"whistle")))
 	_check(bool(asked["ok"]) and asked["taunt_id"] == &"whistle", "a taunt request")
 
-	var clock := HsEvents.read_clock(DotNetReader.new(HsEvents.write_clock(2, 12.5, 40.25, HsGame.Phase.SEEK, 3, 1, true)))
+	var clock := HsEvents.read_clock(GSNetReader.new(HsEvents.write_clock(2, 12.5, 40.25, HsGame.Phase.SEEK, 3, 1, true)))
 	_check(bool(clock["ok"]) and int(clock["phase"]) == HsGame.Phase.SEEK
 		and absf(float(clock["seek_elapsed"]) - 40.25) < 0.1 and int(clock["hiders"]) == 3
 		and int(clock["seekers"]) == 1, "CLOCK", str(clock))
@@ -96,7 +96,7 @@ func _test_the_codec() -> void:
 	_check(HsRequest.fits(), "every request kind fits the request's kind field",
 		"%d kinds in %d bits" % [HsEvents.Ask.size(), HsRequest.KIND_BITS])
 	_check(HsEvents.chat_kinds_fit(), "every chat kind fits the chat line's kind field",
-		"%d kinds in %d bits" % [DotChatMessage.KIND_NAMES.size(), HsEvents.CHAT_KIND_BITS])
+		"%d kinds in %d bits" % [GSChatMessage.KIND_NAMES.size(), HsEvents.CHAT_KIND_BITS])
 
 	_finished()
 
@@ -107,10 +107,10 @@ func _codec_map_sizes() -> void:
 	var biggest := PackedByteArray()
 	biggest.resize(HsEvents.MAP_BYTES)
 	var outgoing := HsEvent.new(HsEvents.Kind.MAP, HsEvents.write_map(biggest))
-	var wire := DotNetWriter.new()
+	var wire := GSNetWriter.new()
 	outgoing._write(wire)
 	var incoming := HsEvent.new()
-	incoming._read(DotNetReader.new(wire.to_bytes()))
+	incoming._read(GSNetReader.new(wire.to_bytes()))
 	var carried := HsEvents.read_map(incoming.reader())
 	_check(bool(carried["ok"]) and (carried["encoded"] as PackedByteArray).size() == HsEvents.MAP_BYTES,
 		"a MAP as large as a reader accepts fits in an event", "%d of %d bytes" % [(carried["encoded"] as PackedByteArray).size(), HsEvents.MAP_BYTES])
@@ -125,10 +125,10 @@ func _codec_map_sizes() -> void:
 	var parts_ok := parts.size() == 4
 	for part in parts:
 		var sent_part := HsEvent.new(part[0], part[1])
-		var part_wire := DotNetWriter.new()
+		var part_wire := GSNetWriter.new()
 		sent_part._write(part_wire)
 		var got_part := HsEvent.new()
-		got_part._read(DotNetReader.new(part_wire.to_bytes()))
+		got_part._read(GSNetReader.new(part_wire.to_bytes()))
 		var piece := HsEvents.read_map_part(got_part.reader())
 		parts_ok = parts_ok and got_part.kind == HsEvents.Kind.MAP_PART and bool(piece["ok"]) and int(piece["total"]) == large.size()
 		joined.append_array(piece["chunk"])
@@ -170,7 +170,7 @@ func _build() -> bool:
 	_server_net = _make_manager(true, &"server", 1, server_side, SERVER_TICK_RATE)
 	_client_net = _make_manager(false, &"client", CLIENT_PEER, client_side, CLIENT_ENGINE_TICK_RATE)
 	# This harness stamps every command itself (`_tick + INPUT_LEAD`), so the client must not ask for dot-net's input-lead report: steered by reports about commands it never stamped, the clock runs away. By the constant map, so it parses against a dot-net from before the report.
-	var lead_bit := int((DotNetMessageRegistry as Script).get_script_constant_map().get("FEATURE_INPUT_LEAD", 0))
+	var lead_bit := int((GSNetMessageRegistry as Script).get_script_constant_map().get("FEATURE_INPUT_LEAD", 0))
 	_client_net.messages.features &= ~lead_bit
 
 	_server_bridge = HsNetBridge.new()
@@ -310,7 +310,7 @@ func _test_the_local_player_is_predicted() -> void:
 	server_me.place_at(Vector3(-2.0, 0.05, 0.0), 0.0)
 	await _steps(20)
 	var before := mine.controller.state.position
-	var forward := DotFpsCommand.new()
+	var forward := GSFpsCommand.new()
 	forward.move = Vector2(0.0, 1.0)
 	await _step(forward)
 	_check(mine.controller.state.position.distance_to(before) > 0.01,
@@ -348,7 +348,7 @@ func _test_a_door_crosses() -> void:
 
 	var _shut := _server_game.use_door(1, _me())
 	await _steps(SERVER_TICK_RATE)
-	var east := DotFpsCommand.new()
+	var east := GSFpsCommand.new()
 	east.yaw = -90.0
 	east.move = Vector2(0.0, 1.0)
 	await _steps(SERVER_TICK_RATE * 2, east)
@@ -430,7 +430,7 @@ func _test_a_client_without_the_map() -> void:
 	await _steps(8)
 	var ids: Array = []
 	for behaviour: Node in (_server_bridge.get("_toy_nets") as Array):
-		ids.append((behaviour.get("identity") as DotNetIdentity).net_id)
+		ids.append((behaviour.get("identity") as GSNetIdentity).net_id)
 	var known := ids.filter(func(id: int) -> bool: return _client_net.registry.has(id)).size()
 	_check(built.ok and ids.size() == 5 and known == ids.size() and _client_bridge.toy_count() == 0,
 		"the client registers the new map's toys at once, paired with nothing", "%d of %d known, %d paired" % [known, ids.size(), _client_bridge.toy_count()])
@@ -516,7 +516,7 @@ func _test_a_catch_crosses() -> void:
 	_check(mine.caught, "and that it was caught")
 
 	var before := mine.controller.state.position
-	var forward := DotFpsCommand.new()
+	var forward := GSFpsCommand.new()
 	forward.move = Vector2(0.0, 1.0)
 	await _steps(12, forward)
 	_check(mine.controller.state.position.distance_to(before) < 0.05,
@@ -641,7 +641,7 @@ func _test_leaving() -> void:
 
 func _test_the_remote_workbench() -> void:
 	_section("[a flagged admin edits the server's profiles, and nobody else can]")
-	if not DotGameWorkbench.available():
+	if not GSGameWorkbench.available():
 		print("  dot-workbench is not linked: skipped")
 		_passed += 16
 		_finished()
@@ -649,21 +649,21 @@ func _test_the_remote_workbench() -> void:
 	var rig := _workbench_rig()
 	var flags: Dictionary = rig["flags"]
 	var state: Dictionary = rig["state"]
-	var snet: DotNetManager = rig["snet"]
-	var cnet: DotNetManager = rig["cnet"]
+	var snet: GSNetManager = rig["snet"]
+	var cnet: GSNetManager = rig["cnet"]
 	var sconfig: HsConfig = rig["sconfig"]
-	var sbinder: DotGameConfigBinder = rig["sbinder"]
-	var set: DotProfileSet = rig["set"]
-	var swb: DotGameWorkbench = rig["swb"]
-	var cwb: DotGameWorkbench = rig["cwb"]
-	var cremote: DotGameWorkbenchRemoteClient = rig["cremote"]
-	var crt: DotProfileRuntime = rig["crt"]
-	var remote: DotGameWorkbenchRemote = rig["remote"]
-	var slink: DotNetProfileLink = rig["slink"]
-	var clink: DotNetProfileLink = rig["clink"]
+	var sbinder: GSGameConfigBinder = rig["sbinder"]
+	var set: GSProfileSet = rig["set"]
+	var swb: GSGameWorkbench = rig["swb"]
+	var cwb: GSGameWorkbench = rig["cwb"]
+	var cremote: GSGameWorkbenchRemoteClient = rig["cremote"]
+	var crt: GSProfileRuntime = rig["crt"]
+	var remote: GSGameWorkbenchRemote = rig["remote"]
+	var slink: GSNetProfileLink = rig["slink"]
+	var clink: GSNetProfileLink = rig["clink"]
 	var kind: String = set.rel_path
 	var edit := {"op": "set", "kind": kind, "id": sbinder.profile_id, "key": "caught_become_seekers", "value": false}
-	var srt := swb.api.runtime as DotProfileRuntime
+	var srt := swb.api.runtime as GSProfileRuntime
 
 	state["uid"] = "boss"
 	cremote.ask()
@@ -675,7 +675,7 @@ func _test_the_remote_workbench() -> void:
 	cremote.ask()
 	_check(cremote.allowed and cremote.flags.has("cvar"), "with the cvar on an admin is told the flags it holds")
 	_check(cwb.overlay != null, "and gets the panel")
-	var applied: DotResult = cwb.api.handle(DotGameWorkbenchRemoteClient.ACTOR, edit)
+	var applied: GSResult = cwb.api.handle(GSGameWorkbenchRemoteClient.ACTOR, edit)
 	_check(applied.ok and not sconfig.caught_become_seekers, "an edit from the panel reaches the server's live config", "" if applied.ok else applied.error.message)
 	_check(crt.revision(kind, sbinder.profile_id) > 0 and crt.revision(kind, sbinder.profile_id) == srt.revision(kind, sbinder.profile_id), "and its row replicated to the client")
 
@@ -728,26 +728,26 @@ func _workbench_rig() -> Dictionary:
 	var cbinder := HsConfig.make_binder(cconfig)
 	var _l1 := sbinder.load_layers()
 	var _l2 := cbinder.load_layers()
-	var set: DotProfileSet = null
-	for candidate: DotProfileSet in sbinder.profile_sets():
+	var set: GSProfileSet = null
+	for candidate: GSProfileSet in sbinder.profile_sets():
 		if candidate.rel_path.ends_with("catching"):
 			set = candidate
-	var cset: DotProfileSet = null
-	for candidate: DotProfileSet in cbinder.profile_sets():
+	var cset: GSProfileSet = null
+	for candidate: GSProfileSet in cbinder.profile_sets():
 		if candidate.rel_path.ends_with("catching"):
 			cset = candidate
-	var swb := DotGameWorkbench.new()
+	var swb := GSGameWorkbench.new()
 	swb.dedicated = true
 	swb.config = {"enabled": false}
 	swb.add_set(set, "Game settings")
 	add_child(swb)
 	var started := swb.start()
 	sbinder.attach(swb.api.runtime)
-	var made := DotGameWorkbenchRemote.serve(snet)
-	var slink := DotNetProfileLink.attach(snet, swb.api.runtime as DotProfileRuntime)
-	var cremote := DotGameWorkbenchRemoteClient.attach(cnet)
-	var crt := DotProfileRuntime.new()
-	var clink := DotNetProfileLink.attach(cnet, crt)
+	var made := GSGameWorkbenchRemote.serve(snet)
+	var slink := GSNetProfileLink.attach(snet, swb.api.runtime as GSProfileRuntime)
+	var cremote := GSGameWorkbenchRemoteClient.attach(cnet)
+	var crt := GSProfileRuntime.new()
+	var clink := GSNetProfileLink.attach(cnet, crt)
 	snet.messages.seal()
 	cnet.messages.seal()
 	var remote := swb.serve_remote(snet)
@@ -763,8 +763,8 @@ func _workbench_rig() -> Dictionary:
 	remote.connected_fn = func(_p: int) -> bool: return true
 	remote.permit_uid_fn = func(uid: String, flag: String) -> bool: return (flags.get(uid, []) as Array).has(flag)
 	remote.now_fn = func() -> int: return state["now"]
-	remote.limiter = DotRateLimiter.new(1000.0, 1000.0)
-	var cwb := DotGameWorkbench.new()
+	remote.limiter = GSRateLimiter.new(1000.0, 1000.0)
+	var cwb := GSGameWorkbench.new()
 	cwb.panel_mode = 2
 	cwb.config = {"enabled": false}
 	cwb.remote_client = cremote

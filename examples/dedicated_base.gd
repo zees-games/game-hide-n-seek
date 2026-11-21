@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 ## The section counters and the exit probe (a copy of the suite run as a child process) of [code]dedicated[/code]; split off for size.
 
 var _sections_entered := 0

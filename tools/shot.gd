@@ -46,7 +46,7 @@ func _ready() -> void:
 		elif arg == "--third":
 			_third = true
 		elif arg == "--touch":
-			DotPlatform.touch_override = 1
+			GSPlatform.touch_override = 1
 		elif arg.begins_with("--doors="):
 			_doors = arg.trim_prefix("--doors=")
 
@@ -57,11 +57,11 @@ func _ready() -> void:
 	_client.name = "Client"
 	_client.set("force_offline", true)
 	add_child(_client)
-	# --view=cover: the loading cover dot-game's DotGameClient puts up first, before it lifts.
+	# --view=cover: the loading cover dot-game's GSGameClient puts up first, before it lifts.
 	if _view == "cover":
 		for _i in 2:
 			await RenderingServer.frame_post_draw
-		var platform: DotGameClient = _client.get("platform")
+		var platform: GSGameClient = _client.get("platform")
 		print("cover %s" % ("lifted" if platform.is_shown() else "up"))
 		var cover_path := ProjectSettings.globalize_path(_out)
 		DirAccess.make_dir_recursive_absolute(cover_path.get_base_dir())
@@ -83,7 +83,7 @@ func _add_workshop_fixture() -> void:
 	var file := FileAccess.open(root + "maps/ws_clubhouse.json", FileAccess.WRITE)
 	file.store_string(JSON.stringify(doc))
 	file.close()
-	var _added := DotContentIndex.shared().add_pack({
+	var _added := GSContentIndex.shared().add_pack({
 		"content_id": "tester/clubhouse-maps", "version": "1.0.0", "prefix": root,
 		"session": "solo", "source": "subscription",
 		"provides": {"title": "Clubhouse Pack", "kinds": ["map"], "entries": [
@@ -109,7 +109,7 @@ func _run() -> void:
 	await _until_uncovered()
 	var local = _client.get("player")
 	# Waits past the load cover (slow on a cold GPU box) before any timing starts; capped, so a stuck cover cannot hang the shot.
-	if not await DotShotGate.wait_lifted(get_tree(), _client.get("platform")):
+	if not await GSShotGate.wait_lifted(get_tree(), _client.get("platform")):
 		printerr("shot: load cover still up after the wait; shooting anyway")
 	var seeker := _view in ["seeker", "blind"]
 
@@ -177,7 +177,7 @@ func _run() -> void:
 	await _frames(3)
 	var path := ProjectSettings.globalize_path(_out)
 	var saved := _save_png(path)
-	await DotShotSeq.new().record(get_tree(), path)
+	await GSShotSeq.new().record(get_tree(), path)
 	get_tree().quit(0 if saved == OK else 1)
 
 
@@ -206,13 +206,13 @@ func _view_door(game: HsGame, local: HsPlayer) -> void:
 
 func _view_spots(game: HsGame, local: HsPlayer) -> void:
 	# The annotator's spots, links and chokepoints over the map from above (dot-npc-ai's
-	# DotNpcAiNavDebug): a hiding spot in the middle of a room passes every count.
+	# GSNpcAiNavDebug): a hiding spot in the middle of a room passes every count.
 	await _seconds_of(1.0)
-	var ann: DotNpcAiNavAnnotations = game.bots.annotations
+	var ann: GSNpcAiNavAnnotations = game.bots.annotations
 	if ann == null:
 		push_error("no annotations: the bake or annotation has not finished")
 	else:
-		var debug := DotNpcAiNavDebug.new()
+		var debug := GSNpcAiNavDebug.new()
 		game.map.add_child(debug)
 		debug.show_annotations(ann)
 		var sbox: AABB = game.map.bounds()
@@ -241,7 +241,7 @@ func _view_ragdoll(game: HsGame, local: HsPlayer) -> bool:
 	var feet: Vector3 = victim.controller.state.position
 	var camera := _free_camera()
 	camera.look_at_from_position(_at if _at != Vector3.INF else feet + Vector3(2.4, 1.6, 2.4), feet + Vector3(0.0, 0.7, 0.0))
-	var slay := DotDamage.make(0, victim.entity_id, victim.health.max_health * 10.0, null)
+	var slay := GSDamage.make(0, victim.entity_id, victim.health.max_health * 10.0, null)
 	slay.tick = game._tick
 	slay.direction = (feet - camera.global_position) * Vector3(1, 0, 1)
 	var _applied: Variant = game.combat.apply_damage(slay)
@@ -267,7 +267,7 @@ func _view_action(game: HsGame, local: HsPlayer) -> bool:
 		return false
 	await _settle(actor)
 	var parts := _action.split(":")
-	var entry: Dictionary = DotAvatarActions.defaults().find(StringName(parts[0]), parts[1])
+	var entry: Dictionary = GSAvatarActions.defaults().find(StringName(parts[0]), parts[1])
 	var ok: bool = actor.figure.body_node().play_action(StringName(parts[1]), bool(entry.get("loop", false)), 0.0)
 	print("action %s: played=%s" % [_action, ok])
 	var feet: Vector3 = actor.controller.state.position
@@ -389,7 +389,7 @@ func _save_extra(suffix: String) -> void:
 
 ## The clip must start after the loading cover lifts, or it is spent unseen.
 func _until_uncovered() -> void:
-	var gate: DotLoadGate = _client.get("gate")
+	var gate: GSLoadGate = _client.get("gate")
 	for _i in range(1200):
 		if gate == null or gate.is_open():
 			break

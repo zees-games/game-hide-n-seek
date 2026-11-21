@@ -1,4 +1,4 @@
-extends DotSpectatorHost
+extends GSSpectatorHost
 
 const HsPlayer := preload("hs_player.gd")
 
@@ -33,7 +33,7 @@ func _channel() -> String:
 
 
 ## Dead players stay dead until the next round, so a cycle that included them would be a list of bodies at the kill height.
-func _tune_rules(r: DotSpectatorRules) -> DotSpectatorRules:
+func _tune_rules(r: GSSpectatorRules) -> GSSpectatorRules:
 	r.cycle_includes_dead = false
 	r.delay_ticks = 0
 	return r

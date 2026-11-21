@@ -1,9 +1,9 @@
-extends DotMenuGameSettings
+extends GSMenuGameSettings
 
 const HsBindings := preload("hs_bindings.gd")
 
 ## A player's own settings and the menu that changes them: view turn rate and width, volumes, the window, and the look of the menu. Use: `add_child(settings)`, `setup()` (loads, pushes every value), `bind_look/camera/audio`, `open()` (Escape does this in the client).
-## dot-menu's `DotMenuGameSettings` with this game's spec. The scopes are the family's: `sensitivity` is ACCOUNT, `field_of_view` SERVER_CLAMPED (a wide view is an advantage a server may cap), volumes this machine's.
+## dot-menu's `GSMenuGameSettings` with this game's spec. The scopes are the family's: `sensitivity` is ACCOUNT, `field_of_view` SERVER_CLAMPED (a wide view is an advantage a server may cap), volumes this machine's.
 
 const SCHEMA_VERSION := 1
 
@@ -28,8 +28,8 @@ func _init() -> void:
 
 
 ## The game's settings as data: names, field of view, extra settings, keys and the help screen's goal and rules.
-static func spec_for() -> DotMenuGameSpec:
-	var s := DotMenuGameSpec.new()
+static func spec_for() -> GSMenuGameSpec:
+	var s := GSMenuGameSpec.new()
 	s.schema_version = SCHEMA_VERSION
 	s.brand_name = "Hide & Seek"
 	s.settings_dir = SETTINGS_DIR
@@ -37,7 +37,7 @@ static func spec_for() -> DotMenuGameSpec:
 	s.default_fov = DEFAULT_FOV
 	s.ambient_text = "Quiet sounds under the map."
 	s.not_applied = NOT_APPLIED
-	s.bindings_maker = func() -> DotMenuBindings: return HsBindings.make()
+	s.bindings_maker = func() -> GSMenuBindings: return HsBindings.make()
 	s.help_about = "Most players hide; one or two seekers count with their eyes shut, then go looking. A hider who is caught becomes a seeker where they stand. The hiders win if anybody is still hidden when the clock runs out."
 	s.help_cards = [
 		["Hiding", "Find somewhere nobody looks: under, behind, inside. Doors open and shut, some walls are not walls, and crouching gets you into small places. Taunt for points if you are brave; near the end the last hiders give themselves away with a beacon."],

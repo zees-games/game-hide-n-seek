@@ -1,7 +1,7 @@
 extends "hs_bots_hide.gd"
 
 ## The stand-ins: hiders that hide and seekers that search, on dot-bot's settings. The map is surveyed once in `_prepare`
-## (DotBotNav mesh, DotBotHiding.survey scoring places by sight lines); a hider picks a hidden place apart from the others, a seeker searches with DotBotSearch.
+## (GSBotNav mesh, GSBotHiding.survey scoring places by sight lines); a hider picks a hidden place apart from the others, a seeker searches with GSBotSearch.
 ## Nobody cheats: a bot knows another body only by seeing or hearing it, the last-hiders beacon being the one exception.
 
 
@@ -36,7 +36,7 @@ func drive() -> void:
 		if not player.is_bot or not player.is_alive() or player.watching:
 			continue
 
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		command.yaw = player.controller.state.yaw
 		command.pitch = player.controller.state.pitch
 		var aim := _aim_of(player)
@@ -71,7 +71,7 @@ func drive() -> void:
 
 ## [member legacy]: hiders stand still; a seeker walks in a straight line to the far corner of the
 ## map, through whatever is in the way, with no search and no chase.
-func _legacy(player: HsPlayer, command: DotFpsCommand, side: int, phase: int) -> void:
+func _legacy(player: HsPlayer, command: GSFpsCommand, side: int, phase: int) -> void:
 	if side == 1 or phase != 2:
 		return
 	var box: AABB = (game.get("map") as Node3D).call("bounds")
@@ -85,15 +85,15 @@ func _legacy(player: HsPlayer, command: DotFpsCommand, side: int, phase: int) ->
 	command.move = command.move.limit_length(_search_pace())
 
 
-func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
+func _seek(player: HsPlayer, command: GSFpsCommand) -> void:
 	var state := _state_of(player)
 	var t := now()
 	var profile := settings().profile
 	var at := player.controller.state.position
-	var stream: DotRandomStream = state["stream"]
+	var stream: GSRandomStream = state["stream"]
 
 	_ensure_search(state, at, profile)
-	var search: DotBotSearch = state["search"]
+	var search: GSBotSearch = state["search"]
 
 	# Who it can see; a hider marked by the game's beacon is known to every seeker.
 	var prey := _visible_prey(player, at)
@@ -162,7 +162,7 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 	# Searching is done at a walk: somebody running through a house looks at nothing. Crouched (a crawl space) at the same pace,
 	# not that pace slowed again by the crouch.
 	var pace := _search_pace()
-	if command.is_pressed(DotFpsCommand.BUTTON_CROUCH):
+	if command.is_pressed(GSFpsCommand.BUTTON_CROUCH):
 		pace = minf(1.0, _search_pace() / maxf(player.controller.tunables.crouch_speed_scale, 0.01))
 	# Not at the search pace while it lingers round one spot (`headless_bots`): a slow walk near a
 	# doorway is ten seconds within 1.5 m of it.
@@ -177,10 +177,10 @@ func _seek(player: HsPlayer, command: DotFpsCommand) -> void:
 
 
 ## Gives a seeker its search (the places it can walk to from where it stands) and its tour, once.
-func _ensure_search(state: Dictionary, at: Vector3, profile: DotBotProfile) -> void:
+func _ensure_search(state: Dictionary, at: Vector3, profile: GSBotProfile) -> void:
 	if state["search"] != null:
 		return
-	var search := DotBotSearch.new()
+	var search := GSBotSearch.new()
 	var places: Array[Dictionary] = []
 	places.append_array(spots)
 	places.append_array(sweep)
@@ -221,7 +221,7 @@ func _visible_prey_script(player: HsPlayer, at: Vector3) -> HsPlayer:
 
 
 ## The place a seeker is walking to: kept until reached, stale or looked at, else the next of the tour, the search, or any point.
-func _goal_place_for(player: HsPlayer, state: Dictionary, search: DotBotSearch, at: Vector3, t: float, stream: DotRandomStream) -> Dictionary:
+func _goal_place_for(player: HsPlayer, state: Dictionary, search: GSBotSearch, at: Vector3, t: float, stream: GSRandomStream) -> Dictionary:
 	var place: Dictionary = state.get("goal_place", {})
 	# Stood on it: looked at, whether or not the eye had it in view. A place inside a bush is never
 	# in view from anywhere (the line to it ends in leaves), and was picked again, nearest, every
@@ -269,7 +269,7 @@ func _goal_place_for(player: HsPlayer, state: Dictionary, search: DotBotSearch, 
 
 
 ## Where a searching seeker looks: at the place once near it, else along the way with a glance from side to side.
-func _look_while_searching(player: HsPlayer, command: DotFpsCommand, state: Dictionary, place: Dictionary, search: DotBotSearch, at: Vector3, t: float) -> void:
+func _look_while_searching(player: HsPlayer, command: GSFpsCommand, state: Dictionary, place: Dictionary, search: GSBotSearch, at: Vector3, t: float) -> void:
 	var target: Vector3 = place["at"]
 	# Only while the walk is heading that way too: staring at a place across a wall while the path leaves by a doorway is walking
 	# sideways at a fifth of the pace, which reads as stuck and gives up the goal.
@@ -317,7 +317,7 @@ func _tour(from: Vector3, knowledge: float) -> Array[Dictionary]:
 
 ## The next tour stop this seeker can reach that no other seeker is heading for, or empty when
 ## the tour is done: the sweep takes over. A stop it has had in view on the way is dropped.
-func _tour_next(state: Dictionary, at: Vector3, claimed: PackedVector3Array, search: DotBotSearch, t: float) -> Dictionary:
+func _tour_next(state: Dictionary, at: Vector3, claimed: PackedVector3Array, search: GSBotSearch, t: float) -> Dictionary:
 	var tour: Array = state.get("tour", [])
 	while not tour.is_empty():
 		var stop: Dictionary = tour.pop_front()
@@ -344,7 +344,7 @@ func _tour_next(state: Dictionary, at: Vector3, claimed: PackedVector3Array, sea
 ## that see a crouched head there, and the share of sixteen directions with something within 2 m. `headless_bots` holds the hiders to it.
 func quality(at: Vector3) -> Array:
 	if _watch_eyes.is_empty() and nav.is_baked():
-		var stream := DotRandomStream.new(7, &"hs_bot_quality")
+		var stream := GSRandomStream.new(7, &"hs_bot_quality")
 		for _i in range(QUALITY_WATCHERS):
 			_watch_eyes.append(nav.random_point(stream) + Vector3(0.0, HsPlayer.EYE_HEIGHT, 0.0))
 	var head := at + Vector3(0.0, HsPlayer.BODY_CROUCH * 0.85, 0.0)
@@ -373,13 +373,13 @@ func legacy_picks(count: int) -> PackedVector3Array:
 	var map: Node3D = game.get("map")
 	if map == null or not nav.is_baked():
 		return picks
-	var stream := DotRandomStream.new(11, &"hs_bot_legacy")
+	var stream := GSRandomStream.new(11, &"hs_bot_legacy")
 	var old := _random_survey(map, stream, SURVEY_POINTS, SURVEY_PROPS)
 	var threats := PackedVector3Array()
 	for i in range(2):
 		threats.append((map.call("spawn", "seekers", i) as Array)[0])
 	for _i in range(count):
-		var chosen := DotBotHiding.choose(old, Vector3.ZERO, threats, picks, stream, settings().profile.map_knowledge)
+		var chosen := GSBotHiding.choose(old, Vector3.ZERO, threats, picks, stream, settings().profile.map_knowledge)
 		if not chosen.is_empty():
 			picks.append(chosen["at"])
 	return picks

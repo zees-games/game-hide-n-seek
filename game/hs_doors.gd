@@ -19,7 +19,7 @@ const SWEEP_SAMPLES := 7
 const HANDLE_SIZE := Vector3(0.12, 0.04, 0.05)
 const HANDLE_TINT := Color(0.18, 0.18, 0.2)
 
-var physics: DotPhysicsLayout = null
+var physics: GSPhysicsLayout = null
 var draw_world: bool = false
 var tick_rate: int = 64
 
@@ -43,7 +43,7 @@ func build(doc: Dictionary) -> void:
 		add_child(body)
 
 		if physics != null:
-			DotLog.result(CHANNEL, "a door panel's collision layers", physics.apply_to(body, &"world"), DotLog.Level.WARN)
+			GSLog.result(CHANNEL, "a door panel's collision layers", physics.apply_to(body, &"world"), GSLog.Level.WARN)
 
 		if draw_world:
 			_draw(body, raw, size)

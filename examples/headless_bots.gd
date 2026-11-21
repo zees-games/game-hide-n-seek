@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
@@ -58,7 +58,7 @@ var _completed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	# The world ticks itself (simulate) and waits for a physics frame after each tick so doors
 	# and bodies are where the physics server says; physics frames come at their rate in real
 	# time, so a fast rate lets a round of four minutes play in seconds.
@@ -296,7 +296,7 @@ func _round(map_id: String, index: int, difficulty: String, legacy: bool = false
 				quality_new += _score(game.bots.quality(p.controller.state.position)) / float(maxi(hiders.size(), 1))
 			for at in picks:
 				quality_old += _score(game.bots.quality(at)) / float(maxi(picks.size(), 1))
-			var scatter := DotRandomStream.new(5, &"hs_bots_random")
+			var scatter := GSRandomStream.new(5, &"hs_bots_random")
 			for _i in range(hiders.size()):
 				quality_rand += _score(game.bots.quality(game.bots.nav.random_point(scatter))) / float(maxi(hiders.size(), 1))
 			var measured := _spread(game.players_on(HsGame.HIDERS))
@@ -371,7 +371,7 @@ func _new_game(map_id: String, index: int, difficulty: String) -> HsGame:
 	game.register_service = false
 	add_child(game)
 	game.set_physics_process(false)
-	var _set := DotBotSettings.of(game).set_difficulty(difficulty)
+	var _set := GSBotSettings.of(game).set_difficulty(difficulty)
 	await get_tree().physics_frame
 	return game
 

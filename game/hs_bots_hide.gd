@@ -3,7 +3,7 @@ extends "hs_bots_sight.gd"
 ## The hider half of the stand-ins: picking a spot, watching for seekers and fleeing.
 
 
-func _hide(player: HsPlayer, command: DotFpsCommand) -> void:
+func _hide(player: HsPlayer, command: GSFpsCommand) -> void:
 	var state := _state_of(player)
 	var t := now()
 	var phase: int = game.get("phase")
@@ -23,7 +23,7 @@ func _hide(player: HsPlayer, command: DotFpsCommand) -> void:
 
 		# The game's standing-still clock (the same meter the HUD shows a person): before it
 		# forces a taunt, move to another place close by, when no seeker is near.
-		var taunts: DotPropTaunts = game.get("taunts")
+		var taunts: GSPropTaunts = game.get("taunts")
 		var meter := taunts.meter(player.player_id, t) if taunts != null else 0.0
 		if meter > 0.85 and state["mode"] == &"hidden" \
 				and (state["threat"] == Vector3.INF or (state["threat"] as Vector3).distance_to(at) > 15.0):
@@ -32,7 +32,7 @@ func _hide(player: HsPlayer, command: DotFpsCommand) -> void:
 		# Now and then (about once in five minutes), a taunt of its own for the points, and only
 		# when it has not seen or heard a seeker for a while: a taunt is a shout every seeker in
 		# earshot walks to.
-		var stream: DotRandomStream = state["stream"]
+		var stream: GSRandomStream = state["stream"]
 		if state["mode"] == &"hidden" and stream.next_unit() < dt() / 300.0 and state["threat"] == Vector3.INF \
 				and t - float(state["threat_at"]) > 30.0:
 			var _taunted: bool = game.call("taunt", player.player_id)
@@ -51,12 +51,12 @@ func _hide(player: HsPlayer, command: DotFpsCommand) -> void:
 		state["mode"] = &"hidden"
 		state["sprint"] = false
 		command.move = Vector2.ZERO
-		command.set_button(DotFpsCommand.BUTTON_CROUCH, true)
+		command.set_button(GSFpsCommand.BUTTON_CROUCH, true)
 		# Face the way it came, which is the way somebody would come.
 		var back: Vector3 = state.get("came_from", at + Vector3(0.0, 0.0, 1.0))
 		_look(player, command, Vector3(back.x, player.eye_position().y, back.z))
 	elif state["crouch"]:
-		command.set_button(DotFpsCommand.BUTTON_CROUCH, true)
+		command.set_button(GSFpsCommand.BUTTON_CROUCH, true)
 
 
 ## A hider that starts inside a pocket the seekers cannot walk into (a fenced garden with no gate) could only be
@@ -76,12 +76,12 @@ func _leave_sealed_spawn(player: HsPlayer) -> void:
 		if nav.joined(start, spot[0]):
 			player.place_at(spot[0], spot[1])
 			_sight_stale()
-			DotLog.info(CHANNEL, "a hider started in a pocket the seekers cannot reach; moved to a spawn they can", {"player": str(player.player_id), "spawn": i})
+			GSLog.info(CHANNEL, "a hider started in a pocket the seekers cannot reach; moved to a spawn they can", {"player": str(player.player_id), "spawn": i})
 			return
 
 
 ## Remembers where the threat was last seen or heard, and forgets it after a while.
-func _note_threat(state: Dictionary, nearest: HsPlayer, heard: Dictionary, t: float, profile: DotBotProfile) -> void:
+func _note_threat(state: Dictionary, nearest: HsPlayer, heard: Dictionary, t: float, profile: GSBotProfile) -> void:
 	if nearest != null:
 		state["threat"] = nearest.controller.state.position
 		state["threat_at"] = t
@@ -212,7 +212,7 @@ func _seeker_coming(state: Dictionary, at: Vector3, nearest: HsPlayer, nearest_d
 
 
 ## A catch heard close by: two seekers are about to start from there, one held a moment. Notes it as the threat.
-func _catch_heard_near(player: HsPlayer, state: Dictionary, at: Vector3, t: float, profile: DotBotProfile) -> bool:
+func _catch_heard_near(player: HsPlayer, state: Dictionary, at: Vector3, t: float, profile: GSBotProfile) -> bool:
 	var catch_near := false
 	for sound: Dictionary in _sounds:
 		if sound.get("caught", false) and at.distance_to(sound["at"]) < minf(profile.hearing, 15.0) \
@@ -237,9 +237,9 @@ func _flee_spot_for(player: HsPlayer, state: Dictionary, at: Vector3, threat: Ve
 		if there.distance_to(at) <= FLEE_WITHIN + 5.0 and (not nav.is_ready() or (nav.joined(start, there) and nav.path_length(start, there) <= (FLEE_WITHIN + 5.0) * 1.5)):
 			runnable.append(spot)
 	runnable.assign(_without_avoided(state, runnable, now()))
-	var away := DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN + 5.0, FLEE_CLEAR + 4.0) if marked_chase \
-		else DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN, FLEE_CLEAR) if running \
-		else DotBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken)
+	var away := GSBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN + 5.0, FLEE_CLEAR + 4.0) if marked_chase \
+		else GSBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken, FLEE_WITHIN, FLEE_CLEAR) if running \
+		else GSBotHiding.flee_spot(runnable, at, threat, threat_eye, _los, taken)
 	if away.is_empty():
 		away = {"at": _walkable_away(at, threat, start), "exposure": 1.0}
 	return away

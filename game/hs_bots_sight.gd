@@ -1,6 +1,6 @@
 extends "hs_bots_move.gd"
 
-## Bodies in sight, natively: dot-sim's DotSimBodySight asks [method _sees], [method _nearest_seen_seeker] and
+## Bodies in sight, natively: dot-sim's GSSimBodySight asks [method _sees], [method _nearest_seen_seeker] and
 ## [method _visible_prey] over one table of the tick's bodies, each ask one call, every line of sight the same ray as
 ## `_clear_between`. The table is written once a tick before the bots are driven ([method _sight_bind]); with no library,
 ## [member sight_mode] "script" or a body moved mid-tick, the script answers. `HS_SIGHT_VERIFY=1` asks the script beside
@@ -34,10 +34,10 @@ func _sight_native() -> Object:
 	if _sight_tried:
 		return _sight_table
 	_sight_tried = true
-	if not DotSim.has(&"body_sight") or not DotSim.has(&"sight"):
+	if not GSSim.has(&"body_sight") or not GSSim.has(&"sight"):
 		return null
-	_sight_ray = ClassDB.instantiate(DotSim.MODULES[&"sight"])
-	_sight_table = ClassDB.instantiate(DotSim.MODULES[&"body_sight"])
+	_sight_ray = ClassDB.instantiate(GSSim.MODULES[&"sight"])
+	_sight_table = ClassDB.instantiate(GSSim.MODULES[&"body_sight"])
 	_sight_table.call(&"set_sight", _sight_ray)
 	_sight_table.call(&"set_rules", FELT_WITHIN, STILL_LOW_SIGHT, SIGHT_CHEST)
 	return _sight_table
@@ -50,7 +50,7 @@ func _sight_bind(players: Dictionary) -> void:
 	if sight_mode != "native" or _sight_native() == null:
 		return
 	var world: World3D = game.call("get_world_3d")
-	var layout: DotPhysicsLayout = game.get("physics")
+	var layout: GSPhysicsLayout = game.get("physics")
 	var mask := 1
 	if layout != null:
 		mask = layout.layer_mask(&"world") | layout.layer_mask(&"prop") | layout.layer_mask(&"toy")
@@ -80,7 +80,7 @@ func _sight_bind(players: Dictionary) -> void:
 		var s := p.controller.state
 		at[i] = s.position
 		eyes[i] = p.eye_position()
-		forwards[i] = DotBotAim.direction(s.yaw, s.pitch)
+		forwards[i] = GSBotAim.direction(s.yaw, s.pitch)
 		velocities[i] = s.velocity
 		crouch[i] = s.crouch_fraction
 		flags[i] = (SIGHT_ALIVE if p.is_alive() else 0) | (SIGHT_WATCHING if p.watching else 0) \

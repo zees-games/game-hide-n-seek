@@ -7,7 +7,7 @@ extends "dedicated_vote.gd"
 func _test_a_reload_keeps_delivered_maps() -> void:
 	_section("a reload keeps the maps the server names")
 	var key := "dot-test/hs-delivered@1.0.0"
-	var mount := DotGameContent.mount_of(key)
+	var mount := GSGameContent.mount_of(key)
 	var dir := mount.path_join("maps")
 	var id := &"hs_delivered_check"
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -21,7 +21,7 @@ func _test_a_reload_keeps_delivered_maps() -> void:
 	# `_current` is the manager's own, and nothing else in this suite should see the pack.
 	var manager: Object = server.games
 	var was: Variant = manager.get("_current")
-	var named := DotGameDescriptor.new()
+	var named := GSGameDescriptor.new()
 	named.maps = PackedStringArray([key])
 	manager.set("_current", named)
 
@@ -67,7 +67,7 @@ func _delivered_on_boot_ballot(id: StringName) -> void:
 	var booted_ids: Array = []
 
 	if booted_vote != null:
-		for choice: DotVoteChoice in (booted_vote.get("source") as DotVoteListSource).entries:
+		for choice: GSVoteChoice in (booted_vote.get("source") as GSVoteListSource).entries:
 			booted_ids.append(String(choice.id))
 
 	_check(booted_ids.has(String(id)), "and on the ballot of a module that boots with it named, unrefreshed",
@@ -76,13 +76,13 @@ func _delivered_on_boot_ballot(id: StringName) -> void:
 
 
 ## A hider behind its loading cover is not caught, and is once the cover lifts. A real
-## [DotClientLink] joins over the server's socket and says nothing, as a client still loading
+## [GSClientLink] joins over the server's socket and says nothing, as a client still loading
 ## its level does; the seek is set by hand with a stand-in seeker on top of it.
 func _test_loading_cover() -> void:
 	_section("a client behind its loading cover is not caught")
 
 	var module := _module()
-	var roster: DotGameRoster = module.get("roster") if module != null else null
+	var roster: GSGameRoster = module.get("roster") if module != null else null
 
 	var known: Dictionary = {}
 	for each in server.playing_sessions():
@@ -90,7 +90,7 @@ func _test_loading_cover() -> void:
 
 	var client := _cover_client()
 	var side: Node = client[0]
-	var link: DotClientLink = client[1]
+	var link: GSClientLink = client[1]
 	var seat: Variant = await _cover_seat(known)
 	_check(seat != null and roster != null, "a real client joins over the socket", str(link.last_error))
 
@@ -144,13 +144,13 @@ func _cover_client() -> Array:
 	var mirror := Node.new()
 	mirror.name = name
 	side.add_child(mirror)
-	var link := DotClientLink.new()
+	var link := GSClientLink.new()
 	link.name = "Server"
 	link.player_name = "Cover"
 	link.transport_preference = "udp"
 	link.udp_address = "127.0.0.1:%d" % PORT
 	mirror.add_child(link)
-	# A real client has its game's link under `Server`, which DotClientLink drops as the
+	# A real client has its game's link under `Server`, which GSClientLink drops as the
 	# connection phase changes, so it is re-added then.
 	var attach := func(_a: Variant = null, _b: Variant = null) -> void:
 		if link.get_node_or_null(NodePath(String(HsNetLink.NODE_NAME))) == null:
@@ -212,8 +212,8 @@ func _cover_blocks_the_catch(key: StringName, hider: HsPlayer, seeker: HsPlayer)
 	game.phase = was_phase
 
 
-func _cover_lifts(link: DotClientLink, roster: DotGameRoster, userid: int) -> void:
-	DotGameClient.report_cover(link, false)
+func _cover_lifts(link: GSClientLink, roster: GSGameRoster, userid: int) -> void:
+	GSGameClient.report_cover(link, false)
 	var lifted := false
 	for _i in 900:
 		await get_tree().physics_frame
@@ -246,7 +246,7 @@ func _test_a_module_reload() -> void:
 
 	for _i in range(2):
 		_check(server.modules.unload_module("hideseek").ok, "the module unloads")
-		var back: DotResult = await server.modules.load_module("res://game/hs_module.gd")
+		var back: GSResult = await server.modules.load_module("res://game/hs_module.gd")
 		_check(back.ok, "and loads again", back.error.message if not back.ok else "")
 	for _i in range(5):
 		await get_tree().process_frame
@@ -262,7 +262,7 @@ func _test_a_module_reload() -> void:
 	side.name = "ReloadClient"
 	add_child(side)
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), side.get_path())
-	var link := DotClientLink.new()
+	var link := GSClientLink.new()
 	link.name = "Server"
 	link.player_name = "Reloaded"
 	link.transport_preference = "udp"
@@ -281,7 +281,7 @@ func _test_a_module_reload() -> void:
 	link.spawned.connect(func() -> void: spawned[0] = true)
 	link.connect_to_server("127.0.0.1:%d" % PORT)
 	var joined := await _until(func() -> bool:
-		return spawned[0] or link.phase == DotClientLink.Phase.FAILED, 30.0)
+		return spawned[0] or link.phase == GSClientLink.Phase.FAILED, 30.0)
 	_check(joined and spawned[0], "a real client still hears the server's events after two reloads")
 	link.disconnect_from_server("done")
 	for _i in range(10):
@@ -301,7 +301,7 @@ func _test_ambient_cvars_reach_the_client() -> void:
 	var mirror := Node.new()
 	mirror.name = name
 	side.add_child(mirror)
-	var link := DotClientLink.new()
+	var link := GSClientLink.new()
 	link.name = "Server"
 	link.player_name = "Ambient"
 	link.transport_preference = "udp"
@@ -315,8 +315,8 @@ func _test_ambient_cvars_reach_the_client() -> void:
 	link.connect_to_server("127.0.0.1:%d" % PORT)
 	var rules := HsAmbience.make_rules()
 	var _followed := rules.follow_cvars(link)
-	var director := DotAmbienceDirector.new()
-	director.ambient = DotAmbience.new()
+	var director := GSAmbienceDirector.new()
+	director.ambient = GSAmbience.new()
 	director.follow_settings(null, rules)
 	var joined := false
 	for _i in 1800:

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Bake the maps' light: one lightmaps/<id>.res per map, which a client lays over the map it builds (HsMap._attach_bake; dot-map's
-# DotMapBoxBake over dot-lighting's DotLightBake).
+# GSMapBoxBake over dot-lighting's GSLightBake).
 #
 #   tools/bake_lightmaps.sh                    # every map
 #   tools/bake_lightmaps.sh hs_mall hs_school  # these

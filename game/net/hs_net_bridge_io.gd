@@ -65,7 +65,7 @@ func ensure_game_ticked(tick: int) -> void:
 	game.tick_once(tick)
 
 
-func client_tick(tick: int, command: DotFpsCommand) -> void:
+func client_tick(tick: int, command: GSFpsCommand) -> void:
 	if net == null or net.is_server or game == null:
 		return
 
@@ -74,7 +74,7 @@ func client_tick(tick: int, command: DotFpsCommand) -> void:
 	var packet := HsNetCommand.new()
 	packet.tick = tick
 	packet.delta = net.clock.tick_duration()
-	packet.move = command if command != null else DotFpsCommand.new()
+	packet.move = command if command != null else GSFpsCommand.new()
 
 	# Into the local history BEFORE predicting: reconciliation replays it. A tick already sent (the clock stepped back) keeps
 	# its first command, which is the one the server took, so the prediction runs on that one too, not on today's sample.
@@ -114,37 +114,37 @@ func client_tick(tick: int, command: DotFpsCommand) -> void:
 	# live command while every replay ran the held one, and the two drifted apart by a few centimetres a snapshot.
 	if link != null:
 		var payload := net.encode_ack()
-		var writer := DotNetWriter.new()
-		DotNetInput.write_batch(writer, _input_copies(packet))
+		var writer := GSNetWriter.new()
+		GSNetInput.write_batch(writer, _input_copies(packet))
 		payload.append_array(writer.to_bytes())
 		link.send_input(payload)
 
 
 
-func receive_input(peer_id: int, payload: PackedByteArray) -> DotResult:
+func receive_input(peer_id: int, payload: PackedByteArray) -> GSResult:
 	if net == null or not net.is_server:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only the server takes input.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "Only the server takes input.")
 
 	if not _player_of_peer.has(peer_id):
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "That peer has no player.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "That peer has no player.")
 
 	if payload.size() <= ACK_BYTES:
-		return DotResult.fail(DotError.CODE_PARSE, "Input packet is too short.")
+		return GSResult.fail(GSError.CODE_PARSE, "Input packet is too short.")
 
 	net.receive_ack_payload(peer_id, payload.slice(0, ACK_BYTES))
 
 	# A batch: this tick's command and the ones before it (see [constant INPUT_COPIES]).
 	# Copies of ticks already simulated are skipped rather than pushed, or each would count
 	# as a late input; the packet's own tick is always pushed, so a late one still counts.
-	var batch := DotNetInput.read_batch(
-		DotNetReader.new(payload.slice(ACK_BYTES)),
-		func() -> DotNetInput: return HsNetCommand.new()
+	var batch := GSNetInput.read_batch(
+		GSNetReader.new(payload.slice(ACK_BYTES)),
+		func() -> GSNetInput: return HsNetCommand.new()
 	)
 	if batch.is_empty():
-		return DotResult.fail(DotError.CODE_PARSE, "Input packet carries no command.")
+		return GSResult.fail(GSError.CODE_PARSE, "Input packet carries no command.")
 	var buffer := net.input_buffer_for(peer_id)
 	var newest := batch[batch.size() - 1]
-	var pushed := DotResult.success(false)
+	var pushed := GSResult.success(false)
 	for input in batch:
 		if input != newest and input.tick <= buffer.last_consumed_tick():
 			continue
@@ -158,37 +158,37 @@ func notice(peer_id: int, text: String) -> void:
 	_tell(peer_id, HsEvents.Kind.NOTICE, HsEvents.write_notice(text))
 
 
-## One routed line to one peer. What [DotGameServices] sends through, via the link.
+## One routed line to one peer. What [GSGameServices] sends through, via the link.
 func send_chat(peer_id: int, wire: Dictionary) -> void:
 	_tell(peer_id, HsEvents.Kind.CHAT, HsEvents.write_chat(wire))
 
 
 ## A voice frame, in either direction. Not an [HsEvent]: voice is fifty packets a second and every event is reliable, and the message registry
-## seals and hashes its message set, so an opaque fifty-hertz blob does not belong in it; [DotVoicePacket] has its own header and validation.
-func receive_voice(peer_id: int, payload: PackedByteArray) -> DotResult:
+## seals and hashes its message set, so an opaque fifty-hertz blob does not belong in it; [GSVoicePacket] has its own header and validation.
+func receive_voice(peer_id: int, payload: PackedByteArray) -> GSResult:
 	if payload.is_empty():
-		return DotResult.fail(DotError.CODE_INVALID, "An empty voice frame.")
+		return GSResult.fail(GSError.CODE_INVALID, "An empty voice frame.")
 
 	if net != null and net.is_server:
 		if peer_id <= 0 or player_for_peer(peer_id) == 0:
 			# A peer with nobody in the world. Refused rather than relayed: the router
 			# stamps the speaker from this id, so relaying one that belongs to nobody puts
 			# a voice in the game with no name on it.
-			return DotResult.fail(
-				DotError.CODE_FORBIDDEN, "That peer has nobody in the world."
+			return GSResult.fail(
+				GSError.CODE_FORBIDDEN, "That peer has nobody in the world."
 			)
 
-		# One path or the other, never both: [DotGameModule] assigns `voice_relay_fn` to the services layer's `relay_voice`, and a game that also
+		# One path or the other, never both: [GSGameModule] assigns `voice_relay_fn` to the services layer's `relay_voice`, and a game that also
 		# connected `voice_requested` to the same router would relay every frame twice, doubling the rate limit and reversing sequence numbers.
 		if voice_relay_fn.is_valid():
 			voice_relay_fn.call(peer_id, payload)
 		else:
 			voice_requested.emit(peer_id, payload)
 
-		return DotResult.success(null)
+		return GSResult.success(null)
 
 	voice_arrived.emit(payload)
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## Somebody who is out asked to look at somebody else; the server's list, the server's rule. A refusal goes back as a notice rather than
@@ -199,7 +199,7 @@ func _spectate_step(peer_id: int, direction: int) -> void:
 	if session_id == 0 or game.spectate == null:
 		return
 
-	var moved: DotResult = game.spectate.step(player_key(session_id), direction)
+	var moved: GSResult = game.spectate.step(player_key(session_id), direction)
 
 	if not moved.ok:
 		notice(peer_id, moved.error.message)
@@ -213,7 +213,7 @@ func _spectate_roam(peer_id: int) -> void:
 	if session_id == 0 or game.spectate == null:
 		return
 
-	var toggled: DotResult = game.spectate.toggle_roam(player_key(session_id))
+	var toggled: GSResult = game.spectate.toggle_roam(player_key(session_id))
 
 	if not toggled.ok:
 		notice(peer_id, toggled.error.message)

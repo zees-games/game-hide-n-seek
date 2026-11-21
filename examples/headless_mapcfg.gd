@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const HsMapConfig := preload("../game/hs_map_config.gd")
 
@@ -10,7 +10,7 @@ const DIR := "res://cfg/server/game/game-hide-n-seek/dot_map/map"
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -26,13 +26,13 @@ func _run() -> void:
 	f.store_string("hs_round_seconds: 90\nhs_gravity: 12\nhs_catch_mode: 1\nsv_evil: 1\n")
 	f.close()
 
-	var console := DotConsole.new()
+	var console := GSConsole.new()
 	add_child(console)
-	console.cvar("hs_round_seconds", "240", "", DotConVar.FLAG_ARCHIVE)
-	console.cvar("hs_gravity", "20", "", DotConVar.FLAG_ARCHIVE)
-	console.cvar("hs_catch_mode", "0", "", DotConVar.FLAG_ARCHIVE)
-	console.cvar("sv_evil", "0", "", DotConVar.FLAG_ARCHIVE)
-	var cfg := DotGameMapConfig.for_console(HsMapConfig.GAME_ID, console, HsMapConfig.KEYS)
+	console.cvar("hs_round_seconds", "240", "", GSConVar.FLAG_ARCHIVE)
+	console.cvar("hs_gravity", "20", "", GSConVar.FLAG_ARCHIVE)
+	console.cvar("hs_catch_mode", "0", "", GSConVar.FLAG_ARCHIVE)
+	console.cvar("sv_evil", "0", "", GSConVar.FLAG_ARCHIVE)
+	var cfg := GSGameMapConfig.for_console(HsMapConfig.GAME_ID, console, HsMapConfig.KEYS)
 
 	_check(not HsMapConfig.KEYS["hs_round_seconds"].has("max") and HsMapConfig.KEYS["hs_catch_mode"]["max"] == 2, "only the domain limits keep a max")
 	var got := cfg.apply("hs_cfgtest_a")
@@ -46,7 +46,7 @@ func _run() -> void:
 	_check(console.find_cvar("hs_gravity").get_float() == 20.0 and console.find_cvar("hs_catch_mode").get_int() == 0, "gravity and catch mode are back too")
 	_check(cfg.applied().is_empty(), "a map with no values applies nothing")
 
-	var client := DotGameClient.new()
+	var client := GSGameClient.new()
 	var store := {"hs_gravity": "20", "hs_autobhop": "0"}
 	client.map_config_keys = HsMapConfig.CLIENT_KEYS
 	client.map_config_game = HsMapConfig.GAME_ID

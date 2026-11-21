@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const HsBindings := preload("../game/hs_bindings.gd")
 const HsTouch := preload("../game/hs_touch.gd")
@@ -11,7 +11,7 @@ const EXPECTED_CHECKS := 41
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -34,19 +34,19 @@ func _run() -> void:
 			held_ids += 1
 	_check(held_ids == 3, "jump, run and duck are held on the sampler as bits")
 
-	DotPlatform.touch_override = 0
-	_check(not HsTouch.new_sampler(DotFpsTunables.new()) is DotFpsTouchSampler, "no touch: the plain sampler")
-	DotPlatform.touch_override = 1
-	_check(HsTouch.new_sampler(DotFpsTunables.new()) is DotFpsTouchSampler, "touch: the touch sampler")
+	GSPlatform.touch_override = 0
+	_check(not HsTouch.new_sampler(GSFpsTunables.new()) is GSFpsTouchSampler, "no touch: the plain sampler")
+	GSPlatform.touch_override = 1
+	_check(HsTouch.new_sampler(GSFpsTunables.new()) is GSFpsTouchSampler, "touch: the touch sampler")
 
 	# The overlay, on a phone-sized host.
-	var rules := DotMobileRules.new()
+	var rules := GSMobileRules.new()
 	var client := Node.new()
 	add_child(client)
 	var host := Control.new()
 	host.size = Vector2(844, 390)
 	add_child(host)
-	var sampler := HsTouch.new_sampler(DotFpsTunables.new()) as DotFpsTouchSampler
+	var sampler := HsTouch.new_sampler(GSFpsTunables.new()) as GSFpsTouchSampler
 	var menu_button := Button.new()
 	menu_button.position = Vector2(700, 10)
 	menu_button.size = Vector2(120, 50)
@@ -55,7 +55,7 @@ func _run() -> void:
 	var controls := touch.controls
 	_check(controls != null and controls.touch and controls.sampler == sampler, "the overlay drives the client's own sampler", str(touch.describe()))
 	_check(controls.crosshair_fn.is_null() and controls.targets_fn.is_null(), "no crosshair or aim assist: a hider has no weapon")
-	_check(not rules.resolve(DotMobilePrefs.new(), true).autofire, "auto-fire is off")
+	_check(not rules.resolve(GSMobilePrefs.new(), true).autofire, "auto-fire is off")
 	_check(touch.active() and touch.buttons != null and touch.buttons.visible, "the buttons show")
 	var seen := _overlaps(touch.buttons, ids)
 	_check(seen == "", "no two buttons overlap", seen)
@@ -72,19 +72,19 @@ func _run() -> void:
 
 	_no_touch_and_wiring(client)
 
-	DotPlatform.touch_override = -1
+	GSPlatform.touch_override = -1
 	_report(EXPECTED_CHECKS)
 
 
 # A finger on a button is the game's; anywhere else on the look side it drags the view.
-func _finger_checks(touch: HsTouch, controls: DotMobileControls, sampler: DotFpsTouchSampler, menu_button: Button) -> void:
+func _finger_checks(touch: HsTouch, controls: GSMobileControls, sampler: GSFpsTouchSampler, menu_button: Button) -> void:
 	var on_jump := touch.buttons.centre_of(&"jump")
 	_check(touch.buttons.contains_point(on_jump), "a button's centre is on a button")
 	_tap(controls, 0, on_jump, true)
 	_check(sampler._look_finger == -1 and sampler._move_finger == -1, "the sampler ignores a touch over a button")
-	_check(touch.is_held(&"jump") and sampler._held & DotFpsCommand.BUTTON_JUMP != 0, "jump held on the sampler as its bit")
+	_check(touch.is_held(&"jump") and sampler._held & GSFpsCommand.BUTTON_JUMP != 0, "jump held on the sampler as its bit")
 	_tap(controls, 0, on_jump, false)
-	_check(not touch.is_held(&"jump") and sampler._held & DotFpsCommand.BUTTON_JUMP == 0, "and let go with the thumb")
+	_check(not touch.is_held(&"jump") and sampler._held & GSFpsCommand.BUTTON_JUMP == 0, "and let go with the thumb")
 	# The headless viewport is 64 wide, so the move side is x < 32.
 	_tap(controls, 1, Vector2(600, 40), true)
 	_check(sampler._look_finger == 1, "a touch on the look side clear of the buttons drags the view")
@@ -96,7 +96,7 @@ func _finger_checks(touch: HsTouch, controls: DotMobileControls, sampler: DotFps
 
 
 # The door and the taunt press the actions the key path reads; a menu pauses the overlay.
-func _door_and_menu_checks(touch: HsTouch, controls: DotMobileControls, sampler: DotFpsTouchSampler) -> void:
+func _door_and_menu_checks(touch: HsTouch, controls: GSMobileControls, sampler: GSFpsTouchSampler) -> void:
 	var use_action: StringName = HsTouch.ACTIONS[&"use"]
 	if not InputMap.has_action(use_action):
 		InputMap.add_action(use_action)
@@ -123,7 +123,7 @@ func _door_and_menu_checks(touch: HsTouch, controls: DotMobileControls, sampler:
 	_check(touch.active(), "closing the menu brings it back")
 
 	# The offline player's own sampler replaces the client's.
-	var other := HsTouch.new_sampler(DotFpsTunables.new()) as DotFpsTouchSampler
+	var other := HsTouch.new_sampler(GSFpsTunables.new()) as GSFpsTouchSampler
 	touch.sync(other, false)
 	_check(controls.sampler == other, "it follows the sampler the keys drive now")
 	touch.sync(sampler, false)
@@ -132,7 +132,7 @@ func _door_and_menu_checks(touch: HsTouch, controls: DotMobileControls, sampler:
 # Another phone, narrower.
 func _narrow_phones(ids: Array[StringName]) -> void:
 	for size: Vector2 in [Vector2(667, 375), Vector2(932, 430)]:
-		var narrow := DotTouchButtons.new()
+		var narrow := GSTouchButtons.new()
 		narrow.size = size
 		narrow.set_buttons(HsTouch.touch_layout().buttons())
 		add_child(narrow)
@@ -144,10 +144,10 @@ func _narrow_phones(ids: Array[StringName]) -> void:
 
 # No touch: nothing shows and the sampler is left alone; the client carries the wiring.
 func _no_touch_and_wiring(client: Node) -> void:
-	DotPlatform.touch_override = 0
+	GSPlatform.touch_override = 0
 	var off_host := CanvasLayer.new()
 	add_child(off_host)
-	var off: HsTouch = HsTouch.build(client, off_host, HsTouch.new_sampler(DotFpsTunables.new()), DotMobileRules.new())
+	var off: HsTouch = HsTouch.build(client, off_host, HsTouch.new_sampler(GSFpsTunables.new()), GSMobileRules.new())
 	_check(not off.active() and not off.controls.visible, "no touch: the overlay is hidden")
 	off_host.free()
 	client.free()
@@ -164,7 +164,7 @@ func _no_touch_and_wiring(client: Node) -> void:
 	_check("touch_live" in methods and "_touch_sampler" in methods, "the client carries the touch wiring")
 
 
-func _tap(controls: DotMobileControls, index: int, pos: Vector2, pressed: bool) -> void:
+func _tap(controls: GSMobileControls, index: int, pos: Vector2, pressed: bool) -> void:
 	var event := InputEventScreenTouch.new()
 	event.index = index
 	event.position = pos
@@ -174,7 +174,7 @@ func _tap(controls: DotMobileControls, index: int, pos: Vector2, pressed: bool) 
 	controls._input(event)
 
 
-func _ignored(at: Vector2, controls: DotMobileControls) -> bool:
+func _ignored(at: Vector2, controls: GSMobileControls) -> bool:
 	return controls.ignore_fn.is_valid() and bool(controls.ignore_fn.call(at))
 
 

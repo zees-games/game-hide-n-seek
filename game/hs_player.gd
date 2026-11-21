@@ -20,7 +20,7 @@ const BODY_STEP := 0.4
 
 ## The use key, in the movement command's buttons: one dot-player-controller leaves to games,
 ## so it rides in every input packet with the movement and needs no field of its own.
-const USE_BUTTON := DotFpsCommand.BUTTON_USER_0
+const USE_BUTTON := GSFpsCommand.BUTTON_USER_0
 
 @export var player_id: StringName = &"local"
 @export var display_name: String = "Player"
@@ -28,13 +28,13 @@ const USE_BUTTON := DotFpsCommand.BUTTON_USER_0
 @export var is_bot: bool = false
 
 ## What this player looks like, as a dot-user-avatar document; null is the stock person.
-var avatar: DotAvatar = null
+var avatar: GSAvatar = null
 
 var config: HsConfig = null
 
 var controller: HsController = null
-var sampler: DotFpsSampler = null
-var health: DotHealth = null
+var sampler: GSFpsSampler = null
+var health: GSHealth = null
 
 ## Which side they are on now: [constant HsGame.HIDERS] or [constant HsGame.SEEKERS].
 var team: int = 0
@@ -90,7 +90,7 @@ var marked: bool = false
 var blinded: bool = false
 var beacon: bool = false
 
-var beacon_marker: DotFxBeacon = null
+var beacon_marker: GSFxBeacon = null
 
 ## The flashlight is on (server-owned, replicated); `flashlight_ready` is cleared on a new map so the next tick sets its start state.
 var flashlight: bool = false
@@ -101,7 +101,7 @@ var figure: HsFigure = null
 
 ## How this player's body falls on their death: the server's pick ([method HsGame.decide_death]),
 ## carried on DEATH and set here before anybody hears of it. Null before a first death.
-var death: DotPlayerDeath = null
+var death: GSPlayerDeath = null
 
 var tick_rate: int = 64:
 	set(value):
@@ -116,7 +116,7 @@ func _ready() -> void:
 	controller.tick_rate = tick_rate
 	# EXTERNAL even offline: the world owns the tick, which is the shape a dedicated server
 	# needs and the one a predicting client replays.
-	controller.drive = DotFpsController.Drive.EXTERNAL
+	controller.drive = GSFpsController.Drive.EXTERNAL
 	controller.tunables = tunables_for(config)
 	controller.admin_abilities = true
 	add_child(controller)
@@ -129,9 +129,9 @@ func _ready() -> void:
 ## How a player moves. Static: a connected client builds a sampler before it has a player, and
 ## the two must agree. The same for both sides, so a predicting client never has to know which
 ## side somebody is on to move them.
-static func tunables_for(config: HsConfig) -> DotFpsTunables:
+static func tunables_for(config: HsConfig) -> GSFpsTunables:
 	# Legacy, not the controller default (classic): the game's chase balance was tuned on it.
-	var t := DotFpsTunables.with_profile("legacy")
+	var t := GSFpsTunables.with_profile("legacy")
 	t.max_speed = config.run_speed if config != null else 6.0
 	t.gravity = config.gravity if config != null else 20.0
 	t.jump_height = config.jump_height if config != null else 1.15
@@ -160,8 +160,8 @@ static func tunables_for(config: HsConfig) -> DotFpsTunables:
 
 ## The movement actions. Shift sprints here (the controller's own default), because a chase is
 ## the game; the slow walk stays on its own key.
-static func register_actions(p_sampler: DotFpsSampler = null) -> void:
-	var _added := DotFpsSampler.register_default_actions(p_sampler)
+static func register_actions(p_sampler: GSFpsSampler = null) -> void:
+	var _added := GSFpsSampler.register_default_actions(p_sampler)
 
 
 ## One simulated tick. On the server and offline; a client predicts through its behaviour.
@@ -172,9 +172,9 @@ func simulate(tick: int, delta: float) -> void:
 
 	if sampler != null:
 		# Settling under the cover runs the body with its input off (falls, lands, no keys).
-		var gate := DotLoadGate.of(self) if is_inside_tree() else null
+		var gate := GSLoadGate.of(self) if is_inside_tree() else null
 		controller.apply_command(
-			sampler.sample(delta) if gate == null or gate.is_open() else DotFpsCommand.new())
+			sampler.sample(delta) if gate == null or gate.is_open() else GSFpsCommand.new())
 
 	controller.simulate_tick(tick, delta)
 	global_position = controller.state.position
@@ -210,9 +210,9 @@ func aim_direction() -> Vector3:
 ## The duck-typed lookup other addons ask a carrier for.
 func component(type_name: StringName) -> Object:
 	match String(type_name):
-		"DotPlayerController", "DotFpsController":
+		"GSPlayerController", "GSFpsController":
 			return controller
-		"DotHealth":
+		"GSHealth":
 			return health
 		_:
 			return null
@@ -227,7 +227,7 @@ func place_at(at: Vector3, yaw_degrees: float) -> void:
 	if sampler != null:
 		sampler.look_at_angles(yaw_degrees, 0.0)
 
-	var facing := DotFpsCommand.new()
+	var facing := GSFpsCommand.new()
 	facing.yaw = yaw_degrees
 	controller.apply_command(facing)
 
@@ -272,7 +272,7 @@ func present_beacon(delta: float, at: Vector3, local_view: bool, period: float) 
 		return false
 
 	if beacon_marker == null:
-		beacon_marker = DotFxBeacon.new()
+		beacon_marker = GSFxBeacon.new()
 		beacon_marker.name = "Beacon"
 		beacon_marker.period = period
 		# The rule's marker is the hiders' blue, so it reads as "a hider is here" and not as an
@@ -308,7 +308,7 @@ func present_body(hidden: bool, at: Vector3, team_colour: Color) -> bool:
 	if shown:
 		var velocity := controller.state.velocity
 		figure.set_motion({
-			"on_floor": controller.state.mode == DotFpsState.Mode.GROUND,
+			"on_floor": controller.state.mode == GSFpsState.Mode.GROUND,
 			"vertical": velocity.y,
 			"crouched": controller.state.crouch_fraction > 0.5,
 			# The view's pitch: the upper body and the head follow it.

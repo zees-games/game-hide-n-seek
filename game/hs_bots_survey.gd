@@ -2,8 +2,8 @@ extends "hs_bots_base.gd"
 ## The survey, the nav mesh and the per-bot bookkeeping of [HsBots] (a middle layer, split off for size); never loaded on its own.
 
 
-func settings() -> DotBotSettings:
-	return DotBotSettings.of(game)
+func settings() -> GSBotSettings:
+	return GSBotSettings.of(game)
 
 
 func now() -> float:
@@ -64,9 +64,9 @@ func _prepare() -> void:
 
 	# A doorway a body walks through but the mesh does not (the baker rounds the radius up and erodes both jambs) cuts the hiders'
 	# spawn off from the seekers', so nobody has a spot. Bake once more with a one-cell radius.
-	if _nav_radius > DotBotNav.CELL and not _spawns_joined(map):
-		_nav_radius = DotBotNav.CELL
-		DotLog.info(CHANNEL, "the spawns are not joined on the mesh; baking narrower", {"map": str(doc.get("id", ""))})
+	if _nav_radius > GSBotNav.CELL and not _spawns_joined(map):
+		_nav_radius = GSBotNav.CELL
+		GSLog.info(CHANNEL, "the spawns are not joined on the mesh; baking narrower", {"map": str(doc.get("id", ""))})
 		_baked = ""
 		_narrowing = true
 		_prepare()
@@ -88,7 +88,7 @@ func _prepare() -> void:
 			if not _job.step():
 				break
 		annotate_ms += (Time.get_ticks_usec() - stepped) / 1000.0
-		if _job.state == DotJob.State.RUNNING or _job.state == DotJob.State.PENDING:
+		if _job.state == GSJob.State.RUNNING or _job.state == GSJob.State.PENDING:
 			return
 
 	_finish_survey(key, map, doc)
@@ -114,12 +114,12 @@ func _bake_map(map: Node3D, doc: Dictionary, key: String) -> void:
 	# a bot never paths across one. The loose toys are not in it; a bot walks through a
 	# ball and pushes it, as anybody does.
 	var toys: Variant = map.get("toys")
-	if toys is DotPropBodyBox:
-		still.append_array((toys as DotPropBodyBox).nav_bodies())
+	if toys is GSPropBodyBox:
+		still.append_array((toys as GSPropBodyBox).nav_bodies())
 	var baked := nav.bake(map, {"radius": _nav_radius, "height": HsPlayer.BODY_CROUCH, "climb": HsPlayer.BODY_STEP}, 0, still)
 	if not baked.ok:
 		_surveyed = key
-		DotLog.warn(CHANNEL, "no walkable mesh for the bots; they walk straight", {"map": str(doc.get("id", "")), "why": baked.error.message})
+		GSLog.warn(CHANNEL, "no walkable mesh for the bots; they walk straight", {"map": str(doc.get("id", "")), "why": baked.error.message})
 	# The navigation server takes the mesh in on a later frame; survey a quarter of a second
 	# of game time on, always the same tick, so a round plays the same however the frames
 	# fall (and later still only when the server is that slow).
@@ -131,7 +131,7 @@ func _bake_map(map: Node3D, doc: Dictionary, key: String) -> void:
 func _finish_survey(key: String, map: Node3D, doc: Dictionary) -> void:
 	_surveyed = key
 	var started := Time.get_ticks_usec()
-	var random: DotRandomManager = game.get("random")
+	var random: GSRandomManager = game.get("random")
 	var stream := random.stream_for(&"bot_survey", hash(str(doc.get("id", ""))) % 65536)
 
 	annotations = _finish_annotation(doc)
@@ -143,7 +143,7 @@ func _finish_survey(key: String, map: Node3D, doc: Dictionary) -> void:
 		spots = _random_survey(map, stream, SURVEY_POINTS, SURVEY_PROPS)
 		sweep = []
 	survey_ms = (Time.get_ticks_usec() - started) / 1000.0 + nav.bake_ms + annotate_ms
-	DotLog.debug(CHANNEL, "surveyed the map for the bots", {
+	GSLog.debug(CHANNEL, "surveyed the map for the bots", {
 		"map": str(doc.get("id", "")), "spots": spots.size(), "nav_ms": snappedf(nav.bake_ms, 0.1), "ms": snappedf(survey_ms, 0.1),
 		"links": links_used, "chokepoints": annotations.chokepoints.size() if annotations != null else 0, "cached": annotate_cached,
 		"steps": _job_steps,
@@ -171,7 +171,7 @@ func _spawns_joined(map: Node3D) -> bool:
 	return nav.joined(hider, seeker)
 
 
-func _random_survey(map: Node3D, stream: DotRandomStream, points: int, prop_count: int) -> Array[Dictionary]:
+func _random_survey(map: Node3D, stream: GSRandomStream, points: int, prop_count: int) -> Array[Dictionary]:
 	var candidates := PackedVector3Array()
 
 	for _i in range(points):
@@ -195,12 +195,12 @@ func _random_survey(map: Node3D, stream: DotRandomStream, points: int, prop_coun
 	for _i in range(WATCHERS):
 		watchers.append(nav.random_point(stream) + Vector3(0.0, HsPlayer.EYE_HEIGHT, 0.0))
 
-	return DotBotHiding.survey(candidates, watchers, _los)
+	return GSBotHiding.survey(candidates, watchers, _los)
 
 
-## What the map means to somebody walking it: [DotNpcAiNavAnnotator] over the baked mesh, seeded with every spawn, doors left out, cached under `user://nav`.
+## What the map means to somebody walking it: [GSNpcAiNavAnnotator] over the baked mesh, seeded with every spawn, doors left out, cached under `user://nav`.
 ## Returns the job to step, or null on a cache hit; [method _finish_annotation] then adds drop and jump-up links as ride edges.
-func _begin_annotation(map: Node3D, doc: Dictionary) -> DotJob:
+func _begin_annotation(map: Node3D, doc: Dictionary) -> GSJob:
 	annotate_cached = false
 	annotate_ms = 0.0
 	links_used = 0
@@ -210,7 +210,7 @@ func _begin_annotation(map: Node3D, doc: Dictionary) -> DotJob:
 	if nav.mesh == null or not nav.is_ready():
 		return null
 
-	var annotator := DotNpcAiNavAnnotator.new(nav.mesh, map.get_world_3d())
+	var annotator := GSNpcAiNavAnnotator.new(nav.mesh, map.get_world_3d())
 	annotator.agent_radius = HsPlayer.BODY_RADIUS
 	annotator.stand_height = HsPlayer.BODY_HEIGHT
 	annotator.crouch_height = HsPlayer.BODY_CROUCH
@@ -235,7 +235,7 @@ func _begin_annotation(map: Node3D, doc: Dictionary) -> DotJob:
 	annotator.seeds = seeds
 	_annotator = annotator
 
-	var loaded := DotNpcAiNavAnnotations.load_file(_cache_path(), annotator.cache_key())
+	var loaded := GSNpcAiNavAnnotations.load_file(_cache_path(), annotator.cache_key())
 	if loaded.ok:
 		_cached = loaded.value
 		annotate_cached = true
@@ -247,13 +247,13 @@ func _cache_path() -> String:
 	return "user://nav/%s.json" % _annotator.cache_key()
 
 
-func _finish_annotation(doc: Dictionary) -> DotNpcAiNavAnnotations:
+func _finish_annotation(doc: Dictionary) -> GSNpcAiNavAnnotations:
 	if _annotator == null:
 		return null
-	var found: DotNpcAiNavAnnotations = _cached
+	var found: GSNpcAiNavAnnotations = _cached
 	if found == null:
-		if _annotator.state != DotJob.State.DONE or _annotator.result == null or not _annotator.result.ok:
-			DotLog.warn(CHANNEL, "the map could not be annotated; the bots use a random survey", {"map": str(doc.get("id", ""))})
+		if _annotator.state != GSJob.State.DONE or _annotator.result == null or not _annotator.result.ok:
+			GSLog.warn(CHANNEL, "the map could not be annotated; the bots use a random survey", {"map": str(doc.get("id", ""))})
 			return null
 		found = _annotator.annotations
 		var _saved := found.save(_cache_path())
@@ -264,13 +264,13 @@ func _finish_annotation(doc: Dictionary) -> DotNpcAiNavAnnotations:
 	nav.begin_batch()
 	for link in found.links:
 		var kind := int(link["kind"])
-		if kind == DotNpcAiNavAnnotations.LINK_DROP or kind == DotNpcAiNavAnnotations.LINK_JUMP_UP:
+		if kind == GSNpcAiNavAnnotations.LINK_DROP or kind == GSNpcAiNavAnnotations.LINK_JUMP_UP:
 			# Both ends on the mesh itself: a link end off it made the engine's path query fail.
 			if nav.closest(link["from"]).distance_to(link["from"]) > 0.3 or nav.closest(link["to"]).distance_to(link["to"]) > 0.3:
 				continue
 			nav.add_ride(link["from"], link["to"], ride, 1.5)
 			ride += 1
-			if kind == DotNpcAiNavAnnotations.LINK_JUMP_UP:
+			if kind == GSNpcAiNavAnnotations.LINK_JUMP_UP:
 				_jump_feet.append(link["from"])
 	nav.end_batch()
 	links_used = nav.rides().size()
@@ -294,12 +294,12 @@ func _join_islands() -> void:
 			nav.add_ride(edge["from"], edge["to"], int(edge["id"]), float(edge["cost"]))
 		nav.end_batch()
 	else:
-		var _stats := DotBotLinks.new().join(nav)
+		var _stats := GSBotLinks.new().join(nav)
 		_join_cache[cache_key] = nav.rides()
 
 	for edge in nav.rides():
 		var id := int(edge["id"])
-		var is_jump := (id >= DotBotLinks.HOP_ID and id < DotBotLinks.LADDER_ID) or id >= DotBotLinks.STITCH_ID
+		var is_jump := (id >= GSBotLinks.HOP_ID and id < GSBotLinks.LADDER_ID) or id >= GSBotLinks.STITCH_ID
 
 		if is_jump and float(edge["to"].y) - float(edge["from"].y) > HsPlayer.BODY_STEP:
 			_jump_feet.append(edge["from"])

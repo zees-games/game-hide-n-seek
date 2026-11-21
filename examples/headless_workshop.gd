@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const HsCatalogue := preload("../game/hs_catalogue.gd")
 const HsConfig := preload("../game/hs_config.gd")
@@ -16,7 +16,7 @@ var _sections_finished := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -54,8 +54,8 @@ func _test() -> void:
 	_sections_entered += 1
 	_write_pack()
 
-	var index := DotContentIndex.shared()
-	index.set_session(DotContentIndex.SESSION_SOLO)
+	var index := GSContentIndex.shared()
+	index.set_session(GSContentIndex.SESSION_SOLO)
 	var added := index.add_pack({
 		"content_id": "tester/ws-maps", "version": "1.0.0", "prefix": ROOT,
 		"session": "solo", "source": "subscription",
@@ -94,14 +94,14 @@ func _test() -> void:
 
 	_solo_checks(game, vote, own)
 
-	index.set_session(DotContentIndex.SESSION_ONLINE)
+	index.set_session(GSContentIndex.SESSION_ONLINE)
 	var online := _ids(game.catalogue.playable(PackedStringArray()))
 	_check(not online.has("ws_house"), "online: the catalogue does not offer the solo map")
-	_check(not vote.source.choices().any(func(c: DotVoteChoice) -> bool: return c.id == &"ws_house"), "online: the ballot does not offer the solo map")
+	_check(not vote.source.choices().any(func(c: GSVoteChoice) -> bool: return c.id == &"ws_house"), "online: the ballot does not offer the solo map")
 	_check(not game.change_map_now(&"ws_house").ok, "online: the solo map cannot be chosen")
 	_check(online.has(String(own)), "online: the game's own map is still offered")
 
-	index.set_session(DotContentIndex.SESSION_SOLO)
+	index.set_session(GSContentIndex.SESSION_SOLO)
 	_check(_ids(game.catalogue.playable(PackedStringArray())).has("ws_house"), "back in solo: the pack map returns")
 
 	remove_child(vote)

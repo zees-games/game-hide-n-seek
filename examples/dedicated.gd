@@ -1,6 +1,6 @@
 extends "dedicated_client.gd"
 
-## The game as a deployed server runs it: a real [DotServer], booted from a config file, with
+## The game as a deployed server runs it: a real [GSServer], booted from a config file, with
 ## the module loaded BY PATH the way an operator names it, so the netcode, the services, the
 ## cvars and the stand-ins are a deployment's own. The only suite where [HsModule] loads.
 
@@ -8,7 +8,7 @@ const SECTIONS := 15
 const CHECKS := 114
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -20,12 +20,12 @@ func _run() -> void:
 	if not _is_exit_probe():
 		probe = await _run_exit_probe()
 
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 	DirAccess.make_dir_recursive_absolute(SERVER_DIR)
 
 	await _boot()
 
-	if server != null and server.state == DotServer.State.RUNNING:
+	if server != null and server.state == GSServer.State.RUNNING:
 		await _test_the_module_loads()
 		_test_the_commands()
 		await _test_a_round_runs()
@@ -48,11 +48,11 @@ func _run() -> void:
 	var checks := CHECKS - (EXIT_PROBE_CHECKS if _is_exit_probe() else 0)
 
 	await _shut_down()
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 	_report_sections(_sections_entered, _sections_finished, sections, checks)
 
 
-## Takes the server down before quitting: a booted [DotServer]'s listener holds the main loop,
+## Takes the server down before quitting: a booted [GSServer]'s listener holds the main loop,
 ## and a run that only called `quit()` prints its results and hangs. See mg-smash-copter.
 func _shut_down() -> void:
 	if server == null:
@@ -90,7 +90,7 @@ func _boot() -> void:
 	cfg.store_line("sv_tickrate %d" % TICK_RATE)
 	cfg.close()
 
-	var config := DotServerConfig.new()
+	var config := GSServerConfig.new()
 	config.startup_config = cfg_path
 	config.autoexec_config = ""
 	config.hostname = "hideseek test"
@@ -106,7 +106,7 @@ func _boot() -> void:
 	# exit without.
 	config.stdin_console_enabled = false
 
-	server = DotServer.new()
+	server = GSServer.new()
 	server.name = "Server"
 	server.config = config
 	add_child(server)
@@ -114,10 +114,10 @@ func _boot() -> void:
 	for _i in range(120):
 		await get_tree().process_frame
 
-		if server.state == DotServer.State.RUNNING:
+		if server.state == GSServer.State.RUNNING:
 			break
 
-	_check(server.state == DotServer.State.RUNNING, "the server boots", DotServer.State.keys()[server.state])
+	_check(server.state == GSServer.State.RUNNING, "the server boots", GSServer.State.keys()[server.state])
 	_check(Engine.physics_ticks_per_second == TICK_RATE, "and sv_tickrate reached the engine",
 		"%d" % Engine.physics_ticks_per_second)
 	_finished()
@@ -146,11 +146,11 @@ func _test_the_module_loads() -> void:
 	add_child(game)
 	await get_tree().process_frame
 
-	_check(DotRegistry.get_node_service(HsGame.SERVICE) == game, "the world publishes itself where a module looks")
+	_check(GSRegistry.get_node_service(HsGame.SERVICE) == game, "the world publishes itself where a module looks")
 	_check(not game.map_doc.is_empty(), "and already has a map")
 
 	(load("res://game/hs_module.gd") as GDScript).set("punishments_file", "%s/punishments.json" % SERVER_DIR)
-	var loaded: DotResult = await server.modules.load_module("res://game/hs_module.gd")
+	var loaded: GSResult = await server.modules.load_module("res://game/hs_module.gd")
 	_check(loaded.ok, "the module loads into the server", loaded.error.message if not loaded.ok else "")
 
 	var module := _module()
@@ -159,7 +159,7 @@ func _test_the_module_loads() -> void:
 	_check(module != null and module.get("net") != null and module.get("bridge") != null,
 		"with its netcode and the game's bridge")
 
-	var net: DotNetManager = module.get("net") if module != null else null
+	var net: GSNetManager = module.get("net") if module != null else null
 	_check(net != null and net.config.tick_rate == TICK_RATE, "the netcode runs at the configured rate")
 	_check(net != null and absf(net.config.world_extent - HsGame.NET_WORLD_EXTENT) < 0.01,
 		"against the world extent both ends decode with")
@@ -219,7 +219,7 @@ func _test_a_round_runs() -> void:
 	_finished()
 
 
-## A person takes a stand-in's place, and leaving gives it back (DotBotQuota's fill mode).
+## A person takes a stand-in's place, and leaving gives it back (GSBotQuota's fill mode).
 ## Driven by the roster check, with a person added through the bridge, so the count is exact.
 func _stand_in_quota() -> void:
 	var quota_module := _module()
@@ -227,11 +227,11 @@ func _stand_in_quota() -> void:
 	_check(server.console.find_cvar("bot_quota") != null and server.console.find_cvar("bot_quota_mode") != null,
 		"the shared bot_quota cvars are registered")
 	# How the stand-ins see, hear and know a map is dot-bot's: the family's names, medium by default.
-	var bot_settings := DotBotSettings.of(game)
+	var bot_settings := GSBotSettings.of(game)
 	_check(server.console.get_string("bot_difficulty", "") == "medium" and bot_settings.difficulty() == "medium",
 		"bot_difficulty is the module's and medium is the default")
 	var _hard := _run_command("bot_difficulty hard")
-	_check(bot_settings.difficulty() == "hard" and is_equal_approx(server.console.get_float("bot_sight"), DotBotProfile.preset_value("hard", "sight")),
+	_check(bot_settings.difficulty() == "hard" and is_equal_approx(server.console.get_float("bot_sight"), GSBotProfile.preset_value("hard", "sight")),
 		"bot_difficulty hard writes every bot_* setting", server.console.get_string("bot_sight"))
 	var _medium := _run_command("bot_difficulty medium")
 	var _alias := _run_command("hs_min_players 3")
@@ -242,7 +242,7 @@ func _stand_in_quota() -> void:
 	if quota_module != null and quota_bridge != null:
 		quota_module.call("_keep_the_round_full")
 		var bots_before: int = (quota_module.get("_bot_ids") as Array).size()
-		var joined: DotResult = quota_bridge.call("add_player", 0, 9001, "Person")
+		var joined: GSResult = quota_bridge.call("add_player", 0, 9001, "Person")
 		quota_module.call("_keep_the_round_full")
 		var bots_with: int = (quota_module.get("_bot_ids") as Array).size()
 		_check(joined.ok and bots_before == 3 and bots_with == bots_before - 1,
@@ -284,7 +284,7 @@ func _test_no_message_preloads_itself() -> void:
 
 		var source := FileAccess.get_file_as_string("res://game/net/" + file)
 
-		if source.contains("extends DotNetMessage") and source.contains("preload(\"%s\")" % file):
+		if source.contains("extends GSNetMessage") and source.contains("preload(\"%s\")" % file):
 			offenders.append(file)
 
 	_check(offenders.is_empty(), "no message preloads itself", ", ".join(offenders))

@@ -1,14 +1,14 @@
 extends Node
 
 ## Writes one bake scene per map for dot-lighting's baker: the map built as a client builds it, opaque box batches (with UV2), lamps and sun kept,
-## a LightmapGI added and the fingerprint recorded (DotMapBoxBake); tools/bake_lightmaps.sh runs this then the bake.
+## a LightmapGI added and the fingerprint recorded (GSMapBoxBake); tools/bake_lightmaps.sh runs this then the bake.
 ## Needs a display (xvfb-run), not --headless: a headless process keeps no mesh data to save.
 
 const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
 const HsMap := preload("../game/hs_map.gd")
 
-## Per map settings over DotMapBoxBake.DEFAULTS. A large map takes a coarser texel so its file stays a browser download; the emission is how
+## Per map settings over GSMapBoxBake.DEFAULTS. A large map takes a coarser texel so its file stays a browser download; the emission is how
 ## much of the live ambient a surface gives into the bake (an open yard has its sky, a closed building has none). Tuned against a live frame.
 const SETTINGS := {
 	"hs_castle": {"texel_scale": 0.4, "ambient_gain": 1.8, "emit": 0.2},
@@ -26,7 +26,7 @@ const SETTINGS := {
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.WARN)
+	GSLog.set_level(GSLog.Level.WARN)
 	_run.call_deferred()
 
 
@@ -58,7 +58,7 @@ func _run() -> void:
 			printerr("LIGHTMAP_SCENE fail %s (not built)" % id)
 			game.queue_free()
 			continue
-		var scene := DotMapBoxBake.bake_scene(map.get_node("Drawn"), map.get_node("Lighting"), map.light_fingerprint(),
+		var scene := GSMapBoxBake.bake_scene(map.get_node("Drawn"), map.get_node("Lighting"), map.light_fingerprint(),
 			HsMap.BAKE_PATH % String(id), SETTINGS[String(id)])
 		var path := out.path_join("%s.tscn" % id)
 		var packed := PackedScene.new()

@@ -12,7 +12,7 @@ var PORT := HsTestPorts.free_port(2)
 var QUERY_PORT := PORT + 1
 const TICK_RATE := 60
 
-var server: DotServer = null
+var server: GSServer = null
 var game: HsGame = null
 
 
@@ -25,13 +25,13 @@ func _until(condition: Callable, seconds: float) -> bool:
 	return bool(condition.call())
 
 
-func _module() -> DotModule:
+func _module() -> GSModule:
 	return server.modules.get_module("hideseek") if server != null and server.modules != null else null
 
 
 func _run_command(line: String) -> PackedStringArray:
 	var captured: Array[String] = []
-	var context := DotCmdContext.console("", PackedStringArray())
+	var context := GSCmdContext.console("", PackedStringArray())
 	context.reply_sink = func(text: String) -> void: captured.append(text)
 	server.console.execute(line, context)
 	return PackedStringArray(captured)

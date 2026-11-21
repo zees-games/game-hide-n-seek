@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 ## The wire rig of [code]headless_net[/code] (two worlds joined by queues) and its constants; split off for size.
 
 const HsCatalogue := preload("../game/hs_catalogue.gd")
@@ -24,8 +24,8 @@ const KITCHEN_B := Vector3(8.0, 0.05, -3.0)
 
 var _server_game: HsGame = null
 var _client_game: HsGame = null
-var _server_net: DotNetManager = null
-var _client_net: DotNetManager = null
+var _server_net: GSNetManager = null
+var _client_net: GSNetManager = null
 var _server_bridge: HsNetBridge = null
 var _client_bridge: HsNetBridge = null
 var _stand_in: HsPlayer = null
@@ -42,7 +42,7 @@ var _heard: Dictionary = {}
 ## Turns a server-side stand-in to look at [param target], and keeps it looking.
 func _look(player: HsPlayer, target: Vector3) -> void:
 	var look := target - player.eye_position()
-	var command := DotFpsCommand.new()
+	var command := GSFpsCommand.new()
 	command.yaw = rad_to_deg(atan2(-look.x, -look.z))
 	command.pitch = clampf(rad_to_deg(asin(clampf(look.normalized().y, -1.0, 1.0))), -89.0, 89.0)
 	player.controller.state.yaw = command.yaw
@@ -63,9 +63,9 @@ func _server_me() -> HsPlayer:
 
 
 ## A command that looks from [param player]'s eye at [param target].
-func _aim_at(player: HsPlayer, target: Vector3) -> DotFpsCommand:
+func _aim_at(player: HsPlayer, target: Vector3) -> GSFpsCommand:
 	var look := target - player.eye_position()
-	var command := DotFpsCommand.new()
+	var command := GSFpsCommand.new()
 	command.yaw = rad_to_deg(atan2(-look.x, -look.z))
 	command.pitch = clampf(rad_to_deg(asin(clampf(look.normalized().y, -1.0, 1.0))), -89.0, 89.0)
 	return command
@@ -111,8 +111,8 @@ func _make_game(server: bool, parent: Node) -> HsGame:
 	return game
 
 
-func _make_manager(server: bool, scope: StringName, peer_id: int, parent: Node, tick_rate: int) -> DotNetManager:
-	var manager := DotNetManager.new()
+func _make_manager(server: bool, scope: StringName, peer_id: int, parent: Node, tick_rate: int) -> GSNetManager:
+	var manager := GSNetManager.new()
 	manager.name = "Server" if server else "Client"
 	manager.is_server = server
 	manager.local_peer_id = peer_id
@@ -120,7 +120,7 @@ func _make_manager(server: bool, scope: StringName, peer_id: int, parent: Node, 
 	manager.auto_tick = false
 	manager.config_file = ""
 
-	var config := DotNetConfig.new()
+	var config := GSNetConfig.new()
 	config.tick_rate = tick_rate
 	config.snapshot_rate = SNAPSHOT_RATE
 	config.enable_prediction = true
@@ -164,17 +164,17 @@ func _exchange() -> void:
 
 
 ## One tick on both ends, with a real physics frame between them.
-func _step(command: DotFpsCommand = null) -> void:
+func _step(command: GSFpsCommand = null) -> void:
 	_tick += 1
 	var _ticks := _client_net.clock.advance(1.0 / float(maxi(_client_game.tick_rate, 1)))
 	_server_bridge.server_tick(_tick)
 	_flush()
-	_client_bridge.client_tick(_tick + INPUT_LEAD, command if command != null else DotFpsCommand.new())
+	_client_bridge.client_tick(_tick + INPUT_LEAD, command if command != null else GSFpsCommand.new())
 	_flush()
 	await get_tree().physics_frame
 
 
-func _steps(count: int, command: DotFpsCommand = null) -> void:
+func _steps(count: int, command: GSFpsCommand = null) -> void:
 	for _i in range(count):
 		await _step(command)
 

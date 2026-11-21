@@ -12,7 +12,7 @@ The maps' doors (hundreds across the eleven maps, declared as a wall hole's fift
 
 ## The use key is a button in the movement command
 
-`DotFpsCommand.BUTTON_USER_0` (`HsPlayer.USE_BUTTON`), held; the game makes the press from the edge, as mg-deathrun makes its button presses. A reliable request would arrive a round trip after the key. Held players (the blindfold, a new seeker's freeze) cannot use a door.
+`GSFpsCommand.BUTTON_USER_0` (`HsPlayer.USE_BUTTON`), held; the game makes the press from the edge, as mg-deathrun makes its button presses. A reliable request would arrive a round trip after the key. Held players (the blindfold, a new seeker's freeze) cannot use a door.
 
 ## A shut door is a wall
 

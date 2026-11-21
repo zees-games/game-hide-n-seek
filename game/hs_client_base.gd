@@ -32,51 +32,51 @@ var player: HsPlayer = null
 var camera: Camera3D = null
 
 ## Keeps the screen covered, and the local body and the input still, until the level, the
-## player and the camera are all in. It is [member DotGameClient.gate].
-var gate: DotLoadGate = null
+## player and the camera are all in. It is [member GSGameClient.gate].
+var gate: GSLoadGate = null
 
 ## dot-game's client platform: the cover, settings and menu, console, HUD theme, Tab, M, the
-## pointer and the input block. See [DotGameClient].
-var platform: DotGameClient = null
+## pointer and the input block. See [GSGameClient].
+var platform: GSGameClient = null
 var hud: HsHud = null
-var board: DotMenuScoreboard = null
-var chat: DotGameChatClient = null
+var board: GSMenuScoreboard = null
+var chat: GSGameChatClient = null
 var audio: HsAudio = null
 var settings: HsSettings = null
 ## Maps dropped on the window or the executable (HsMapDrop); null on dot-map older than API 26.
 var map_drop: Node = null
 
 ## The player's console (the platform's).
-var console: DotConsoleController = null
+var console: GSConsoleController = null
 
 ## The flashlight on the eye and the others' beams (dot-flashlight); the server owns on/off.
-var flash: DotFlashlight = null
-var flash_crowd: DotFlashlightCrowd = null
+var flash: GSFlashlight = null
+var flash_crowd: GSFlashlightCrowd = null
 var _flash_msec := -100000
 var _flash_retain := 0.0
 
-var net: DotNetManager = null
+var net: GSNetManager = null
 var bridge: HsNetBridge = null
 var link: Node = null
 ## Asks a server whether this player may edit it (sv_workbench_remote); null offline.
-var workbench_remote: DotGameWorkbenchRemoteClient = null
+var workbench_remote: GSGameWorkbenchRemoteClient = null
 ## The tuning panel's host: F9 solo or hosting, the admin's remote panel on a server that allows it.
-var workbench: DotGameWorkbench = null
+var workbench: GSGameWorkbench = null
 
 ## Whether the camera hangs behind the player. F5 swaps it.
 var third_person: bool = false
 
 var _offline: bool = true
-var _sampler: DotFpsSampler = null
+var _sampler: GSFpsSampler = null
 ## The on-screen buttons, only where a finger is the input.
 var touch: HsTouch = null
 
 ## The spectator's free camera while roaming, and the mouse motion not yet turned into a look.
-var _free_cam: DotSpectatorFreeCam = null
+var _free_cam: GSSpectatorFreeCam = null
 var _roam_look: Vector2 = Vector2.ZERO
 var _watch_id: int = -1
-var _arm: DotCameraBoom = null
-var _fade: DotCameraFade = null
+var _arm: GSCameraBoom = null
+var _fade: GSCameraFade = null
 var _rig_height: float = 0.0
 var _started_msec: int = Time.get_ticks_msec()
 
@@ -90,11 +90,11 @@ func _dress_board() -> void:
 
 	board.title_text = "Hide & Seek"
 	board.columns = [
-		{"key": &"avatar", "kind": DotMenuScoreboard.KIND_AVATAR, "width": 0.0},
+		{"key": &"avatar", "kind": GSMenuScoreboard.KIND_AVATAR, "width": 0.0},
 		{"key": &"name", "title": "Player", "width": 3.0},
-		{"key": &"points", "title": "Points", "kind": DotMenuScoreboard.KIND_NUMBER},
-		{"key": &"seconds", "title": "Time", "kind": DotMenuScoreboard.KIND_DURATION},
-		{"key": &"ping", "title": "Ping", "kind": DotMenuScoreboard.KIND_PING},
+		{"key": &"points", "title": "Points", "kind": GSMenuScoreboard.KIND_NUMBER},
+		{"key": &"seconds", "title": "Time", "kind": GSMenuScoreboard.KIND_DURATION},
+		{"key": &"ping", "title": "Ping", "kind": GSMenuScoreboard.KIND_PING},
 	]
 	board.sort_by = &"points"
 	board.decorate = _decorate_row

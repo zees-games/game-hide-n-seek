@@ -1,6 +1,6 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
-## HsConfig through DotGameConfigBinder: fields, cvars, strict refusal, the diff, a shipped yml loading back, and the workbench round trip.
+## HsConfig through GSGameConfigBinder: fields, cvars, strict refusal, the diff, a shipped yml loading back, and the workbench round trip.
 ## Run: godot --headless --path . res://examples/headless_config.tscn
 
 const HsConfig := preload("../game/hs_config.gd")
@@ -9,7 +9,7 @@ const CHECKS := 35
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.FATAL)
+	GSLog.set_level(GSLog.Level.FATAL)
 	_run.call_deferred()
 
 
@@ -44,9 +44,9 @@ func _run() -> void:
 			"taunt_points", "gravity", "map_rotation_file", "doors_enabled", "run_speed"]:
 		_check(keys.has(k), "%s is exposed" % k)
 
-	var console := DotConsole.new()
+	var console := GSConsole.new()
 	add_child(console)
-	binder.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
+	binder.bind_cvars(console.cvar, GSConVar.FLAG_ARCHIVE, console.has_name)
 	console.set_cvar("hs_tag_range", "0.6")
 	_check(is_equal_approx(config.tag_range, 0.6) and binder.source_of("tag_range") == "cvar", "a cvar writes the field")
 	_check(binder.diff_yaml().contains("tag_range: 0.6"), "the diff names the edit")
@@ -63,7 +63,7 @@ func _run() -> void:
 	DirAccess.remove_absolute(ROOT + "_config_bad.json")
 
 	var fall := HsGame.make_fall_rules()
-	var _made := fall.bind_cvars(console.cvar, DotConVar.FLAG_NOTIFY)
+	var _made := fall.bind_cvars(console.cvar, GSConVar.FLAG_NOTIFY)
 	_check(console.get_int("sv_falldamage") == 1 and fall.enabled, "fall damage is on in this game")
 	_check(fall.damage_for(20.0) > 0.0 and fall.damage_for(5.0) == 0.0, "a hard landing hurts, a small one does not")
 	_check(console.get_int("sv_falldamage_lethal") == 40 and fall.damage_for(45.0) > 1000.0, "only a very high speed kills outright")
@@ -86,18 +86,18 @@ func _run() -> void:
 	get_tree().quit(1 if _failed > 0 else 0)
 
 ## The workbench lists every key over the profile sets, a set reaches the live config, and the export holds the edit.
-func _workbench(binder: DotGameConfigBinder, config: HsConfig, keys: PackedStringArray) -> void:
-	var wb := DotGameWorkbench.new()
+func _workbench(binder: GSGameConfigBinder, config: HsConfig, keys: PackedStringArray) -> void:
+	var wb := GSGameWorkbench.new()
 	wb.panel_mode = 1
 	wb.config = {"enabled": false}
-	for set: DotProfileSet in binder.profile_sets():
+	for set: GSProfileSet in binder.profile_sets():
 		wb.add_set(set, set.rel_path)
 	add_child(wb)
 	_check(wb.start().ok, "the workbench starts")
 	binder.attach(wb.api.runtime)
 	var listed := PackedStringArray()
 	for kind: String in wb.api.kinds():
-		var got: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "get", "kind": kind, "id": binder.profile_id})
+		var got: GSResult = wb.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "get", "kind": kind, "id": binder.profile_id})
 		if got.ok:
 			listed.append_array(PackedStringArray((got.value as Dictionary).get("values", {}).keys()))
 	var missing := PackedStringArray()
@@ -105,7 +105,7 @@ func _workbench(binder: DotGameConfigBinder, config: HsConfig, keys: PackedStrin
 		if not listed.has(k):
 			missing.append(k)
 	_check(missing.is_empty() and binder.profile_sets().size() == 5, "the workbench lists all %d keys over %d files" % [keys.size(), binder.profile_sets().size()], ",".join(missing))
-	var res: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "config_players", "id": binder.profile_id, "key": "player_health", "value": 150.0})
+	var res: GSResult = wb.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "config_players", "id": binder.profile_id, "key": "player_health", "value": 150.0})
 	_check(res.ok and is_equal_approx(config.player_health, 150.0), "a workbench edit reaches the live config")
 	var files: Dictionary = wb.exporter.call("collect")
 	var text: String = files.get("cfg/game/game-hide-n-seek/config_players/game.yml", "")
@@ -123,9 +123,9 @@ func _probe() -> void:
 	var loaded := binder.load_layers()
 	var game := preload("../game/hs_game.gd").new()
 	game.config = config
-	var console := DotConsole.new()
+	var console := GSConsole.new()
 	add_child(console)
-	binder.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
+	binder.bind_cvars(console.cvar, GSConVar.FLAG_ARCHIVE, console.has_name)
 	print("PROBE ok=%s round=%s seekers=%s sight=%s sight_src=%s cvar=%s speed=%s speed_src=%s range=%s tag=%s tag_src=%s round_src=%s" % [
 		loaded.ok, game.config.round_seconds, game.config.seekers_for(12), game.config.sight_seconds, binder.source_of("sight_seconds"),
 		console.find_cvar("hs_sight_seconds").get_string(), game.config.run_speed, binder.source_of("run_speed"),
@@ -162,12 +162,12 @@ func _layers() -> void:
 	OS.unset_environment("HS_SIGHT_SECONDS")
 	_write("game/%s/config_round/game.yml" % GAME, "sight_seconds: 2.5\n")
 	_check(_child().contains("PROBE ok=false"), "strict: a key in the wrong file is refused")
-	var removed := DotPaths.remove_tree(ProjectSettings.globalize_path(ROOT))
+	var removed := GSPaths.remove_tree(ProjectSettings.globalize_path(ROOT))
 	_check(removed.ok and not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(ROOT)), "the per-process cfg fixture directory is removed", ROOT if removed.ok else str(removed.error))
 
 
 ## The shipped cfg files hold every key, in step with HsConfig, and change nothing as they are.
-func _templates(binder: DotGameConfigBinder) -> void:
+func _templates(binder: GSGameConfigBinder) -> void:
 	var files := binder.template_files()
 	_check(files.size() == 5, "five shipped cfg files", str(files.size()))
 	var stale := PackedStringArray()

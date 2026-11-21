@@ -11,7 +11,7 @@ func _test_the_client() -> void:
 	client.set(&"config_file", "user://cfg/headless-none.json")
 	add_child(client)
 	# Guard: the map must not be drawn, or steered, while it is still being built.
-	var platform: DotGameClient = client.get("platform")
+	var platform: GSGameClient = client.get("platform")
 	var covered := platform != null and platform.gate != null and not platform.is_shown() \
 		and platform.is_input_blocked()
 	for i in 240:
@@ -30,20 +30,20 @@ func _test_the_client() -> void:
 		"a player and a HUD bound to the world")
 	client.call("open_taunts")
 	var menu: Variant = (client.get("settings") as Node).get("menu") if client.get("settings") != null else null
-	_check(menu != null and (menu as DotMenu).picker.is_open(), "the taunt picker opens")
+	_check(menu != null and (menu as GSMenu).picker.is_open(), "the taunt picker opens")
 	if menu != null:
-		(menu as DotMenu).picker.close()
+		(menu as GSMenu).picker.close()
 	var snapshot: Dictionary = client.call("board_snapshot")
 	_check((snapshot["players"] as Array).size() >= 2, "the board lists the room")
 	var tab := InputEventKey.new()
 	tab.physical_keycode = KEY_TAB
 	tab.pressed = true
-	(menu as DotMenu).handle_event(tab)
-	var board: DotMenuScoreboard = client.get("board")
+	(menu as GSMenu).handle_event(tab)
+	var board: GSMenuScoreboard = client.get("board")
 	_check(board != null and board.is_open() and board.rows().any(func(r: Dictionary) -> bool: return bool(r.get("you", false))),
 		"Tab holds the scoreboard up, with this player picked out")
 	tab.pressed = false
-	(menu as DotMenu).handle_event(tab)
+	(menu as GSMenu).handle_event(tab)
 
 	var world: HsGame = client.get("game")
 	world.wish_side(&"local", HsGame.SEEKERS)
@@ -55,15 +55,15 @@ func _test_the_client() -> void:
 		"a seeker counting is blindfolded on their own screen")
 
 	hud.call("_process", 0.0)
-	var xh: DotCrosshair = hud.get("_crosshair")
+	var xh: GSCrosshair = hud.get("_crosshair")
 	_check(xh != null and xh.suppressed and not xh.is_shown(), "the blindfolded seeker's crosshair is suppressed")
-	# The clock is dot-ui's DotScoreStrip, the two sides still in it as its plates.
+	# The clock is dot-ui's GSScoreStrip, the two sides still in it as its plates.
 	hud.call("_process", 0.0)
-	var strip: DotScoreStrip = hud.get("strip")
+	var strip: GSScoreStrip = hud.get("strip")
 	_check(
-		strip.clock == DotScoreStrip.clock_text(world.seconds_left()) and strip.sides
+		strip.clock == GSScoreStrip.clock_text(world.seconds_left()) and strip.sides
 		and strip.left_score == world.alive_on(HsGame.HIDERS) and strip.right_score == world.alive_on(HsGame.SEEKERS),
-		"the clock is DotScoreStrip's, with the hiders hidden and the seekers as its plates",
+		"the clock is GSScoreStrip's, with the hiders hidden and the seekers as its plates",
 		str(strip.describe())
 	)
 
@@ -88,7 +88,7 @@ func _test_spectate_tap() -> void:
 	var id := a.player_id
 	a.watching = true
 	game.spectate.on_died(id, others[0], false, Vector3(0, 2, 0), 0.0, 0)
-	game.spectate.manager.set_mode(String(id), DotSpectatorView.Mode.CHASE)
+	game.spectate.manager.set_mode(String(id), GSSpectatorView.Mode.CHASE)
 	var client: Node = (load("res://game/hs_client.gd") as GDScript).new()
 	client.set(&"game", game)
 	client.set(&"player", a)
@@ -130,8 +130,8 @@ func _test_spectate_tap() -> void:
 	_finished()
 
 
-func _client_theme(client: Node, hud: Node, strip: DotScoreStrip) -> void:
-	var themed: DotMenu = (client.get("settings") as Node).get("menu")
+func _client_theme(client: Node, hud: Node, strip: GSScoreStrip) -> void:
+	var themed: GSMenu = (client.get("settings") as Node).get("menu")
 	var plate := strip.colour(&"plate")
 	_check(plate.get_luminance() < 0.1 and plate.a >= 0.7 and strip.colour(&"highlight") == (load("res://game/hs_hud.gd") as GDScript).get("MAP_COLOUR"),
 		"the HUD is dark by default, in the menu's theme, with this game's colour as its accent", str(plate))
@@ -146,7 +146,7 @@ func _client_theme(client: Node, hud: Node, strip: DotScoreStrip) -> void:
 ## A slain stand-in falls as dot-player-char's ragdoll, copied by the client from the figure it draws.
 func _client_ragdoll(client: Node, world: HsGame) -> void:
 	world._set_phase(HsGame.Phase.SEEK)
-	var ragdolls: DotPlayerRagdolls = client.get("ragdolls")
+	var ragdolls: GSPlayerRagdolls = client.get("ragdolls")
 	var victim: HsPlayer = null
 	for id: StringName in world.players:
 		var p: HsPlayer = world.players[id]
@@ -156,11 +156,11 @@ func _client_ragdoll(client: Node, world: HsGame) -> void:
 	_check(victim != null and ragdolls != null and ragdolls.rules == world.ragdoll_rules,
 		"the client keeps the dead under the game's sv_ragdoll* rules")
 	if victim != null:
-		var slay := DotDamage.make(0, victim.entity_id, victim.health.max_health * 10.0, null)
+		var slay := GSDamage.make(0, victim.entity_id, victim.health.max_health * 10.0, null)
 		slay.tick = world._tick
 		var _applied := world.combat.apply_damage(slay)
 		await get_tree().process_frame
-		_check(victim.death != null and DotPlayerDeathReactions.stock().has(victim.death.reaction),
+		_check(victim.death != null and GSPlayerDeathReactions.stock().has(victim.death.reaction),
 			"the world picked how the body falls", str(victim.death.describe()) if victim.death != null else "none")
 		var bodies := ragdolls.live()
 		_check(bodies.size() == 1 and not victim.figure.visible,
@@ -195,7 +195,7 @@ func _client_ragdoll(client: Node, world: HsGame) -> void:
 
 ## The highest floor under the body's parts (a ray down from each part's centre; parts over open air, a limb
 ## past an edge, have none). 0.0 when nothing is under the body at all.
-func _floor_under(rag: DotPlayerRagdoll) -> float:
+func _floor_under(rag: GSPlayerRagdoll) -> float:
 	var high := -INF
 	for floor_at: Variant in _part_floors(rag).values():
 		high = maxf(high, float(floor_at))
@@ -203,7 +203,7 @@ func _floor_under(rag: DotPlayerRagdoll) -> float:
 
 
 ## The first part whose centre is below the floor directly under it (it went through), or "".
-func _sunk_part(rag: DotPlayerRagdoll) -> String:
+func _sunk_part(rag: GSPlayerRagdoll) -> String:
 	var floors := _part_floors(rag)
 	for part: Variant in floors:
 		if (part.body as Node3D).global_position.y < float(floors[part]) - 0.05:
@@ -212,7 +212,7 @@ func _sunk_part(rag: DotPlayerRagdoll) -> String:
 
 
 ## Part -> y of the world surface under its centre, for the parts that have one.
-func _part_floors(rag: DotPlayerRagdoll) -> Dictionary:
+func _part_floors(rag: GSPlayerRagdoll) -> Dictionary:
 	var space := rag.get_world_3d().direct_space_state
 	var out := {}
 	var parts: Array = rag.get("_parts")
@@ -225,15 +225,15 @@ func _part_floors(rag: DotPlayerRagdoll) -> Dictionary:
 
 
 func _client_death_codec() -> void:
-	var fall := DotPlayerDeath.new()
+	var fall := GSPlayerDeath.new()
 	fall.reaction = &"face_plant"
 	fall.roll_seed = 1234
 	fall.direction = Vector3(1, 0, 0)
-	var died := HsEvents.read_death(DotNetReader.new(HsEvents.write_death(5, 6, HsGame.DIED_SLAIN, fall)))
-	var carried: DotPlayerDeath = died.get("death")
+	var died := HsEvents.read_death(GSNetReader.new(HsEvents.write_death(5, 6, HsGame.DIED_SLAIN, fall)))
+	var carried: GSPlayerDeath = died.get("death")
 	_check(bool(died["ok"]) and carried != null and carried.reaction == &"face_plant" and carried.roll_seed == 1234
 		and carried.direction.distance_to(Vector3(1, 0, 0)) < 0.02, "a DEATH carries the fall the server picked")
-	var bare := HsEvents.read_death(DotNetReader.new(HsEvents.write_death(5, 6, HsGame.DIED_SLAIN)))
+	var bare := HsEvents.read_death(GSNetReader.new(HsEvents.write_death(5, 6, HsGame.DIED_SLAIN)))
 	_check(bool(bare["ok"]) and not bare.has("death"), "and one without a fall still reads")
 
 
@@ -250,19 +250,19 @@ func _client_door_prompt(client: Node, world: HsGame, hud: Node) -> void:
 	for i in 4:
 		await get_tree().process_frame
 	hud.call("_process", 0.0)
-	var prompt: DotKeyPrompt = hud.get("prompt")
+	var prompt: GSKeyPrompt = hud.get("prompt")
 	var bound := str(client.call("_key", &"hs_use"))
 	_check(
 		prompt.visible and (prompt.words.begins_with("Open") or prompt.words.begins_with("Shut"))
 		and prompt.key == bound and bound != "",
-		"at a door, DotKeyPrompt names it with the use key as bound", prompt.text()
+		"at a door, GSKeyPrompt names it with the use key as bound", prompt.text()
 	)
 
 	# A pack naming these classes does not parse on a shell whose dot-ui predates them, so
 	# the requires.json dot-ci derives must ask for dot-ui 4, and nothing may lower it.
-	var asks := DotAddonApi.derive()
+	var asks := GSAddonApi.derive()
 	_check(
-		int(asks.get("dot_ui", 0)) >= 4 and not FileAccess.file_exists("res://" + DotAddonApi.FLOOR_FILE),
+		int(asks.get("dot_ui", 0)) >= 4 and not FileAccess.file_exists("res://" + GSAddonApi.FLOOR_FILE),
 		"the pack asks a shell for dot-ui level 4, the glance pieces",
 		str(asks.get("dot_ui"))
 	)
@@ -274,14 +274,14 @@ func _test_help_and_menu() -> void:
 	_section("H opens help, and the Escape menu has Help and Leave")
 	var settings := HsSettings.new()
 	add_child(settings)
-	var built: DotResult = settings.setup(DotSettingsStoreMemory.new())
-	var keys: DotMenuBindings = settings.bindings
-	_check(built.ok and keys != null and keys.key_for(DotMenuBindings.HELP_ACTION) == "H", "help is on H")
+	var built: GSResult = settings.setup(GSSettingsStoreMemory.new())
+	var keys: GSMenuBindings = settings.bindings
+	_check(built.ok and keys != null and keys.key_for(GSMenuBindings.HELP_ACTION) == "H", "help is on H")
 	_check(keys.defaults_on("H").size() == 1, "and nothing else in the table defaults to H",
 		str(keys.defaults_on("H").map(func(r: Dictionary) -> String: return str(r["label"]))))
 	# Chat is two rows, so help lists Y and U and the Controls page moves them.
 	var _k := settings.settings.set_value(&"bind_chat", "K")
-	_check(keys.key_for(HsBindings.CHAT) == "K" and DotInputBinding.describe_action(HsBindings.CHAT) == "K"
+	_check(keys.key_for(HsBindings.CHAT) == "K" and GSInputBinding.describe_action(HsBindings.CHAT) == "K"
 		and keys.key_for(HsBindings.CHAT_TEAM) == "U", "chat (Y) and team chat (U) are rows: rebinding one moves its key",
 		"%s %s" % [keys.key_for(HsBindings.CHAT), keys.key_for(HsBindings.CHAT_TEAM)])
 	var h := InputEventKey.new()
@@ -314,9 +314,9 @@ func _test_the_map_menu() -> void:
 	await _step(game, 4)
 	var settings := HsSettings.new()
 	add_child(settings)
-	var _built: DotResult = settings.setup(DotSettingsStoreMemory.new())
-	var keys: DotMenuBindings = settings.bindings
-	_check(keys.key_for(DotMenuBindings.MAPS_ACTION) == "M" and keys.defaults_on("M").size() == 1,
+	var _built: GSResult = settings.setup(GSSettingsStoreMemory.new())
+	var keys: GSMenuBindings = settings.bindings
+	_check(keys.key_for(GSMenuBindings.MAPS_ACTION) == "M" and keys.defaults_on("M").size() == 1,
 		"the map menu is on M, and nothing else in the table defaults to M",
 		str(keys.defaults_on("M").map(func(r: Dictionary) -> String: return str(r["label"]))))
 	var rows: Array = game.map_rows()
@@ -330,7 +330,7 @@ func _test_the_map_menu() -> void:
 	_check(settings.menu.handle_event(m) and settings.menu.picker.is_open(), "M opens the picker")
 	var wanted: StringName = &""
 	var key := KEY_NONE
-	for row in range(1, DotMenuPicker.PAGE_SIZE + 1):
+	for row in range(1, GSMenuPicker.PAGE_SIZE + 1):
 		var it: Variant = settings.menu.picker.at_row(row)
 		if it is Dictionary and not bool((it as Dictionary)["current"]):
 			wanted = StringName(str((it as Dictionary)["id"]))
@@ -355,7 +355,7 @@ func _test_wheel_jump() -> void:
 	_section("the wheel jumps")
 	var settings := HsSettings.new()
 	add_child(settings)
-	var _built: DotResult = settings.setup(DotSettingsStoreMemory.new())
+	var _built: GSResult = settings.setup(GSSettingsStoreMemory.new())
 	var rows := 0
 	var found := 0
 	for row in settings.bindings.rows:
@@ -365,8 +365,8 @@ func _test_wheel_jump() -> void:
 				found += 1
 	_check(rows >= 3, "jump has Space plus two wheel rows", str(rows))
 	_check(found == 2, "the rows are Wheel up and Wheel down", str(found))
-	var sampler := DotFpsSampler.new(DotFpsTunables.new())
-	var _added := DotFpsSampler.register_default_actions(sampler)
+	var sampler := GSFpsSampler.new(GSFpsTunables.new())
+	var _added := GSFpsSampler.register_default_actions(sampler)
 	var tick := InputEventMouseButton.new()
 	tick.button_index = MOUSE_BUTTON_WHEEL_UP
 	tick.pressed = true
@@ -375,8 +375,8 @@ func _test_wheel_jump() -> void:
 	rel.button_index = MOUSE_BUTTON_WHEEL_UP
 	rel.pressed = false
 	sampler.handle_event(rel)
-	_check(sampler.sample(0.016).is_pressed(DotFpsCommand.BUTTON_JUMP), "a wheel-up tick is a jump in the next command")
-	_check(not sampler.sample(0.016).is_pressed(DotFpsCommand.BUTTON_JUMP), "and only that one")
+	_check(sampler.sample(0.016).is_pressed(GSFpsCommand.BUTTON_JUMP), "a wheel-up tick is a jump in the next command")
+	_check(not sampler.sample(0.016).is_pressed(GSFpsCommand.BUTTON_JUMP), "and only that one")
 	settings.queue_free()
 	await get_tree().process_frame
 	_finished()

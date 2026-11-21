@@ -4,7 +4,7 @@ const HsPaths := preload("hs_paths.gd")
 
 ## What somebody ELSE looks like: a family humanoid figure scaled to the player's hull, with their side's colour as the shirt, turned to where they look. Client side only. See `HsPlayer.present_body` for when one is shown.
 ## Top level, placed by its caller every frame: the player node moves once a TICK on a simulated player, and a body hung off it would step while the camera is blended. `HsClient.present_frame` hands it the position this frame draws.
-## Which person comes from the blocky kit's atlas the avatar names (`HsAvatars`, [constant ATLASES]; `DotHumanoidLook.from_letter`), so older documents dress the same person. The side is the shirt, the first thing anybody needs to read off a body.
+## Which person comes from the blocky kit's atlas the avatar names (`HsAvatars`, [constant ATLASES]; `GSHumanoidLook.from_letter`), so older documents dress the same person. The side is the shirt, the first thing anybody needs to read off a body.
 
 const CHANNEL := "hs.figure"
 
@@ -34,9 +34,9 @@ var from_art: bool = false
 var clip: StringName = &""
 
 ## The person, under this node.
-var person: DotHumanoidFigure = null
+var person: GSHumanoidFigure = null
 
-## dot-player-char API level that has DotHumanoidFigure.frame_delta.
+## dot-player-char API level that has GSHumanoidFigure.frame_delta.
 const FRAME_DELTA_LEVEL := 11
 
 var _posed_at_usec: int = -1
@@ -54,14 +54,14 @@ func build(height: float, atlas_path: String, colour: Color) -> void:
 	team_colour = colour
 	clip = &""
 	_posed_at_usec = -1
-	var look := DotHumanoidLook.from_letter(atlas_path)
+	var look := GSHumanoidLook.from_letter(atlas_path)
 	if look == null:
-		DotLog.debug(CHANNEL, "no person for this atlas letter, a stock look", {"atlas": atlas_path})
-		look = DotHumanoidLook.stock(hash(atlas_path))
+		GSLog.debug(CHANNEL, "no person for this atlas letter, a stock look", {"atlas": atlas_path})
+		look = GSHumanoidLook.stock(hash(atlas_path))
 	if colour != Color.WHITE:
 		look = look.with_side(colour, TEAM_TINT)
 	if person == null:
-		person = DotHumanoidFigure.new()
+		person = GSHumanoidFigure.new()
 		person.name = "Person"
 		add_child(person)
 	person.build(look, height)
@@ -74,7 +74,7 @@ func body_node() -> Node3D:
 
 
 ## How the player moves besides its ground speed: `on_floor`, `vertical`, `crouched` and the
-## rest [DotHumanoidFigure.set_motion] reads.
+## rest [GSHumanoidFigure.set_motion] reads.
 func set_motion(motion: Dictionary) -> void:
 	if person != null:
 		person.set_motion(motion)
@@ -88,7 +88,7 @@ func pose(at: Vector3, yaw_radians: float, speed: float) -> void:
 	if person == null:
 		return
 	# Game time, as the body moves: a wall-clock step skated the feet (slow motion, fixed-rate frames).
-	if DotAddonApi.build_level("dot_player_char") >= FRAME_DELTA_LEVEL:
+	if GSAddonApi.build_level("dot_player_char") >= FRAME_DELTA_LEVEL:
 		person.animate(speed, person.frame_delta())
 	else:
 		var now := Time.get_ticks_usec()

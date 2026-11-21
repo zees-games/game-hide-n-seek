@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Hide and seek's per-map settings: the rules a map may change, for dot-game's [DotGameMapConfig].
+## Hide and seek's per-map settings: the rules a map may change, for dot-game's [GSGameMapConfig].
 ##
 ## `cfg/game/game-hide-n-seek/dot_map/map/<name>.yml` (a glob such as `hs_%.yml` covers a class of maps), overridable from `cfg/server/...`. Only the keys in [constant KEYS] are accepted; the rest are logged and ignored. A value under a key's `min` (or over its `max`) is refused with the key and value in the warning, never clamped. There is no `max` except the real domain limits: `hs_catch_mode` is the 0..2 enum, `hs_doors` and `hs_autobhop` are 0/1 switches, `hs_sight_fov` is an angle (180 degrees at most).
 

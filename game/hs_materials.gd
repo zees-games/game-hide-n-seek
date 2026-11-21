@@ -79,7 +79,7 @@ const SURFACES := {
 	"flat": {"pattern": "flat", "a": Color(0.8, 0.8, 0.8), "b": Color(0.8, 0.8, 0.8), "metres": 2.0, "rough": 0.8},
 }
 
-## surface id -> dot-map's [DotMapSurfaces] kind, for a map whose `look` is "pbr". A surface not here (glass, water, lines, boards, lockers, fabric) keeps its own look.
+## surface id -> dot-map's [GSMapSurfaces] kind, for a map whose `look` is "pbr". A surface not here (glass, water, lines, boards, lockers, fabric) keeps its own look.
 const PBR_KINDS := {
 	"wood_floor": &"wood_floor", "parquet": &"wood_floor", "gym": &"wood_planks", "tile": &"tile_white",
 	"tile_check": &"tile_checker", "tile_small": &"tile_white", "carpet": &"carpet_grey",
@@ -99,7 +99,7 @@ const SURFACES_ROOT := "res://assets/surfaces"
 
 static var _textures: Dictionary = {}
 static var _materials: Dictionary = {}
-static var _surfaces: DotMapSurfaces = null
+static var _surfaces: GSMapSurfaces = null
 
 
 ## The material for [param id] in a map's [param look]: "pbr" draws a building surface photographic, tinted paled halfway as the grid is; anything else, or a kind whose textures are missing, is [method material].
@@ -108,16 +108,16 @@ static func material_in(id: String, tint: Color, look: String) -> StandardMateri
 		return material(id, tint)
 	if _surfaces == null:
 		var root := HsPaths.rebase(SURFACES_ROOT)
-		_surfaces = DotMapSurfaces.new(root if DirAccess.dir_exists_absolute(root) else DotMapSurfaces.DEFAULT_ROOT)
+		_surfaces = GSMapSurfaces.new(root if DirAccess.dir_exists_absolute(root) else GSMapSurfaces.DEFAULT_ROOT)
 	var pale := Color(minf(tint.r, 1.1), minf(tint.g, 1.1), minf(tint.b, 1.1)).lerp(Color.WHITE, 0.5)
 	# A photograph already holds its light: white tile under the sun and ambient burns out, so a kind brighter than PBR_TARGET is pulled down to it.
 	var kind: StringName = PBR_KINDS[id]
-	var mean: Array = (DotMapSurfaces.KINDS.get(kind, {}) as Dictionary).get("mean", [0.5, 0.5, 0.5])
+	var mean: Array = (GSMapSurfaces.KINDS.get(kind, {}) as Dictionary).get("mean", [0.5, 0.5, 0.5])
 	var lum := 0.2126 * float(mean[0]) + 0.7152 * float(mean[1]) + 0.0722 * float(mean[2])
 	var got := _surfaces.try_material(kind, Color(pale.r, pale.g, pale.b).darkened(1.0 - minf(1.0, PBR_TARGET / maxf(lum, 0.01))))
 	if not got.ok:
 		return material(id, tint)
-	# Our own DotMapSurfaces cache, so this does not reach another game's: a low sun on a photographed lawn glared white in a render.
+	# Our own GSMapSurfaces cache, so this does not reach another game's: a low sun on a photographed lawn glared white in a render.
 	var m: StandardMaterial3D = got.value
 	if kind != &"metal":
 		m.metallic_specular = PBR_SPECULAR

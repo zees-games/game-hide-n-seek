@@ -1,6 +1,6 @@
-extends DotGameNetLink
+extends GSGameNetLink
 
-## This game's link: the shared skeleton in [DotGameNetLink], plus the names that are its own.
+## This game's link: the shared skeleton in [GSGameNetLink], plus the names that are its own.
 
 const HsNetLink := preload("hs_net_link.gd")
 

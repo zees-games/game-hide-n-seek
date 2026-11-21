@@ -1,6 +1,6 @@
-extends DotConfig
+extends GSConfig
 
-## Every number this game has, layered like every other [DotConfig]: [code]exported defaults < JSON file < environment < command line[/code].
+## Every number this game has, layered like every other [GSConfig]: [code]exported defaults < JSON file < environment < command line[/code].
 ## Metres and seconds, the maps' units too (see [HsMapDoc]). Each rule the brief named is here at the brief's default; the commonly turned ones are cvars as well (see `HsModule._add_tunables`).
 
 ## How a seeker catches a hider. See [member catch_mode].
@@ -15,7 +15,7 @@ enum Catch {
 
 ## How the first seekers of a round are chosen. See [member seeker_pick].
 enum Pick {
-	## A random draw that skips last round's seekers ([DotTeamRotation]'s RANDOM).
+	## A random draw that skips last round's seekers ([GSTeamRotation]'s RANDOM).
 	RANDOM,
 	## Everybody an equal share of turns over time (QUEUE).
 	QUEUE,
@@ -190,7 +190,7 @@ const CAUGHT_SEEK_START := 1
 ## Where map documents are read from, relative to this game's root.
 @export var map_directory: String = "maps"
 
-## The file that says which maps a server ROTATES: `cfg/maps.yml` over the shipped `res://maps.yml` (dot-map's `DotMapRotationFile`). Empty or absent rotates every map.
+## The file that says which maps a server ROTATES: `cfg/maps.yml` over the shipped `res://maps.yml` (dot-map's `GSMapRotationFile`). Empty or absent rotates every map.
 ## A map the rotation leaves out stays installed (`hs_map <id>` queues it); it is only never drawn or balloted. `sv_map_rotation_file`.
 @export var map_rotation_file: String = "cfg/maps.yml"
 
@@ -252,8 +252,8 @@ const CFG_FILES := {
 
 
 ## The binder every entry point uses: [param config] layered, one cfg file per [constant CFG_FILES] entry.
-static func make_binder(config: DotConfig, json_path := "") -> DotGameConfigBinder:
-	var b := DotGameConfigBinder.create(config, "game-hide-n-seek", "hs", json_path)
+static func make_binder(config: GSConfig, json_path := "") -> GSGameConfigBinder:
+	var b := GSGameConfigBinder.create(config, "game-hide-n-seek", "hs", json_path)
 	b.grouped = true
 	b.group_files = CFG_FILES
 	return b
@@ -269,7 +269,7 @@ func cli_prefix() -> String:
 
 ## How many seekers a round with [param players] in it starts with.
 func seekers_for(players: int) -> int:
-	return DotTeamRotation.count_for(players, players_per_seeker, min_seekers, max_seekers)
+	return GSTeamRotation.count_for(players, players_per_seeker, min_seekers, max_seekers)
 
 
 func catches_by_touch() -> bool:
@@ -280,26 +280,26 @@ func catches_by_sight() -> bool:
 	return catch_mode == Catch.SIGHT or catch_mode == Catch.EITHER
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if round_seconds <= 0.0:
-		return DotResult.fail(DotError.CODE_INVALID, "A round has to last some time.")
+		return GSResult.fail(GSError.CODE_INVALID, "A round has to last some time.")
 
 	if min_seekers > max_seekers:
-		return DotResult.fail(DotError.CODE_INVALID, "min_seekers is over max_seekers.")
+		return GSResult.fail(GSError.CODE_INVALID, "min_seekers is over max_seekers.")
 
 	if timeout_winner < 0 or timeout_winner > 2:
-		return DotResult.fail(DotError.CODE_INVALID,
+		return GSResult.fail(GSError.CODE_INVALID,
 			"timeout_winner is %d; it is 0 (draw), 1 (hiders) or 2 (seekers)." % timeout_winner)
 
 	if seeker_pick < 0 or seeker_pick > Pick.FIRST_CAUGHT:
-		return DotResult.fail(DotError.CODE_INVALID,
+		return GSResult.fail(GSError.CODE_INVALID,
 			"seeker_pick is %d; it is 0 (random), 1 (queue), 2 (swap) or 3 (first caught)." % seeker_pick)
 
 	if catch_mode < 0 or catch_mode > Catch.EITHER:
-		return DotResult.fail(DotError.CODE_INVALID,
+		return GSResult.fail(GSError.CODE_INVALID,
 			"catch_mode is %d; it is 0 (touch), 1 (sight) or 2 (either)." % catch_mode)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 func describe() -> Dictionary:

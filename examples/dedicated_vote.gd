@@ -19,17 +19,17 @@ func _test_the_map_vote() -> void:
 	_vote_hibernation(vote)
 	_vote_offers_maps(vote)
 	await _vote_map_menu(vote)
-	var director: DotVoteDirector = vote.get("director")
+	var director: GSVoteDirector = vote.get("director")
 	var choice := _vote_ballot(vote, director)
 	_vote_next_map(vote, director, choice)
 	_vote_rock_the_vote(vote, director)
 	_finished()
 
 
-## DotGameModule hands the director the server; the ballot's timer waits with it, and waking
+## GSGameModule hands the director the server; the ballot's timer waits with it, and waking
 ## starts both again from the top.
 func _vote_hibernation(vote: Node) -> void:
-	var sleeper: DotVoteDirector = vote.get("director")
+	var sleeper: GSVoteDirector = vote.get("director")
 	_check(server.hibernation_changed.is_connected(sleeper.set_hibernating),
 		"the vote follows the server's hibernation without a line of this game's")
 	vote.set("_opened_this_map", true)
@@ -51,7 +51,7 @@ func _vote_offers_maps(vote: Node) -> void:
 	vote.call("refresh_maps")
 	var ids: Array = []
 
-	for choice: DotVoteChoice in (vote.get("source") as DotVoteListSource).entries:
+	for choice: GSVoteChoice in (vote.get("source") as GSVoteListSource).entries:
 		ids.append(String(choice.id))
 
 	_check(ids.has("hs_apartments") and ids.has("hs_manor"), "it offers the delivered maps", str(ids))
@@ -65,11 +65,11 @@ func _vote_map_menu(vote: Node) -> void:
 		and server.console.find_cvar("sv_map_menu_flag").get_string() == "generic"
 		and (menu_half.get("change_fn") as Callable).is_valid(),
 		"the map menu is there, staff-only by default, changing the map now")
-	var staff := DotCmdContext.new()
-	staff.source = DotCmdContext.Source.CHAT
+	var staff := GSCmdContext.new()
+	staff.source = GSCmdContext.Source.CHAT
 	staff.permissions = PackedStringArray(["generic"])
-	var player := DotCmdContext.new()
-	player.source = DotCmdContext.Source.CHAT
+	var player := GSCmdContext.new()
+	player.source = GSCmdContext.Source.CHAT
 	var menu_offer: Dictionary = menu_half.call("offer", player)
 	_check((menu_offer["maps"] as Array).size() > 1 and not bool(menu_offer["allowed"]) and bool(menu_offer["vote"]),
 		"a player is offered every map, as a vote")
@@ -84,9 +84,9 @@ func _vote_map_menu(vote: Node) -> void:
 
 
 ## Opens a ballot, casts the one vote and returns the map it was cast for.
-func _vote_ballot(vote: Node, director: DotVoteDirector) -> StringName:
+func _vote_ballot(vote: Node, director: GSVoteDirector) -> StringName:
 	vote.set("voters_fn", func() -> Array: return [&"7"])
-	var opened := director.open_vote(DotVoteClock.REASON_MANUAL)
+	var opened := director.open_vote(GSVoteClock.REASON_MANUAL)
 	_check(opened.ok and director.is_voting(), "a ballot opens", opened.error.message if not opened.ok else "")
 
 	# A fixed id is on the ballot some runs and not others: it draws a handful from the maps.
@@ -101,7 +101,7 @@ func _vote_ballot(vote: Node, director: DotVoteDirector) -> StringName:
 	return choice
 
 
-func _vote_next_map(vote: Node, director: DotVoteDirector, choice: StringName) -> void:
+func _vote_next_map(vote: Node, director: GSVoteDirector, choice: StringName) -> void:
 	# No frame between these: a stand-in round starting in between would lay the map itself.
 	vote.call("note_round_end")
 	_check(game.next_map_id == choice, "the round's end hands it to the world", str(game.next_map_id))
@@ -116,7 +116,7 @@ func _vote_next_map(vote: Node, director: DotVoteDirector, choice: StringName) -
 
 ## Typed at the console as a player's !rtv reaches it. Past dot-vote's cooldown, on the
 ## director alone so the map's own ballot timer does not open one first.
-func _vote_rock_the_vote(vote: Node, director: DotVoteDirector) -> void:
+func _vote_rock_the_vote(vote: Node, director: GSVoteDirector) -> void:
 	vote.set("voters_fn", func() -> Array: return [&"console"])
 	director.rules.rtv_delay_sec = 0.0
 	director.rules.min_players_to_vote = 1
@@ -146,16 +146,16 @@ func _test_config_and_noblock() -> void:
 	var _back := _run_command("hs_doors_enabled 1")
 	_check(game.config.doors_enabled and console.get_string("hs_doors", "") == "1", "and the field's cvar moves the alias")
 	var module := _module()
-	var wb: DotGameWorkbench = module.get("workbench") if module != null else null
+	var wb: GSGameWorkbench = module.get("workbench") if module != null else null
 	_check(wb != null and wb.api != null, "the module hosts a workbench")
 	if wb == null or wb.api == null:
 		return
 	var rel := "config_catching"
-	var res: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": rel, "id": binder.profile_id, "key": "auto_taunt_seconds", "value": 33.0})
+	var res: GSResult = wb.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": rel, "id": binder.profile_id, "key": "auto_taunt_seconds", "value": 33.0})
 	_check(res.ok and is_equal_approx(game.config.auto_taunt_seconds, 33.0) and console.get_float("hs_auto_taunt_seconds") == 33.0,
 		"a workbench edit changes the field and the live cvar", "" if res.ok else res.error.message)
 	_check(game.taunts != null and is_equal_approx(game.taunts.auto_after, 33.0), "and the taunt timer the world cached")
-	var amb: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "ambience", "id": DotGameWorkbench.CVAR_SET_ID, "key": "hs_ambient_volume", "value": 0.2})
+	var amb: GSResult = wb.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "ambience", "id": GSGameWorkbench.CVAR_SET_ID, "key": "hs_ambient_volume", "value": 0.2})
 	_check(amb.ok and is_equal_approx(console.get_float("hs_ambient_volume"), 0.2), "the hs_ambient* cvars are a workbench set and an edit moves the cvar", "" if amb.ok else amb.error.message)
 	var teamblock := console.find_cvar("mp_teamblock")
 	var enemyblock := console.find_cvar("mp_enemyblock")
@@ -179,9 +179,9 @@ func _test_map_rotation_file() -> void:
 	if game == null or game.catalogue == null or vote == null or vote.get("director") == null:
 		return
 
-	var director: DotVoteDirector = vote.get("director")
+	var director: GSVoteDirector = vote.get("director")
 	game.config.map_ids = PackedStringArray()
-	var built := DotMapRotationFile.from_trees([{"defaults": {
+	var built := GSMapRotationFile.from_trees([{"defaults": {
 		"rotation": "main",
 		"rotations": {
 			"main": {"mode": "cycle", "maps": ["hs_apartments", "hs_manor"]},
@@ -194,7 +194,7 @@ func _test_map_rotation_file() -> void:
 	if not built.ok:
 		return
 
-	var kept_file: DotMapRotationFile = game.rotation_file
+	var kept_file: GSMapRotationFile = game.rotation_file
 	_rotation_installed(vote, director, built.value, kept_file)
 	_rotation_commands(vote, director)
 	_rotation_switch(vote)
@@ -206,7 +206,7 @@ func _test_map_rotation_file() -> void:
 	_finished()
 
 
-func _rotation_installed(vote: Node, director: DotVoteDirector, file: DotMapRotationFile, kept_file: DotMapRotationFile) -> void:
+func _rotation_installed(vote: Node, director: GSVoteDirector, file: GSMapRotationFile, kept_file: GSMapRotationFile) -> void:
 	var catalogue := game.catalogue
 	var all_ids: Array[StringName] = catalogue.playable(PackedStringArray())
 	_check(all_ids.size() > 2 and catalogue.in_rotation_fn.is_valid() == (kept_file != null and kept_file.has_rotations()),
@@ -229,7 +229,7 @@ func _rotation_installed(vote: Node, director: DotVoteDirector, file: DotMapRota
 	_check(drawn == ["hs_apartments", "hs_manor", "hs_apartments", "hs_manor", "hs_apartments", "hs_manor"],
 		"six draws cycle the written order and never leave it", str(drawn))
 
-	var ids := (vote.get("source") as DotVoteListSource).choices().map(func(c: DotVoteChoice) -> StringName: return c.id)
+	var ids := (vote.get("source") as GSVoteListSource).choices().map(func(c: GSVoteChoice) -> StringName: return c.id)
 	_check(ids.has(&"hs_manor") and ids.has(&"hs_apartments") and not ids.has(&"hs_camp"),
 		"a map outside the rotation is not on the ballot, one inside is", str(ids))
 	var nominated := director.nominate(&"u77", &"hs_camp")
@@ -237,7 +237,7 @@ func _rotation_installed(vote: Node, director: DotVoteDirector, file: DotMapRota
 	_check(not director.nominated_ids().has(&"hs_camp"), "and nothing was recorded")
 
 
-func _rotation_commands(vote: Node, director: DotVoteDirector) -> void:
+func _rotation_commands(vote: Node, director: GSVoteDirector) -> void:
 	var catalogue := game.catalogue
 	var queued := _run_command("hs_map hs_camp")
 	_check(_said(queued, "hs_camp is next") and game.next_map_id == &"hs_camp",
@@ -255,13 +255,13 @@ func _rotation_commands(vote: Node, director: DotVoteDirector) -> void:
 	_check(_said(PackedStringArray(catalogue.describe_lines()), "not in rotation"),
 		"and so does the hs_maps list")
 
-	var rtv := DotVoteCommands.new()
+	var rtv := GSVoteCommands.new()
 	rtv.director = director
 	rtv.spec_fn = game.rotation_commands
 	var bound := rtv.bind(server.console)
 	_check(bound.ok and rtv.command_name("rtv") == "rockthevote" and server.console.find_command("rockthevote") != null,
 		"a renamed rtv command is registered from maps.yml's commands")
-	var vote_commands: DotVoteCommands = vote.get("commands")
+	var vote_commands: GSVoteCommands = vote.get("commands")
 	_check(vote_commands != null and vote_commands.spec_fn.is_valid(), "and the game's vote hands its commands the file")
 
 
@@ -271,7 +271,7 @@ func _rotation_switch(vote: Node) -> void:
 	vote.call("refresh_maps")
 	_check(switched.ok and game.in_rotation(&"hs_manor") and not game.in_rotation(&"hs_apartments"),
 		"switching to the alt rotation takes effect")
-	var ids := (vote.get("source") as DotVoteListSource).choices().map(func(c: DotVoteChoice) -> StringName: return c.id)
+	var ids := (vote.get("source") as GSVoteListSource).choices().map(func(c: GSVoteChoice) -> StringName: return c.id)
 	_check(not ids.has(&"hs_apartments") and ids.has(&"hs_manor"), "and the ballot follows it")
 	_check(not game.rotation_file.switch(game._rot, "nope").ok, "an unknown rotation is refused")
 
@@ -296,7 +296,7 @@ func _test_finish_round_waits_for_a_live_round() -> void:
 	_section("finish_round waits for a live round, not warmup")
 	var module := _module()
 	var vote: Node = module.get("vote") if module != null else null
-	var director: DotVoteDirector = vote.get("director") if vote != null else null
+	var director: GSVoteDirector = vote.get("director") if vote != null else null
 	var hook: Variant = director.get("round_in_progress_fn") if director != null else null
 	_check(hook is Callable and (hook as Callable).is_valid(), "the game tells its vote whether a round is live")
 
@@ -304,21 +304,21 @@ func _test_finish_round_waits_for_a_live_round() -> void:
 		_finished()
 		return
 
-	var match_node: DotMatch = game.match_node
+	var match_node: GSMatch = game.match_node
 	var was := match_node.state
-	match_node.state = DotMatch.State.WARMUP
+	match_node.state = GSMatch.State.WARMUP
 	var warm_applied := []
 	var warm := _finish_round_probe(hook, warm_applied)
 	_check(warm_applied == [&"b"] and not warm.is_finishing_round(),
 		"in warmup a time limit with finish_round changes at once", str(warm_applied))
 
-	match_node.state = DotMatch.State.LIVE
+	match_node.state = GSMatch.State.LIVE
 	var live_applied := []
 	var live := _finish_round_probe(hook, live_applied)
 	_check(live_applied.is_empty() and live.is_finishing_round(),
 		"during a live round it waits for the round", str(live_applied))
 
-	match_node.state = DotMatch.State.INTERMISSION
+	match_node.state = GSMatch.State.INTERMISSION
 	live.advance(0.1)
 	_check(live_applied == [&"b"], "and the round ending is the change", str(live_applied))
 
@@ -330,27 +330,27 @@ func _test_finish_round_waits_for_a_live_round() -> void:
 
 ## A director under `time_up: finish_round` carrying [param hook], its clock run out with a
 ## winner already decided: what dot-vote's own suite builds, with the game's answer in it.
-func _finish_round_probe(hook: Callable, applied: Array) -> DotVoteDirector:
-	var source := DotVoteListSource.new()
-	var _a := source.add(DotVoteChoice.of(&"a", "A"))
-	var _b := source.add(DotVoteChoice.of(&"b", "B"))
-	source.apply_fn = func(id: StringName) -> DotResult:
+func _finish_round_probe(hook: Callable, applied: Array) -> GSVoteDirector:
+	var source := GSVoteListSource.new()
+	var _a := source.add(GSVoteChoice.of(&"a", "A"))
+	var _b := source.add(GSVoteChoice.of(&"b", "B"))
+	source.apply_fn = func(id: StringName) -> GSResult:
 		applied.append(id)
-		return DotResult.success(id)
+		return GSResult.success(id)
 
-	var rules := DotVoteRules.new()
+	var rules := GSVoteRules.new()
 	rules.apply_delay_sec = 0.0
 	rules.duration_sec = 100.0
 	rules.vote_lead_sec = 40.0
 	rules.vote_duration_sec = 5.0
 	rules.include_extend = false
-	rules.apply = DotVoteRules.Apply.END_OF_TIME
+	rules.apply = GSVoteRules.Apply.END_OF_TIME
 	rules.cooldown = 0
-	rules.time_up = DotVoteRules.TimeUp.FINISH_ROUND
+	rules.time_up = GSVoteRules.TimeUp.FINISH_ROUND
 	# For ever: only the hook may release it.
 	rules.finish_round_max_sec = 0.0
 
-	var probe := DotVoteDirector.new()
+	var probe := GSVoteDirector.new()
 	probe.rules = rules
 	probe.source = source
 	probe.register_service = false

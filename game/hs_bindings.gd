@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Every key this game reads, as one [DotMenuBindings] table: action, setting, words, default and card. Four things read it: the client's event matching, the settings document, the Controls page and the help screen.
+## Every key this game reads, as one [GSMenuBindings] table: action, setting, words, default and card. Four things read it: the client's event matching, the settings document, the Controls page and the help screen.
 ## Short on purpose: moving, crouching and looking are the movement rows. H is help in every game of the family (dot-menu adds the row), so nothing here may default to it.
 ## Chat is two rows on dot-ui's chat window's own actions (Y to all, U to your side), so the help screen lists them and the Controls page moves them.
 
@@ -18,8 +18,8 @@ const CHAT := &"chat_open"
 const CHAT_TEAM := &"chat_open_team"
 
 
-static func make() -> DotMenuBindings:
-	var keys := DotMenuBindings.new()
+static func make() -> GSMenuBindings:
+	var keys := GSMenuBindings.new()
 	keys.add_movement("Movement", "Ctrl", "Crouch")
 	# dot-player-controller's own sprint and walk actions, as rows so the Controls page and the
 	# help screen have them.

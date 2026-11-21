@@ -1,4 +1,4 @@
-extends DotAudioProbe
+extends GSAudioProbe
 
 const HsAudio := preload("res://game/hs_audio.gd")
 

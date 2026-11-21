@@ -1,6 +1,6 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
-## Maps handed to Hide & Seek outside the game (HsMapDrop through dot-map's DotMapDropIntake, API 26): a map document or
+## Maps handed to Hide & Seek outside the game (HsMapDrop through dot-map's GSMapDropIntake, API 26): a map document or
 ## a folder of them, dragged onto the window, dropped on the executable or named by `--map-path=`. Each is checked as the
 ## catalogue checks one, copied to user://maps and listed at once; anything else is refused out loud with what the game
 ## takes, and a client of a server refuses every drop.
@@ -26,13 +26,13 @@ var _said := PackedStringArray()
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _run() -> void:
-	if DotAddonApi.build_level("dot_map") < HsMapDrop.NEEDS_LEVEL:
-		print("-- skipped: dot-map API %d < %d (no DotMapDropIntake)" % [DotAddonApi.build_level("dot_map"), HsMapDrop.NEEDS_LEVEL])
+	if GSAddonApi.build_level("dot_map") < HsMapDrop.NEEDS_LEVEL:
+		print("-- skipped: dot-map API %d < %d (no GSMapDropIntake)" % [GSAddonApi.build_level("dot_map"), HsMapDrop.NEEDS_LEVEL])
 		_report_sections(0, 0, 0)
 		return
 	var entered := 0

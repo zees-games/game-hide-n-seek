@@ -43,7 +43,7 @@ func _on_round_started(number: int) -> void:
 	_set_phase(Phase.HIDE)
 	round_began.emit(number, map.id())
 
-	DotLog.info(CHANNEL, "round began", {
+	GSLog.info(CHANNEL, "round began", {
 		"number": number, "map": String(map.id()), "seed": _round_seed,
 		"players": players.size(), "seekers": ", ".join(_names(players_on(SEEKERS))),
 	})
@@ -60,10 +60,10 @@ func _on_round_ended(number: int, winner: int, _outcome: int) -> void:
 		progress.on_round_over(winner)
 
 	round_over.emit(number, winner, _winner_name)
-	DotLog.info(CHANNEL, "round over", {"number": number, "winner": _winner_name})
+	GSLog.info(CHANNEL, "round over", {"number": number, "winner": _winner_name})
 
 
-## Who seeks first this round: [DotTeamRotation], with the server's mode and the players'
+## Who seeks first this round: [GSTeamRotation], with the server's mode and the players'
 ## wishes — or, under FIRST_CAUGHT, whoever was caught first last round and the draw for the
 ## rest.
 func _draw_sides() -> void:
@@ -109,11 +109,11 @@ func _draw_sides() -> void:
 	if ready.size() >= want - chosen.size():
 		rest = ready
 
-	var mode := DotTeamRotation.Mode.RANDOM if config.seeker_pick == HsConfig.Pick.FIRST_CAUGHT \
-		else config.seeker_pick as DotTeamRotation.Mode
+	var mode := GSTeamRotation.Mode.RANDOM if config.seeker_pick == HsConfig.Pick.FIRST_CAUGHT \
+		else config.seeker_pick as GSTeamRotation.Mode
 
 	if want - chosen.size() > 0:
-		var picked: Dictionary = DotTeamRotation.pick(
+		var picked: Dictionary = GSTeamRotation.pick(
 			rest, want - chosen.size(), mode, seeker_history, _round_seed, wishes
 		)
 
@@ -122,13 +122,13 @@ func _draw_sides() -> void:
 
 		why = "%s%s" % [why + "; " if why != "" else "", str(picked["why"])]
 
-	DotTeamRotation.note(seeker_history, keys, chosen, round_number)
+	GSTeamRotation.note(seeker_history, keys, chosen, round_number)
 
 	for id in keys:
 		_set_side(id, SEEKERS if chosen.has(id) else HIDERS)
 
 	if not keys.is_empty():
-		DotLog.debug(CHANNEL, "seekers drawn", {"why": why})
+		GSLog.debug(CHANNEL, "seekers drawn", {"why": why})
 
 
 func _advance_phase(delta: float) -> void:
@@ -289,7 +289,7 @@ func catch(id: StringName, by: StringName, how: StringName) -> bool:
 
 	caught.emit(id, by, how)
 	bots.on_caught(id)
-	DotLog.debug(CHANNEL, "caught", {"id": String(id), "by": String(by), "how": String(how)})
+	GSLog.debug(CHANNEL, "caught", {"id": String(id), "by": String(by), "how": String(how)})
 	_check_round(true)
 	return true
 
@@ -401,7 +401,7 @@ func use_door(index: int, by: StringName) -> bool:
 	if progress != null and players.has(by):
 		progress.on_door(by)
 
-	DotLog.debug(CHANNEL, "a door was used", {
+	GSLog.debug(CHANNEL, "a door was used", {
 		"door": map.doors.name_of(index), "open": open, "by": String(by), "tick": _tick,
 	})
 	return true
@@ -443,7 +443,7 @@ func _advance_toys(delta: float) -> void:
 		var state := player.controller.state
 		var _pushed := map.toys.push_from(state.position, state.velocity, HsPlayer.BODY_RADIUS, player.hull_height())
 
-		if state.mode == DotFpsState.Mode.GROUND:
+		if state.mode == GSFpsState.Mode.GROUND:
 			var _bore := map.toys.stand_on(state.position, PERSON_MASS)
 
 	map.toys.advance(delta)
@@ -478,11 +478,11 @@ func apply_door(index: int, open: bool, flip: bool, tick: int) -> void:
 
 
 ## The flashlight config, made on first use.
-func flashlight_conf() -> DotFlashlightConfig:
+func flashlight_conf() -> GSFlashlightConfig:
 	if flashlight_config == null:
 		flashlight_config = HsFlashlight.make_config()
 		flashlight_binder = HsFlashlight.make_binder(flashlight_config)
-		DotLog.result(CHANNEL, "flashlight config", flashlight_binder.load_layers())
+		GSLog.result(CHANNEL, "flashlight config", flashlight_binder.load_layers())
 	return flashlight_config
 
 
@@ -506,7 +506,7 @@ func toggle_flashlight(id: StringName) -> bool:
 	var cfg := flashlight_conf()
 
 	if player == null or not player.is_alive() or player.watching \
-			or not DotFlashlightRules.allowed_on(cfg, str(map_doc.get("id", ""))):
+			or not GSFlashlightRules.allowed_on(cfg, str(map_doc.get("id", ""))):
 		return false
 
 	player.flashlight = not player.flashlight
@@ -613,7 +613,7 @@ func _watch_world() -> void:
 			continue
 
 		if player.controller.state.position.y < map.kill_height():
-			var fall := DotDamage.make(0, player.entity_id, player.health.max_health * 10.0, null)
+			var fall := GSDamage.make(0, player.entity_id, player.health.max_health * 10.0, null)
 			fall.tick = _tick
 			fall.context = {"why": DIED_FELL}
 			var _applied := combat.apply_damage(fall)
@@ -650,7 +650,7 @@ func _respawn_the_fallen() -> void:
 			spectate.spawned(String(id))
 
 
-func _on_player_died(player: HsPlayer, damage: DotDamage) -> void:
+func _on_player_died(player: HsPlayer, damage: GSDamage) -> void:
 	var by := entities.key_for_id(damage.attacker)
 	var why: StringName = damage.context.get("why", DIED_SLAIN)
 
@@ -680,4 +680,4 @@ func _on_player_died(player: HsPlayer, damage: DotDamage) -> void:
 	player.death = decide_death(player, damage)
 
 	player_died.emit(player.player_id, by, why)
-	DotLog.debug(CHANNEL, "player died", {"id": String(player.player_id), "by": String(by), "why": String(why)})
+	GSLog.debug(CHANNEL, "player died", {"id": String(player.player_id), "by": String(by), "why": String(why)})

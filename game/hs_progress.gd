@@ -4,11 +4,11 @@ const HsPlayer := preload("hs_player.gd")
 
 ## What a player keeps from a round: the numbers this game produces, and what they earn.
 ## The numbers are the ones only this game has (rounds got through unseen on a map, hiders caught), declared once in [method schema] and reported to dot-stats as a DELTA ("add one"), so two servers reporting one player add up.
-## Achievements are rules over those numbers, through [DotAchievementStatsLink] (the differencer between SESSION and lifetime totals). Stand-ins are never counted. Server side and on an offline client. Numbers are filed under the scoped profile key when there is one ([member durable_key_fn]), else the world's id, which lasts a connection.
+## Achievements are rules over those numbers, through [GSAchievementStatsLink] (the differencer between SESSION and lifetime totals). Stand-ins are never counted. Server side and on an offline client. Numbers are filed under the scoped profile key when there is one ([member durable_key_fn]), else the world's id, which lasts a connection.
 
 const CHANNEL := "hs.progress"
 
-## The published skill figure the site orders by (dot-stats' DotStatsRank).
+## The published skill figure the site orders by (dot-stats' GSStatsRank).
 const RANK_SCORE := &"rank_score"
 
 
@@ -42,14 +42,14 @@ signal earned(player_id: StringName, title: String, points: int)
 const REPORT_INTERVAL := 60.0
 
 var _report_timer: Timer
-var stats: DotStatsTracker = null
+var stats: GSStatsTracker = null
 ## Files catches for the site's head-to-head ("vs") table.
-var feed: DotStatsEventFeed = null
-var achievements: DotAchievementTracker = null
-var link: DotAchievementStatsLink = null
+var feed: GSStatsEventFeed = null
+var achievements: GSAchievementTracker = null
+var link: GSAchievementStatsLink = null
 
-## The skill rank (dot-stats' DotStatsRank): weighted lifetime figures, filed as rank_score.
-var rank: DotStatsRank = null
+## The skill rank (dot-stats' GSStatsRank): weighted lifetime figures, filed as rank_score.
+var rank: GSStatsRank = null
 
 ## The world's own dictionaries, shared. See [HsSpectate] for why not a reference to it.
 var players: Dictionary = {}
@@ -84,31 +84,31 @@ static func ids() -> Array[StringName]:
 
 ## Every number, once. [b]`publish` on the ones a player page would show[/b]; rounds played and
 ## falls are inputs to a ratio rather than figures anybody reads.
-static func schema() -> DotStatsSchema:
-	var out := DotStatsSchema.new()
-	_add(out, ROUNDS_PLAYED, DotStatsDef.Kind.COUNTER, "Rounds played", "rounds", false)
-	_add(out, ROUNDS_WON, DotStatsDef.Kind.COUNTER, "Rounds won", "rounds", true)
-	_add(out, HIDER_ROUNDS, DotStatsDef.Kind.COUNTER, "Rounds hiding", "rounds", true)
-	_add(out, SEEKER_ROUNDS, DotStatsDef.Kind.COUNTER, "Rounds seeking first", "rounds", true)
-	_add(out, SURVIVED, DotStatsDef.Kind.COUNTER, "Rounds never found", "rounds", true)
-	_add(out, CAUGHT_OTHERS, DotStatsDef.Kind.COUNTER, "Hiders caught", "hiders", true)
-	_add(out, BEST_ROUND_CAUGHT, DotStatsDef.Kind.BEST, "Most hiders caught in a round", "hiders", true)
-	_add(out, TIMES_CAUGHT, DotStatsDef.Kind.COUNTER, "Times caught", "times", true)
-	_add(out, FIRST_CAUGHT, DotStatsDef.Kind.COUNTER, "Caught first", "times", true)
-	_add(out, SPOTTED, DotStatsDef.Kind.COUNTER, "Caught by being seen", "times", false)
-	_add(out, TAUNTS, DotStatsDef.Kind.COUNTER, "Taunts", "taunts", true)
-	_add(out, FORCED_TAUNTS, DotStatsDef.Kind.COUNTER, "Taunts forced by standing still", "taunts", false)
-	_add(out, FALLS, DotStatsDef.Kind.COUNTER, "Falls", "falls", false)
-	_add(out, DOORS, DotStatsDef.Kind.COUNTER, "Doors opened or shut", "doors", false)
-	var _rank := DotStatsRank.declare(out, RANK_SCORE, "Rank score")
+static func schema() -> GSStatsSchema:
+	var out := GSStatsSchema.new()
+	_add(out, ROUNDS_PLAYED, GSStatsDef.Kind.COUNTER, "Rounds played", "rounds", false)
+	_add(out, ROUNDS_WON, GSStatsDef.Kind.COUNTER, "Rounds won", "rounds", true)
+	_add(out, HIDER_ROUNDS, GSStatsDef.Kind.COUNTER, "Rounds hiding", "rounds", true)
+	_add(out, SEEKER_ROUNDS, GSStatsDef.Kind.COUNTER, "Rounds seeking first", "rounds", true)
+	_add(out, SURVIVED, GSStatsDef.Kind.COUNTER, "Rounds never found", "rounds", true)
+	_add(out, CAUGHT_OTHERS, GSStatsDef.Kind.COUNTER, "Hiders caught", "hiders", true)
+	_add(out, BEST_ROUND_CAUGHT, GSStatsDef.Kind.BEST, "Most hiders caught in a round", "hiders", true)
+	_add(out, TIMES_CAUGHT, GSStatsDef.Kind.COUNTER, "Times caught", "times", true)
+	_add(out, FIRST_CAUGHT, GSStatsDef.Kind.COUNTER, "Caught first", "times", true)
+	_add(out, SPOTTED, GSStatsDef.Kind.COUNTER, "Caught by being seen", "times", false)
+	_add(out, TAUNTS, GSStatsDef.Kind.COUNTER, "Taunts", "taunts", true)
+	_add(out, FORCED_TAUNTS, GSStatsDef.Kind.COUNTER, "Taunts forced by standing still", "taunts", false)
+	_add(out, FALLS, GSStatsDef.Kind.COUNTER, "Falls", "falls", false)
+	_add(out, DOORS, GSStatsDef.Kind.COUNTER, "Doors opened or shut", "doors", false)
+	var _rank := GSStatsRank.declare(out, RANK_SCORE, "Rank score")
 	return out
 
 
 static func _add(
-	out: DotStatsSchema, id: StringName, kind: DotStatsDef.Kind, display: String,
+	out: GSStatsSchema, id: StringName, kind: GSStatsDef.Kind, display: String,
 	unit: String, publish: bool
 ) -> void:
-	var def := DotStatsDef.make(id, kind, display)
+	var def := GSStatsDef.make(id, kind, display)
 	def.unit = unit
 	def.publish = publish
 	out.stats.append(def)
@@ -116,8 +116,8 @@ static func _add(
 
 ## What a player can earn, as rules over [method schema]'s numbers.
 ## Every stat read here must be one [method schema] declares and this file records, or the achievement never unlocks and nothing errors; the suite checks both ways.
-static func catalogue() -> DotAchievementCatalogue:
-	var made: Array[DotAchievement] = []
+static func catalogue() -> GSAchievementCatalogue:
+	var made: Array[GSAchievement] = []
 
 	made.append(_sum(&"hs.hidden", "Nowhere to Be Seen", SURVIVED, 1.0, 10,
 		"Get through a round without being caught.", &"hs.hider", 1))
@@ -131,10 +131,10 @@ static func catalogue() -> DotAchievementCatalogue:
 		"Taunt the seekers fifty times."))
 
 	# A BEST: four in one round, not four over a career.
-	var sweep := DotAchievement.make(&"hs.clean_sweep", "Clean Sweep", [
-		DotAchievementRule.make(
-			BEST_ROUND_CAUGHT, 4.0, DotAchievementRule.Op.AT_LEAST,
-			DotAchievementRule.Merge.HIGHEST
+	var sweep := GSAchievement.make(&"hs.clean_sweep", "Clean Sweep", [
+		GSAchievementRule.make(
+			BEST_ROUND_CAUGHT, 4.0, GSAchievementRule.Op.AT_LEAST,
+			GSAchievementRule.Merge.HIGHEST
 		),
 	])
 	sweep.description = "Catch four hiders in one round."
@@ -147,7 +147,7 @@ static func catalogue() -> DotAchievementCatalogue:
 	first.secret = true
 	made.append(first)
 
-	var out := DotAchievementCatalogue.new()
+	var out := GSAchievementCatalogue.new()
 	out.achievements = made
 	return out
 
@@ -155,10 +155,10 @@ static func catalogue() -> DotAchievementCatalogue:
 static func _sum(
 	id: StringName, title: String, stat: StringName, target: float, points: int,
 	description: String, series: StringName = &"", tier: int = 0
-) -> DotAchievement:
-	var out := DotAchievement.make(id, title, [
-		DotAchievementRule.make(
-			stat, target, DotAchievementRule.Op.AT_LEAST, DotAchievementRule.Merge.SUM
+) -> GSAchievement:
+	var out := GSAchievement.make(id, title, [
+		GSAchievementRule.make(
+			stat, target, GSAchievementRule.Op.AT_LEAST, GSAchievementRule.Merge.SUM
 		),
 	])
 	out.description = description
@@ -170,24 +170,24 @@ static func _sum(
 
 
 ## Turns the backbone report on or off at run time (the family cvar `stats_report`); the cvar is registered after this tracker is built, so setup() alone cannot see it.
-func set_reporting(on: bool) -> DotResult:
+func set_reporting(on: bool) -> GSResult:
 	if stats == null:
-		return DotResult.fail(DotError.CODE_STATE, "There is no stats tracker.")
+		return GSResult.fail(GSError.CODE_STATE, "There is no stats tracker.")
 
 	if achievements != null:
 		achievements.report_to_backbone = on
 
 	if not on:
 		stats.report_to_backbone = false
-		return DotResult.success(false)
+		return GSResult.success(false)
 
 	stats.report_to_backbone = true
 	stats.define_on_start = true
 
 	if not stats.reporter.is_available():
 		stats.report_to_backbone = false
-		DotLog.warn("hs.progress", "stats reporting needs a backbone client with STATS_WRITE; staying off")
-		return DotResult.fail(DotError.CODE_STATE, "No backbone client to report stats through.")
+		GSLog.warn("hs.progress", "stats reporting needs a backbone client with STATS_WRITE; staying off")
+		return GSResult.fail(GSError.CODE_STATE, "No backbone client to report stats through.")
 
 	if _report_timer == null:
 		_report_timer = Timer.new()
@@ -197,25 +197,25 @@ func set_reporting(on: bool) -> DotResult:
 		_report_timer.timeout.connect(func() -> void: stats.flush())
 		add_child(_report_timer)
 
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 ## [param directory] empty keeps achievement progress in memory; see
 ## [member HsConfig.progress_directory]. [param report] is [member HsConfig.report_progress].
-func setup(directory: String, report: bool) -> DotResult:
-	stats = DotStatsTracker.new()
+func setup(directory: String, report: bool) -> GSResult:
+	stats = GSStatsTracker.new()
 	stats.name = "Stats"
 	stats.schema = schema()
 	stats.report_to_backbone = report
 	stats.define_on_start = report
 	add_child(stats)
-	feed = DotStatsEventFeed.new(stats)
+	feed = GSStatsEventFeed.new(stats)
 	feed.key_of = func(id: Variant) -> StringName: return _key(StringName(str(id)))
 	feed.is_bot = func(id: Variant) -> bool:
 		var body: HsPlayer = players.get(StringName(str(id)))
 		return body != null and body.is_bot
 
-	rank = DotStatsRank.new()
+	rank = GSStatsRank.new()
 	rank.stat_id = RANK_SCORE
 	rank.terms = [
 		{"stat": String(ROUNDS_WON), "weight": 3.0},
@@ -231,7 +231,7 @@ func setup(directory: String, report: bool) -> DotResult:
 	if not counted.ok:
 		return counted.wrap("hideseek stats")
 
-	achievements = DotAchievementTracker.new()
+	achievements = GSAchievementTracker.new()
 	achievements.name = "Achievements"
 	achievements.catalogue = catalogue()
 	achievements.report_to_backbone = report
@@ -240,11 +240,11 @@ func setup(directory: String, report: bool) -> DotResult:
 	achievements.register_as = &""
 
 	if directory != "":
-		var file_store := DotAchievementStoreFile.new()
+		var file_store := GSAchievementStoreFile.new()
 		file_store.directory = directory
 		achievements.store = file_store
 	else:
-		achievements.store = DotAchievementStoreMemory.new()
+		achievements.store = GSAchievementStoreMemory.new()
 
 	add_child(achievements)
 
@@ -255,7 +255,7 @@ func setup(directory: String, report: bool) -> DotResult:
 
 	achievements.unlocked.connect(_on_unlocked)
 
-	link = DotAchievementStatsLink.new()
+	link = GSAchievementStatsLink.new()
 	link.name = "StatsLink"
 	link.tracker = achievements
 	link.stats = stats
@@ -291,7 +291,7 @@ func record(player_id: StringName, stat: StringName, value: float = 1.0) -> void
 	if not filed.ok:
 		# WARN: a number a player earned that nobody will ever see. It is a schema or a key
 		# that is wrong, and it only ever happens for a reason worth looking at.
-		DotLog.warn(CHANNEL, "a reading was refused", {
+		GSLog.warn(CHANNEL, "a reading was refused", {
 			"player": String(player_id), "stat": String(stat), "why": filed.error.message,
 		})
 
@@ -325,21 +325,21 @@ func _key(player_id: StringName) -> StringName:
 ## `begin` is a coroutine, and this is the family's pattern for starting one from code that
 ## is not — `await` inside, a bare call outside.
 func _begin(player_id: StringName) -> void:
-	var began: DotResult = await achievements.begin(String(player_id))
+	var began: GSResult = await achievements.begin(String(player_id))
 
 	if not began.ok:
 		# WARN: this player will earn nothing this session, and they will not be told why.
-		DotLog.warn(CHANNEL, "achievement progress could not be loaded", {
+		GSLog.warn(CHANNEL, "achievement progress could not be loaded", {
 			"player": String(player_id), "why": began.error.message,
 		})
 
 
 ## Saves somebody's progress as they go. See [method _begin].
 func _end(player_id: StringName) -> void:
-	var ended: DotResult = await achievements.end(String(player_id))
+	var ended: GSResult = await achievements.end(String(player_id))
 
 	if not ended.ok:
-		DotLog.warn(CHANNEL, "achievement progress could not be saved", {
+		GSLog.warn(CHANNEL, "achievement progress could not be saved", {
 			"player": String(player_id), "why": ended.error.message,
 		})
 
@@ -363,9 +363,9 @@ func leave(player_id: StringName) -> void:
 	_end(key)
 
 
-func session_values(player_id: StringName) -> DotStatsValues:
+func session_values(player_id: StringName) -> GSStatsValues:
 	return stats.session_values(_keys.get(player_id, player_id)) \
-		if stats != null else DotStatsValues.new()
+		if stats != null else GSStatsValues.new()
 
 
 ## The key [param player_id]'s numbers are filed under. For a console command and a suite.
@@ -448,9 +448,9 @@ func on_door(player_id: StringName) -> void:
 	record(player_id, DOORS)
 
 
-func _on_unlocked(player: String, achievement: DotAchievement) -> void:
+func _on_unlocked(player: String, achievement: GSAchievement) -> void:
 	# INFO: what an admin keeps. "I did the thing and was not told" is answered here.
-	DotLog.info(CHANNEL, "an achievement was unlocked", {
+	GSLog.info(CHANNEL, "an achievement was unlocked", {
 		"player": player, "achievement": String(achievement.id), "points": achievement.points,
 	})
 	# Back to the world's id: the world tells the player, and the world knows them by that.

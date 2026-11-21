@@ -5,30 +5,30 @@ const HsFlashlight := preload("hs_flashlight.gd")
 
 ## `sv_falldamage*`: landing hard hurts. On in this game (dot-combat's default is off); the
 ## server applies it through [member combat], a client never does.
-var fall_rules: DotFallDamageRules = make_fall_rules()
+var fall_rules: GSFallDamageRules = make_fall_rules()
 ## `sv_stomp*`: landing on a head hurts. Off by default (dot-combat's); the server applies it through [member combat].
-var stomp: DotStomp = DotStomp.new()
+var stomp: GSStomp = GSStomp.new()
 ## Each player's vertical speed going into this tick's movement, for [method _resolve_stomps].
 var _pre_vy: Dictionary = {}
 var _stomp_hulls: Array = []  # scratch for _resolve_stomps, cleared each call
 ## The ambience cvars (`hs_ambient*`): bound by the module (REPLICATED), followed by a client through its link.
-var ambient_rules: DotAmbienceRules = HsAmbience.make_rules()
+var ambient_rules: GSAmbienceRules = HsAmbience.make_rules()
 
 ## dot-mobile's touch cvars (`sv_mobile_*`): bound by the module (REPLICATED), followed by the client's overlay. Nothing here
 ## shoots, so aim assist and auto-fire stay at their off defaults.
-var mobile_rules: DotMobileRules = DotMobileRules.new()
+var mobile_rules: GSMobileRules = GSMobileRules.new()
 
 ## The flashlight's config and binder, made on first use so a suite that builds a game by hand still has one.
-var flashlight_config: DotFlashlightConfig = null
-var flashlight_binder: DotGameConfigBinder = null
+var flashlight_config: GSFlashlightConfig = null
+var flashlight_binder: GSGameConfigBinder = null
 
 ## Binds [member config] to cvars, the cfg/ yml layers and the workbench; made by the server scene or the client.
-var config_binder: DotGameConfigBinder = null
+var config_binder: GSGameConfigBinder = null
 
 ## The workbench's profile rows, made on first ask: the bridge's profile link must exist before the netcode seals, the workbench after.
-var profile_runtime: DotProfileRuntime = null
+var profile_runtime: GSProfileRuntime = null
 
-## dot-team's block rules (`!block`, `!noblock`, `mp_teamblock`), set by the server module or `DotGameClient.add_noblock`. They feed [member body_rules]'s `pair_fn`.
+## dot-team's block rules (`!block`, `!noblock`, `mp_teamblock`), set by the server module or `GSGameClient.add_noblock`. They feed [member body_rules]'s `pair_fn`.
 var block_rules: Object = null:
 	set(value):
 		if block_rules != null and block_rules.is_connected(&"changed", body_rules.refresh):
@@ -54,14 +54,14 @@ var phase: int = Phase.IDLE
 ## The map this round is played on.
 var map_doc: Dictionary = {}
 
-var entities := DotEntityTable.new()
+var entities := GSEntityTable.new()
 
 ## What the server last said about numbers a client cannot count. Negative is "count it".
 var remote_hiders: int = -1
 var remote_seekers: int = -1
 var remote_playable: bool = false
 
-## Who has had the seekers' role, for [DotTeamRotation].
+## Who has had the seekers' role, for [GSTeamRotation].
 var seeker_history: Dictionary = {}
 
 ## Who was caught first this round, and last round: the next round's seeker under
@@ -99,8 +99,8 @@ func taunt_ids() -> Array[StringName]:
 	return taunts.order if taunts != null else ([] as Array[StringName])
 
 
-static func make_fall_rules() -> DotFallDamageRules:
-	var rules := DotFallDamageRules.new()
+static func make_fall_rules() -> GSFallDamageRules:
+	var rules := GSFallDamageRules.new()
 	rules.enabled = true
 	# Mild: hiding high on props is core play, so only a very long drop (about 40 m/s) kills.
 	rules.lethal_speed = 40.0
@@ -277,16 +277,16 @@ func map_rows() -> Array:
 ## The map menu's change: [param id] now, not after this map's rounds. The next map is set and
 ## a fresh round begins on it (dot-match's `begin_round_now`: the round called off has no
 ## winner); with no match running it is simply built. Authority only.
-func change_map_now(id: StringName) -> DotResult:
+func change_map_now(id: StringName) -> GSResult:
 	if not authoritative:
-		return DotResult.fail(DotError.CODE_STATE, "Only the server changes the map.")
+		return GSResult.fail(GSError.CODE_STATE, "Only the server changes the map.")
 	if catalogue == null or not catalogue.playable(config.map_ids).has(id):
-		return DotResult.fail(DotError.CODE_INVALID, "There is no map called '%s' here." % id)
+		return GSResult.fail(GSError.CODE_INVALID, "There is no map called '%s' here." % id)
 	next_map_id = id
 	if match_node == null or not match_node.begin_round_now(_tick):
 		_lay_out_map()
-	DotLog.info(CHANNEL, "map changed from the map menu", {"map": String(id)})
-	return DotResult.success(id)
+	GSLog.info(CHANNEL, "map changed from the map menu", {"map": String(id)})
+	return GSResult.success(id)
 
 
 func _lay_out_map() -> void:
@@ -314,13 +314,13 @@ func _lay_out_map() -> void:
 
 ## Builds [param doc] as the map. What the server does between rounds, and what a client does
 ## when it is sent one.
-func build_map(doc: Dictionary) -> DotResult:
+func build_map(doc: Dictionary) -> GSResult:
 	world_clearing.emit()
 
 	var built := map.build(doc)
 
 	if not built.ok:
-		DotLog.error(CHANNEL, "a map would not build", {"id": str(doc.get("id", "?")), "why": built.error.message})
+		GSLog.error(CHANNEL, "a map would not build", {"id": str(doc.get("id", "?")), "why": built.error.message})
 		return built
 
 	map_doc = map.doc
@@ -386,7 +386,7 @@ func _set_phase(to: int) -> void:
 		taunts.reset()
 
 	phase_changed.emit(to)
-	DotLog.debug(CHANNEL, "the round changed phase", {"phase": Phase.keys()[to]})
+	GSLog.debug(CHANNEL, "the round changed phase", {"phase": Phase.keys()[to]})
 
 
 ## Rounds still to play on this map, this one included. 1 is the last.
@@ -420,7 +420,7 @@ func _map_ask(key: String) -> float:
 func seekers_for(players: int) -> int:
 	var asked := _map_ask("players_per_seeker")
 	if asked > 0.0 and asked < config.players_per_seeker:
-		return DotTeamRotation.count_for(players, asked, config.min_seekers, config.max_seekers)
+		return GSTeamRotation.count_for(players, asked, config.min_seekers, config.max_seekers)
 	return config.seekers_for(players)
 
 
@@ -472,7 +472,7 @@ func _decide(winner: int, why: String) -> void:
 				if progress != null:
 					progress.on_survived(id)
 
-	DotLog.info(CHANNEL, "the round is decided", {"winner": winner, "why": why})
+	GSLog.info(CHANNEL, "the round is decided", {"winner": winner, "why": why})
 
 
 func current_tick() -> int:
@@ -543,14 +543,14 @@ var _ray_solid: PhysicsRayQueryParameters3D = null
 ## The fall a death gets: dot-player-char's reaction rule over the server's weights, seeded from
 ## the player and the tick. Nothing here shoots, so there is no weapon def: an administrator's
 ## slay pushes the body away from whoever did it, and a fall below the map pushes nothing.
-func decide_death(player: HsPlayer, damage: DotDamage) -> DotPlayerDeath:
+func decide_death(player: HsPlayer, damage: GSDamage) -> GSPlayerDeath:
 	var direction := damage.direction
 	var attacker: HsPlayer = players.get(entities.key_for_id(damage.attacker)) if damage.attacker != 0 else null
 	if direction.length_squared() < 0.0001 and attacker != null and attacker != player:
 		direction = player.controller.state.position - attacker.controller.state.position
-	return DotPlayerDeath.decide(
+	return GSPlayerDeath.decide(
 		ragdoll_rules.reactions(), damage.is_headshot(), damage.amount, direction,
-		DotPlayerDeath.seed_of(player.entity_id, _tick)
+		GSPlayerDeath.seed_of(player.entity_id, _tick)
 	)
 
 

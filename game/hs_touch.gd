@@ -3,7 +3,7 @@ extends RefCounted
 const HsBindings := preload("hs_bindings.gd")
 const SelfScript := preload("hs_touch.gd")
 
-## The player's actions as on-screen buttons: dot-mobile's stick, drag-look and buttons over the HUD, driving the client's own [DotFpsTouchSampler].
+## The player's actions as on-screen buttons: dot-mobile's stick, drag-look and buttons over the HUD, driving the client's own [GSFpsTouchSampler].
 ## The buttons are dot-game's platformer preset. Jump, run and duck are held on the sampler as the keys are; the door and the taunt press the action
 ## their key is bound to, so the client's one key path, the door use and the rebinding stay as they are. Nothing here aims or fires: a hider has no weapon.
 
@@ -11,23 +11,23 @@ const TAUNT := &"taunt"
 
 ## Layout id to the input action it presses.
 const ACTIONS := {
-	DotGameTouchLayout.JUMP: &"dot_fps_jump",
-	DotGameTouchLayout.SPRINT: &"dot_fps_sprint",
-	DotGameTouchLayout.CROUCH: &"dot_fps_crouch",
-	DotGameTouchLayout.USE: HsBindings.USE,
+	GSGameTouchLayout.JUMP: &"dot_fps_jump",
+	GSGameTouchLayout.SPRINT: &"dot_fps_sprint",
+	GSGameTouchLayout.CROUCH: &"dot_fps_crouch",
+	GSGameTouchLayout.USE: HsBindings.USE,
 	TAUNT: HsBindings.TAUNT,
 }
 
 ## Layout id to the command bit the overlay holds on the sampler while the button is down.
 const HOLDS := {
-	DotGameTouchLayout.JUMP: DotFpsCommand.BUTTON_JUMP,
-	DotGameTouchLayout.SPRINT: DotFpsCommand.BUTTON_SPRINT,
-	DotGameTouchLayout.CROUCH: DotFpsCommand.BUTTON_CROUCH,
+	GSGameTouchLayout.JUMP: GSFpsCommand.BUTTON_JUMP,
+	GSGameTouchLayout.SPRINT: GSFpsCommand.BUTTON_SPRINT,
+	GSGameTouchLayout.CROUCH: GSFpsCommand.BUTTON_CROUCH,
 }
 
-var controls: DotMobileControls = null
+var controls: GSMobileControls = null
 ## dot-ui's buttons inside the overlay, for the shell's DPI fit.
-var buttons: DotTouchButtons:
+var buttons: GSTouchButtons:
 	get:
 		return controls.buttons if controls != null else null
 
@@ -35,16 +35,16 @@ var _client: Node = null
 
 
 ## The platformer preset less the scoreboard and chat, with use as the door and the taunt in the corner slot.
-static func touch_layout() -> DotGameTouchLayout:
-	var res := DotGameTouchLayout.build(DotGameTouchLayout.PLATFORMER, {
-		DotGameTouchLayout.BOARD: null,
-		DotGameTouchLayout.CHAT: null,
-		DotGameTouchLayout.USE: {"label": "DOOR"},
+static func touch_layout() -> GSGameTouchLayout:
+	var res := GSGameTouchLayout.build(GSGameTouchLayout.PLATFORMER, {
+		GSGameTouchLayout.BOARD: null,
+		GSGameTouchLayout.CHAT: null,
+		GSGameTouchLayout.USE: {"label": "DOOR"},
 		TAUNT: {"slot": &"corner", "label": "TAUNT"},
 	})
 	if not res.ok:
-		DotLog.error("hs.touch", "touch layout refused", {"error": str(res.error)})
-		return DotGameTouchLayout.custom()
+		GSLog.error("hs.touch", "touch layout refused", {"error": str(res.error)})
+		return GSGameTouchLayout.custom()
 	return res.value
 
 
@@ -66,22 +66,22 @@ static func ids() -> Array[StringName]:
 
 
 ## A touch sampler on a touch device (it still reads keys), else the plain one.
-static func new_sampler(tunables: DotFpsTunables) -> DotFpsSampler:
-	if not DotPlatform.has_touch():
-		return DotFpsSampler.new(tunables)
-	return DotFpsTouchSampler.new(tunables)
+static func new_sampler(tunables: GSFpsTunables) -> GSFpsSampler:
+	if not GSPlatform.has_touch():
+		return GSFpsSampler.new(tunables)
+	return GSFpsTouchSampler.new(tunables)
 
 
 ## Builds the overlay under [param host] (the HUD), following [param rules] (the server's). [param menu_fn] gives the Menu button, which keeps its touches. Never null.
-static func build(client: Node, host: Node, sampler: DotFpsSampler, rules: DotMobileRules, menu_fn: Callable = Callable()) -> RefCounted:
+static func build(client: Node, host: Node, sampler: GSFpsSampler, rules: GSMobileRules, menu_fn: Callable = Callable()) -> RefCounted:
 	var made: RefCounted = (SelfScript as GDScript).new()
 	made.call(&"_setup", client, host, sampler, rules, menu_fn)
 	return made
 
 
-func _setup(client: Node, host: Node, sampler: DotFpsSampler, rules: DotMobileRules, menu_fn: Callable) -> void:
+func _setup(client: Node, host: Node, sampler: GSFpsSampler, rules: GSMobileRules, menu_fn: Callable) -> void:
 	_client = client
-	controls = DotMobileControls.new()
+	controls = GSMobileControls.new()
 	controls.name = "TouchControls"
 	controls.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if rules != null:
@@ -115,7 +115,7 @@ func active() -> bool:
 
 
 ## Follows the sampler the keys drive now (the player's own offline, the netcode's online) and pauses under a menu, the console, chat or the cover.
-func sync(sampler: DotFpsSampler, busy: bool) -> void:
+func sync(sampler: GSFpsSampler, busy: bool) -> void:
 	if controls == null:
 		return
 	if sampler != null and sampler != controls.sampler:

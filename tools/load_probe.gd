@@ -1,4 +1,4 @@
-extends DotLoadProbe
+extends GSLoadProbe
 
 const HsClient := preload("../game/hs_client.gd")
 

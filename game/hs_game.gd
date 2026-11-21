@@ -6,9 +6,9 @@ extends "hs_game_play.gd"
 
 
 
-func ensure_runtime() -> DotProfileRuntime:
+func ensure_runtime() -> GSProfileRuntime:
 	if profile_runtime == null:
-		profile_runtime = DotProfileRuntime.new()
+		profile_runtime = GSProfileRuntime.new()
 		# A method, not a lambda: a static may keep the runtime past the tree, and a lambda
 		# there retains this path-based base script until exit frees it mid-walk (exit 134).
 		profile_runtime.permit = _local_permit
@@ -31,7 +31,7 @@ func _ready() -> void:
 	var valid := config.validate()
 
 	if not valid.ok:
-		DotLog.error(CHANNEL, "the configuration is not usable", {"why": valid.error.message})
+		GSLog.error(CHANNEL, "the configuration is not usable", {"why": valid.error.message})
 		return
 
 	_round_seed = config.seed_value
@@ -61,22 +61,22 @@ func _ready() -> void:
 			var _added := catalogue.add_directory(root)
 		# Subscribed maps (solo) and delivered ones (online) that the content index holds, of the
 		# kind provides.json's `accepts` names. Own ids win; the index shows one session only.
-		catalogue.follow_content(DotContentIndex.shared(),
+		catalogue.follow_content(GSContentIndex.shared(),
 			PackedStringArray([HsCatalogue.CONTENT_KIND]))
 		# Laid out now, not on the first round: a warmup on an empty world is
 		# indistinguishable from a map that failed to load.
 		_lay_out_map()
 
 	if register_service:
-		DotRegistry.register(SERVICE, self)
+		GSRegistry.register(SERVICE, self)
 
-	DotLog.info(CHANNEL, "world ready", config.describe())
+	GSLog.info(CHANNEL, "world ready", config.describe())
 
 
-## The `<pack>/<subdir>` directories of the map packs a host running this game with no server has mounted for it (the client shell's Solo play, `client/solo.json`), read as the module reads its server's ([DotGameContent]). Empty elsewhere.
+## The `<pack>/<subdir>` directories of the map packs a host running this game with no server has mounted for it (the client shell's Solo play, `client/solo.json`), read as the module reads its server's ([GSGameContent]). Empty elsewhere.
 ## Looked up by name and duck-typed, because a delivered game may not name a host's class.
 static func solo_map_dirs(subdir: String) -> PackedStringArray:
-	var host: Object = DotRegistry.get_service(SOLO_SERVICE)
+	var host: Object = GSRegistry.get_service(SOLO_SERVICE)
 	if host == null or not host.has_method(&"map_dirs"):
 		return PackedStringArray()
 	return host.call(&"map_dirs", subdir)
@@ -84,7 +84,7 @@ static func solo_map_dirs(subdir: String) -> PackedStringArray:
 
 func _exit_tree() -> void:
 	if register_service:
-		DotRegistry.unregister_instance(SERVICE, self)
+		GSRegistry.unregister_instance(SERVICE, self)
 
 
 
@@ -109,7 +109,7 @@ func _on_body_rules_changed() -> void:
 ## Three layers: the building, the people, and the furniture.
 ## People do not collide with people: shoving is a race decided by who walked into whom, drawn in the past on every client, and a hider pinned by a seeker's body would be playing a different game. So `mp_solidplayers` is 0 by default (`_init`); a touch is a distance the server measures (`tag_range` 1.2 m, past the 0.7 m two bodies keep), so tagging works either way.
 func _build_physics() -> void:
-	physics = DotPhysicsLayout.custom(&"hideseek", [&"world", &"player", &"prop", &"toy", &"footprint"])
+	physics = GSPhysicsLayout.custom(&"hideseek", [&"world", &"player", &"prop", &"toy", &"footprint"])
 
 	for layer in physics.layers:
 		match layer.id:
@@ -128,7 +128,7 @@ func _build_physics() -> void:
 	var built := physics.build()
 
 	if not built.ok:
-		DotLog.error(CHANNEL, "the collision layout would not build", {"why": built.error.message})
+		GSLog.error(CHANNEL, "the collision layout would not build", {"why": built.error.message})
 		physics = null
 
 
@@ -144,7 +144,7 @@ func _apply_gravity() -> void:
 
 
 func _build_random() -> void:
-	random = DotRandomManager.new()
+	random = GSRandomManager.new()
 	random.name = "Random"
 	random.register_as_service = false
 	add_child(random)
@@ -157,7 +157,7 @@ func _build_props() -> void:
 	var count := props_catalogue.load_file()
 
 	if count == 0:
-		DotLog.error(CHANNEL, "no props: every map will be empty rooms", {})
+		GSLog.error(CHANNEL, "no props: every map will be empty rooms", {})
 
 
 func _build_map() -> void:
@@ -176,28 +176,28 @@ func _build_map() -> void:
 ## Health, and nothing that shoots. What still takes it away is a fall and an administrator,
 ## and both arrive as damage so dot-moderation's god and buddha work as they do everywhere.
 func _build_combat() -> void:
-	combat = DotCombatManager.new()
+	combat = GSCombatManager.new()
 	combat.name = "Combat"
 	combat.is_authority = authoritative
 	combat.register_service = false
 
-	var damage_rules := DotDamageRules.new()
+	var damage_rules := GSDamageRules.new()
 	damage_rules.friendly_fire = false
 	damage_rules.self_damage = true
 	combat.rules = damage_rules
 
-	var settings := DotCombatConfig.new()
+	var settings := GSCombatConfig.new()
 	settings.lag_compensation = false
 	combat.config = settings
 	# A trace nothing here fires, set anyway: without one dot-combat warns at every boot that
 	# shots pass through walls, and a warning about nothing is how a reader learns to skim.
-	var trace := DotTracePhysics.for_world(get_world_3d())
+	var trace := GSTracePhysics.for_world(get_world_3d())
 
 	if physics != null:
 		trace.collision_mask = physics.layer_mask(&"world") | physics.layer_mask(&"prop")
 
 	combat.trace = trace
-	combat.resolver = DotDamageResolver.with_rules(damage_rules)
+	combat.resolver = GSDamageResolver.with_rules(damage_rules)
 	add_child(combat)
 
 
@@ -205,39 +205,39 @@ func _build_effects() -> void:
 	if authoritative and not draw_world:
 		return
 
-	var fx := DotFxCatalogue.new()
+	var fx := GSFxCatalogue.new()
 
-	var go := DotFxDef.new()
+	var go := GSFxDef.new()
 	go.id = &"go"
-	go.kind = DotFxDef.Kind.SCREEN
+	go.kind = GSFxDef.Kind.SCREEN
 	go.flash_peak = 0.18
 	go.flash_colour = Color(0.98, 0.86, 0.35, 1.0)
 	go.flash_decay_ms = 380
 	fx.add(go)
 
-	var got := DotFxDef.new()
+	var got := GSFxDef.new()
 	got.id = &"caught"
-	got.kind = DotFxDef.Kind.SCREEN
+	got.kind = GSFxDef.Kind.SCREEN
 	got.flash_peak = 0.35
 	got.flash_colour = TEAM_COLOURS[1]
 	got.flash_decay_ms = 600
 	fx.add(got)
 
-	effects = DotFxManager.new()
+	effects = GSFxManager.new()
 	effects.name = "Effects"
 	effects.catalogue = fx
-	effects.config = DotFxConfig.new()
+	effects.config = GSFxConfig.new()
 	effects.register_as_service = false
 	add_child(effects)
-	DotLog.result(CHANNEL, "the effects layer", effects.setup())
+	GSLog.result(CHANNEL, "the effects layer", effects.setup())
 
 
 func _build_match() -> void:
-	match_node = DotMatch.new()
+	match_node = GSMatch.new()
 	match_node.name = "Match"
 	match_node.register_service = false
 
-	var match_config := DotMatchConfig.new()
+	var match_config := GSMatchConfig.new()
 	match_config.tick_rate = tick_rate
 	match_config.auto_start = false
 	match_config.log_transitions = false
@@ -246,7 +246,7 @@ func _build_match() -> void:
 	match_config.balance_between_rounds = false
 	match_node.config = match_config
 
-	var match_rules: DotMatchRules = HsRules.make()
+	var match_rules: GSMatchRules = HsRules.make()
 	match_rules.intermission_sec = config.intermission_seconds
 	match_rules.warmup_sec = config.warmup_seconds
 	match_rules.countdown_sec = 0.0
@@ -257,15 +257,15 @@ func _build_match() -> void:
 	match_node.rules = match_rules
 
 	# Scoped to the match node, which finds nothing: this game places its own players.
-	match_node.spawns_ref = DotNodeRef.of_path(^".")
+	match_node.spawns_ref = GSNodeRef.of_path(^".")
 	add_child(match_node)
 
 	match_node.round_started.connect(_on_round_started)
 	match_node.round_ended.connect(_on_round_ended)
 
-	var teams: Array[DotTeam] = [
-		DotTeam.make(HIDERS, TEAM_NAMES[0], TEAM_COLOURS[0]),
-		DotTeam.make(SEEKERS, TEAM_NAMES[1], TEAM_COLOURS[1]),
+	var teams: Array[GSTeam] = [
+		GSTeam.make(HIDERS, TEAM_NAMES[0], TEAM_COLOURS[0]),
+		GSTeam.make(SEEKERS, TEAM_NAMES[1], TEAM_COLOURS[1]),
 	]
 	match_node.teams.teams = teams
 	match_node.teams.force_balance = false
@@ -289,7 +289,7 @@ func _build_spectate() -> void:
 	var ready_now := spectate.setup()
 
 	if not ready_now.ok:
-		DotLog.warn(CHANNEL, "spectating is off", {"why": ready_now.error.message})
+		GSLog.warn(CHANNEL, "spectating is off", {"why": ready_now.error.message})
 		remove_child(spectate)
 		spectate.queue_free()
 		spectate = null
@@ -308,7 +308,7 @@ func _build_progress() -> void:
 	var ready_now := progress.setup(config.progress_directory, config.report_progress)
 
 	if not ready_now.ok:
-		DotLog.warn(CHANNEL, "progress is off", {"why": ready_now.error.message})
+		GSLog.warn(CHANNEL, "progress is off", {"why": ready_now.error.message})
 		remove_child(progress)
 		progress.queue_free()
 		progress = null
@@ -321,7 +321,7 @@ func _build_progress() -> void:
 
 ## The taunt list, on both ends: the server decides when a taunt plays, every client plays it.
 func _build_taunts() -> void:
-	taunts = DotPropTaunts.new()
+	taunts = GSPropTaunts.new()
 	taunts.auto_after = config.auto_taunt_seconds
 	taunts.auto_radius = config.auto_taunt_radius
 	taunts.cooldown = config.taunt_cooldown
@@ -336,7 +336,7 @@ func _build_taunts() -> void:
 		var _added := taunts.add_all(list)
 
 	if taunts.order.is_empty():
-		DotLog.warn(CHANNEL, "no taunts; a hider can only be found by looking", {"file": config.taunt_file})
+		GSLog.warn(CHANNEL, "no taunts; a hider can only be found by looking", {"file": config.taunt_file})
 
 
 ## Puts somebody in the world. [param wanted_side] is a side, or 0 to be placed.
@@ -369,16 +369,16 @@ func add_player(
 		var applied := physics.apply_to(player, &"player")
 
 		if not applied.ok:
-			DotLog.warn(CHANNEL, "a player could not be put on its collision layer", {"why": applied.error.message})
+			GSLog.warn(CHANNEL, "a player could not be put on its collision layer", {"why": applied.error.message})
 
 		_apply_body_mask(player)
 
 	var opened := entities.open(
-		DotEntity.KIND_PLAYER, player, &"", player_id, float(_tick) / float(maxi(tick_rate, 1))
+		GSEntity.KIND_PLAYER, player, &"", player_id, float(_tick) / float(maxi(tick_rate, 1))
 	)
-	player.entity_id = (opened.value as DotEntityHandle).id if opened.ok else 0
+	player.entity_id = (opened.value as GSEntityHandle).id if opened.ok else 0
 
-	var health := DotHealth.new()
+	var health := GSHealth.new()
 	health.name = "Health"
 	health.max_health = config.player_health
 	health.health = health.max_health
@@ -389,19 +389,19 @@ func add_player(
 		combat.register_health(player.entity_id, health)
 
 	if combat != null and player.controller != null:
-		var fall := DotFallDamage.new()
+		var fall := GSFallDamage.new()
 		fall.name = "FallDamage"
 		fall.rules = fall_rules
 		fall.victim = player.entity_id
-		fall.controller = DotNodeRef.of_path(player.controller.get_path())
-		fall.controller.mode = DotNodeRef.Mode.ABSOLUTE
-		fall.combat = DotNodeRef.of_path(combat.get_path())
-		fall.combat.mode = DotNodeRef.Mode.ABSOLUTE
+		fall.controller = GSNodeRef.of_path(player.controller.get_path())
+		fall.controller.mode = GSNodeRef.Mode.ABSOLUTE
+		fall.combat = GSNodeRef.of_path(combat.get_path())
+		fall.combat.mode = GSNodeRef.Mode.ABSOLUTE
 		# No ladders or noclip here; nobody is hurt between rounds (the intermission).
 		fall.context_checks = {&"protected": func() -> bool: return phase == Phase.IDLE}
 		player.add_child(fall)
 
-	health.died.connect(func(damage: DotDamage) -> void: _on_player_died(player, damage))
+	health.died.connect(func(damage: GSDamage) -> void: _on_player_died(player, damage))
 
 	players[player_id] = player
 	sides[player_id] = side
@@ -417,11 +417,11 @@ func add_player(
 		var seated := match_node.add_player(String(player_id), display_name, _tick, side)
 
 		if not seated.ok:
-			DotLog.error(CHANNEL, "dot-match refused a player", {"id": String(player_id), "why": seated.error.message})
+			GSLog.error(CHANNEL, "dot-match refused a player", {"id": String(player_id), "why": seated.error.message})
 
 	place_one(player)
 	apply_pass_through()
-	DotLog.debug(CHANNEL, "player joined", {"id": String(player_id), "side": side})
+	GSLog.debug(CHANNEL, "player joined", {"id": String(player_id), "side": side})
 	player_added.emit(player_id)
 	return player
 
@@ -446,7 +446,7 @@ func remove_player(player_id: StringName) -> void:
 
 	if combat != null and is_instance_valid(combat) and player.entity_id != 0:
 		combat.forget(player.entity_id)
-		var _closed := entities.close(player.entity_id, DotEntityTable.REASON_OWNER_LEFT)
+		var _closed := entities.close(player.entity_id, GSEntityTable.REASON_OWNER_LEFT)
 
 	if match_node != null:
 		match_node.remove_player(String(player_id))
@@ -518,14 +518,14 @@ func _resolve_stomps() -> void:
 		if not player.is_alive():
 			continue
 
-		var state: DotFpsState = player.controller.state
+		var state: GSFpsState = player.controller.state
 		var victim_id := stomp.find(player.entity_id, state.position, player.controller.tunables.radius,
 			-float(_pre_vy[id]), -1, hulls, _tick, tick_rate)
 
 		if victim_id == 0:
 			continue
 
-		var hit := DotDamage.make(player.entity_id, victim_id, stomp.amount(), null)
+		var hit := GSDamage.make(player.entity_id, victim_id, stomp.amount(), null)
 		hit.tick = _tick
 		hit.point = state.position
 		hit.context = {"why": &"stomp", "ignores_teams": true}

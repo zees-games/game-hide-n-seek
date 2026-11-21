@@ -1,6 +1,6 @@
-extends DotVoteRoundGame
+extends GSVoteRoundGame
 
-## The players choose the next map: dot-vote's [DotVoteRoundGame] with Hide and Seek's names. A ballot opens [member open_after_sec] into
+## The players choose the next map: dot-vote's [GSVoteRoundGame] with Hide and Seek's names. A ballot opens [member open_after_sec] into
 ## the LAST round on a map ([member due_fn]) and applies when it ends; the rest is dot-vote's settings (`user://cfg/hideseek_vote.json`,
 ## `game.yml` metadata `map_vote:`). When the rotation alone decides, the operator turns the vote off with `{"enabled": false}`.
 

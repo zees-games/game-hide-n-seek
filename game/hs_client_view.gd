@@ -9,7 +9,7 @@ func _watched_through_eyes() -> HsPlayer:
 
 	var mode := game.spectate.mode_of(player.player_id)
 
-	if mode != DotSpectatorView.Mode.FIRST_PERSON and mode != DotSpectatorView.Mode.FREEZE_CAM:
+	if mode != GSSpectatorView.Mode.FIRST_PERSON and mode != GSSpectatorView.Mode.FREEZE_CAM:
 		return null
 
 	return game.players.get(StringName(game.spectate.watching(player.player_id)))
@@ -35,7 +35,7 @@ func _drive_spectator_camera() -> bool:
 			_arm = null
 
 	# Chase and death cameras pulled out of the house by dot-spectate, given the level.
-	var manager: DotSpectatorManager = game.spectate.manager
+	var manager: GSSpectatorManager = game.spectate.manager
 	if manager != null and manager.camera_world == null and game.physics != null:
 		manager.camera_world = camera.get_world_3d()
 		manager.camera_mask = game.physics.layer_mask(&"world") | game.physics.layer_mask(&"prop")
@@ -87,7 +87,7 @@ func is_roaming() -> bool:
 ## looked. The pose is kept in the manager too, so a later hand-over starts from it.
 func _fly_free_camera() -> Transform3D:
 	if _free_cam == null:
-		_free_cam = DotSpectatorFreeCam.new()
+		_free_cam = GSSpectatorFreeCam.new()
 		_free_cam.rules = game.spectate_rules
 		_free_cam.seed_from(camera.global_transform)
 
@@ -140,7 +140,7 @@ func spectate_step(direction: int) -> void:
 ## their side's colour, then every beacon. Returns how many are shown. Static so the net suite
 ## drives this and not a copy. [param first_person] hides [param own]'s body.
 static func present_frame(
-	p_net: DotNetManager,
+	p_net: GSNetManager,
 	p_game: HsGame,
 	own: HsPlayer,
 	first_person: bool,
@@ -192,10 +192,10 @@ static func drawn_position(body: HsPlayer, remote: bool) -> Vector3:
 
 
 ## The sound manager the flashlight clicks play through, or null before audio is up.
-func _flash_audio_ref() -> DotNodeRef:
+func _flash_audio_ref() -> GSNodeRef:
 	if audio == null or audio.manager == null or not audio.manager.is_inside_tree():
 		return null
-	return DotNodeRef.of_path(audio.manager.get_path())
+	return GSNodeRef.of_path(audio.manager.get_path())
 
 
 ## The light on the eye follows the server's state (but not for 0.4 s after our own switch, which is shown at once); everybody else's beam, and ours when the camera is not our eye, comes from the crowd.
@@ -204,7 +204,7 @@ func _present_flashlights(delta: float) -> void:
 	var map_id := str(game.map_doc.get("id", ""))
 
 	if flash == null or not is_instance_valid(flash):
-		flash = DotFlashlight.new()
+		flash = GSFlashlight.new()
 		flash.name = "Flashlight"
 		flash.config = cfg
 		flash.handle_input = false
@@ -213,10 +213,10 @@ func _present_flashlights(delta: float) -> void:
 		flash.switch_requested.connect(_on_flash_switch)
 		camera.add_child(flash)
 
-	flash.allowed = DotFlashlightRules.allowed_on(cfg, map_id)
+	flash.allowed = GSFlashlightRules.allowed_on(cfg, map_id)
 
 	if flash_crowd == null:
-		flash_crowd = DotFlashlightCrowd.new()
+		flash_crowd = GSFlashlightCrowd.new()
 		flash_crowd.name = "Flashlights"
 		flash_crowd.config = cfg
 		flash_crowd.audio = _flash_audio_ref()

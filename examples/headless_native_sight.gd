@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
@@ -25,7 +25,7 @@ var _finished := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -35,14 +35,14 @@ func _run() -> void:
 	_entered += 1
 	print("the library has the bodies in sight")
 	_check(HsBots.sight_mode == "native", "HsBots.sight_mode is native without the game turning it on")
-	var loaded := DotSim.has(&"body_sight") and DotSim.has(&"sight")
+	var loaded := GSSim.has(&"body_sight") and GSSim.has(&"sight")
 	if not loaded:
 		print("  dot-sim's body_sight module is not loaded: the native half is skipped")
 		_check((OS.get_environment("GS_SIM_REQUIRE_NATIVE") if OS.has_environment("GS_SIM_REQUIRE_NATIVE") else OS.get_environment("DOT_SIM_REQUIRE_NATIVE")) != "1", "the library is loaded (GS_SIM_REQUIRE_NATIVE=1)")
 		_finished += 1
 		_report_sections(_entered, _finished, SECTIONS - 3, 2)
 		return
-	_check(true, "the library has DotSimBodySight")
+	_check(true, "the library has GSSimBodySight")
 	_finished += 1
 
 	_entered += 1
@@ -111,7 +111,7 @@ func _new_game(map_id: String) -> HsGame:
 	game.register_service = false
 	add_child(game)
 	game.set_physics_process(false)
-	var _set := DotBotSettings.of(game).set_difficulty("medium")
+	var _set := GSBotSettings.of(game).set_difficulty("medium")
 	await get_tree().physics_frame
 	for i in range(BOTS):
 		var bot := game.add_player(StringName("u%d" % (900 + i)), "Bot%d" % i)

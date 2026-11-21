@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
@@ -47,7 +47,7 @@ var _section_started := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -211,7 +211,7 @@ func _check_spawns(game: HsGame, doc: Dictionary) -> void:
 
 ## Every hider spawn must be joined, on the bots' walkable mesh, to the first seeker spawn: a hider cut off from the seekers survives every round whatever the bots do.
 func _check_reachable(game: HsGame, id: StringName) -> void:
-	var nav: DotBotNav = game.bots.nav
+	var nav: GSBotNav = game.bots.nav
 
 	# The survey as a round runs it, up to the joins: the narrower re-bake and the island joins are part of it, the annotation is not.
 	for _i in range(600):
@@ -245,7 +245,7 @@ func _check_reachable(game: HsGame, id: StringName) -> void:
 ## Every spawn, seekers' as much as hiders', must stand in the component (islands joined by ride edges) of seeker spawn 0, and that component must be the biggest of the walkable mesh or hold at least [constant MIN_SPAWN_SHARE] of all walkable area: a seeker born on a few square metres of cut-off mesh has nowhere to walk, so the stand-in seekers never move.
 ## Maps in [constant SPAWN_COMPONENT_BASELINE] play in a component under that share (the rest of their mesh is not joined to it); each must stay so until fixed.
 func _check_spawn_islands(game: HsGame, id: StringName) -> void:
-	var nav: DotBotNav = game.bots.nav
+	var nav: GSBotNav = game.bots.nav
 	var all := nav.islands()
 	if all.is_empty():
 		_check(false, "every spawn is on one walkable component holding the play area", "%s: the mesh has no islands" % id)
@@ -285,8 +285,8 @@ func _check_spawn_islands(game: HsGame, id: StringName) -> void:
 	_check(stranded.is_empty() and holds, "every spawn is on one walkable component holding the play area", detail)
 
 
-## A point on an island's first polygon, for asking [method DotBotNav.joined] about the island as a whole.
-func _island_point(nav: DotBotNav, island: Dictionary) -> Vector3:
+## A point on an island's first polygon, for asking [method GSBotNav.joined] about the island as a whole.
+func _island_point(nav: GSBotNav, island: Dictionary) -> Vector3:
 	var vertices := nav.mesh.get_vertices()
 	var poly := nav.mesh.get_polygon(int((island["polygons"] as PackedInt32Array)[0]))
 	var centre := Vector3.ZERO
@@ -349,7 +349,7 @@ func _check_toys(game: HsGame, doc: Dictionary) -> void:
 ## What a toy's own shapes, lifted five centimetres off the floor it stands on, are inside of
 ## the map's walls and furniture, or "". Every toy's colliders are left out: a see-saw's plank
 ## lies on its own base.
-func _toy_hits(game: HsGame, toy: DotPropBody, own: Array[RID]) -> String:
+func _toy_hits(game: HsGame, toy: GSPropBody, own: Array[RID]) -> String:
 	var space := game.get_world_3d().direct_space_state
 	for part: CollisionObject3D in [toy.fixed, toy.body]:
 		if part == null:
@@ -527,11 +527,11 @@ func _world(id: StringName, drawn := false) -> HsGame:
 	return game
 
 
-## dot-core's [DotCollisionAudit] over the map as a client draws it: visible geometry with no shape near it, which a player walks through. Lenient (a shape anywhere under the map that the mesh touches covers it), because drawing is in `Drawn` and shapes in `Solid`.
+## dot-core's [GSCollisionAudit] over the map as a client draws it: visible geometry with no shape near it, which a player walks through. Lenient (a shape anywhere under the map that the mesh touches covers it), because drawing is in `Drawn` and shapes in `Solid`.
 ## The exact half: a visible non-solid box thicker than PAINT_THICKNESS must sit inside a solid one (embers in a hearth), never be a wall or a crate.
 func _audit_colliderless(id: StringName, doc: Dictionary) -> void:
 	var drawn := await _world(id, true)
-	var res := DotCollisionAudit.audit(drawn.map, true)
+	var res := GSCollisionAudit.audit(drawn.map, true)
 	var found := 0
 	var ghosts := 0
 	var thick: Array[String] = []
@@ -555,7 +555,7 @@ func _audit_colliderless(id: StringName, doc: Dictionary) -> void:
 				thick.append("%s at %s" % [box["mat"], box["at"]])
 
 	if res.ok:
-		var report: DotCollisionAudit = res.value
+		var report: GSCollisionAudit = res.value
 		found = report.count()
 		print("  collision audit: %d meshes with no shape near them of %d, %d visible boxes not solid" % [found, report.examined, ghosts])
 
@@ -563,7 +563,7 @@ func _audit_colliderless(id: StringName, doc: Dictionary) -> void:
 			print("  %s" % line)
 
 	var terrain_fault := _terrain_fault(drawn) if doc.has("terrain") else ""
-	_check(res.ok and found == 0 and (res.value as DotCollisionAudit).examined > 0 and terrain_fault == "",
+	_check(res.ok and found == 0 and (res.value as GSCollisionAudit).examined > 0 and terrain_fault == "",
 		"nothing drawn is walked through, and a map's terrain is ground", terrain_fault if res.ok else res.error.message)
 	_check(thick.is_empty(), "every box that is drawn and not solid is paint", ", ".join(thick))
 	await _dispose(drawn)
@@ -590,7 +590,7 @@ func _test_drawn_worlds(ids: Array) -> void:
 		var batches_before := 0
 		for child in game.map.get_node("Drawn").get_children():
 			batches_before += 1 if child.has_meta(&"hs_box_batch") else 0
-		var got: DotResult = await game.map.load_world()
+		var got: GSResult = await game.map.load_world()
 		var drawn: Node3D = game.map.drawn_world.root if game.map.drawn_world != null else null
 		var boxes_left := 0
 		for child in game.map.get_node("Drawn").get_children():
@@ -619,10 +619,10 @@ func _test_drawn_worlds(ids: Array) -> void:
 		_check(drawn != null and absf(low.x) < 0.5 and absf(low.z) < 0.5 and absf(low.y) < 0.5 and absf(high.x) < 1.0 and absf(high.z) < 1.0 and absf(high.y) < ROOF_SLACK,
 			"%s: the pack lines up with the boxes" % id, "low corner %s apart, high corner %s apart" % [low, high])
 		await get_tree().process_frame
-		var res := DotCollisionAudit.audit(game.map, true)
-		var found := (res.value as DotCollisionAudit).count() if res.ok else -1
+		var res := GSCollisionAudit.audit(game.map, true)
+		var found := (res.value as GSCollisionAudit).count() if res.ok else -1
 		if res.ok:
-			for line in (res.value as DotCollisionAudit).describe_lines().slice(1, 8):
+			for line in (res.value as GSCollisionAudit).describe_lines().slice(1, 8):
 				print("  %s" % line)
 		_check(res.ok and found == 0, "%s: nothing the pack draws is walked through" % id, "%d meshes with no shape near them" % found)
 		await _dispose(game)

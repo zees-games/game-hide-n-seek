@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
@@ -62,7 +62,7 @@ var _expected_checks := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -147,7 +147,7 @@ func _test_the_tube() -> void:
 	_finished()
 
 
-## Trees and furniture collide as their shapes (dot-props' DotPropPieces, `props/pieces.json`),
+## Trees and furniture collide as their shapes (dot-props' GSPropPieces, `props/pieces.json`),
 ## not as one box: Christian's first play test circled the trees wanting their branches and met
 ## the canopy's box at arm's length. Each prop stands alone in a garden built here.
 const GARDEN := [
@@ -181,7 +181,7 @@ func _test_props() -> void:
 		"spawns": {"hiders": [{"at": [0.0, 0.05, 30.0]}], "seekers": [{"at": [5.0, 0.05, 30.0]}]},
 	}
 	var valid := HsMapDoc.validate(doc)
-	var built: DotResult = game.build_map(valid.value) if valid.ok else valid
+	var built: GSResult = game.build_map(valid.value) if valid.ok else valid
 	_check(built.ok and not game.props_catalogue.pieces_of(&"nature_tree_default").is_empty(),
 		"the garden builds, and a tree has pieces to collide as", str(built.error.message if not built.ok else ""))
 	var body := game.add_player(&"u1", "Climber")
@@ -201,14 +201,14 @@ func _test_props() -> void:
 	# The commonest tree on the maps has stubby branches either side of its trunk, 1.1 m and
 	# 1.5 m up. Run at one, jump (tucking the legs up), and stand on it. Located by `_search`.
 	var low := await _jump_onto(game, body, Vector3(0.0, 0.05, 5.0), 0.0, Vector3.ZERO, 2.2)
-	_check(low.y > 0.9 and body.controller.state.mode == DotFpsState.Mode.GROUND,
+	_check(low.y > 0.9 and body.controller.state.mode == GSFpsState.Mode.GROUND,
 		"a jump lands on a tree's low branch, and the player stands on it", "feet at %.2f" % low.y)
 	var high := await _jump_onto(game, body, Vector3(4.92, 0.05, 0.87), 80.0, Vector3.ZERO, 3.4)
-	_check(high.y > 1.4 and body.controller.state.mode == DotFpsState.Mode.GROUND,
+	_check(high.y > 1.4 and body.controller.state.mode == GSFpsState.Mode.GROUND,
 		"a crouch-jump lands on its branch 1.5 m up", "feet at %.2f" % high.y)
 	var stood := high.y
 	for _i in range(TICK_RATE * 2):
-		body.controller.apply_command(DotFpsCommand.new())
+		body.controller.apply_command(GSFpsCommand.new())
 		await _step(game)
 	_check(body.controller.state.position.y > stood - 0.1 and stood > 1.4,
 		"and stays up there standing still for two seconds", "feet at %.2f" % body.controller.state.position.y)
@@ -222,10 +222,10 @@ func _test_props() -> void:
 		var feet := await _jump_onto(game, body, centre + Vector3(back.x, 0.05, back.z), yaw, centre, climb[2], climb[3])
 		var landed := feet.y
 		for _i in range(TICK_RATE * 2):
-			body.controller.apply_command(DotFpsCommand.new())
+			body.controller.apply_command(GSFpsCommand.new())
 			await _step(game)
 		_check(landed > float(climb[4]) and body.controller.state.position.y > landed - 0.1
-			and body.controller.state.mode == DotFpsState.Mode.GROUND and body.controller.state.crouch_fraction < 0.05,
+			and body.controller.state.mode == GSFpsState.Mode.GROUND and body.controller.state.crouch_fraction < 0.05,
 			"%s, and stands up there two seconds" % climb[5], "feet at %.2f, then %.2f, crouch %.2f" % [landed, body.controller.state.position.y, body.controller.state.crouch_fraction])
 
 	# A table is a top and four legs: a seeker's eye sees through under it, and a box would not.
@@ -250,7 +250,7 @@ func _search(prop: StringName) -> void:
 		"props": [{"id": String(prop), "at": [0.0, 0.0, 0.0]}],
 		"spawns": {"hiders": [{"at": [0.0, 0.05, 30.0]}], "seekers": [{"at": [5.0, 0.05, 30.0]}]},
 	}
-	var _b: DotResult = game.build_map(HsMapDoc.validate(doc).value)
+	var _b: GSResult = game.build_map(HsMapDoc.validate(doc).value)
 	var body := game.add_player(&"u1", "Climber")
 	await _physics_frame()
 	for a in range(0, 360, 20):
@@ -301,15 +301,15 @@ func _test_door_corners() -> void:
 		var hop := -1
 		var landed := false
 		for i in range(int(TICK_RATE * 2.5)):
-			var command := DotFpsCommand.new()
+			var command := GSFpsCommand.new()
 			command.yaw = yaw
 			command.move = Vector2(0.0, 1.0)
 			if i == TICK_RATE:
-				command.set_button(DotFpsCommand.BUTTON_JUMP, true)
+				command.set_button(GSFpsCommand.BUTTON_JUMP, true)
 				hop = i
 			body.controller.apply_command(command)
 			await _step(game)
-			if hop >= 0 and i - hop > 4 and body.controller.state.mode == DotFpsState.Mode.GROUND:
+			if hop >= 0 and i - hop > 4 and body.controller.state.mode == GSFpsState.Mode.GROUND:
 				landed = true
 				break
 		tried += 1
@@ -333,13 +333,13 @@ func _jump_onto(game: HsGame, body: HsPlayer, start: Vector3, yaw: float, centre
 	var jumped := -1
 	for i in range(TICK_RATE * 3):
 		var at := body.controller.state.position
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		command.yaw = yaw
 		command.move = Vector2(0.0, 1.0) if jumped < 0 or i - jumped < TICK_RATE / 2 else Vector2.ZERO
 		if jumped < 0 and Vector2(centre.x - at.x, centre.z - at.z).length() <= jump_at:
-			command.set_button(DotFpsCommand.BUTTON_JUMP, true)
+			command.set_button(GSFpsCommand.BUTTON_JUMP, true)
 			jumped = i
-		command.set_button(DotFpsCommand.BUTTON_CROUCH, tuck and jumped >= 0 and i - jumped > 4 and i - jumped < TICK_RATE / 2)
+		command.set_button(GSFpsCommand.BUTTON_CROUCH, tuck and jumped >= 0 and i - jumped > 4 and i - jumped < TICK_RATE / 2)
 		body.controller.apply_command(command)
 		await _step(game)
 	return body.controller.state.position
@@ -367,10 +367,10 @@ func _world(map_id: String) -> HsGame:
 
 
 func _drive(body: HsPlayer, yaw: float, crouched: bool) -> void:
-	var command := DotFpsCommand.new()
+	var command := GSFpsCommand.new()
 	command.yaw = yaw
 	command.move = Vector2(0.0, 1.0)
-	command.set_button(DotFpsCommand.BUTTON_CROUCH, crouched)
+	command.set_button(GSFpsCommand.BUTTON_CROUCH, crouched)
 	body.controller.apply_command(command)
 
 

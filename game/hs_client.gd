@@ -7,7 +7,7 @@ extends "hs_client_view.gd"
 func _ready() -> void:
 	# First, before anything can be drawn: the platform puts the loading cover up, held until the
 	# player exists and the camera is current, and finds the link.
-	platform = DotGameClient.new()
+	platform = GSGameClient.new()
 	platform.name = "Platform"
 	platform.force_offline = force_offline
 	platform.spawned_fn = func() -> bool: return player != null and camera != null and camera.is_inside_tree()
@@ -20,7 +20,7 @@ func _ready() -> void:
 	var loaded := binder.load_layers()
 
 	if not loaded.ok:
-		DotGameConfigBinder.fail_boot(get_tree(), loaded)
+		GSGameConfigBinder.fail_boot(get_tree(), loaded)
 		return
 
 	link = platform.link as Node
@@ -53,12 +53,12 @@ func _ready() -> void:
 		_start_offline()
 	else:
 		var netted := _build_netcode()
-		DotLog.result(CHANNEL, "the netcode", netted)
+		GSLog.result(CHANNEL, "the netcode", netted)
 		if netted.ok and link != null:
 			_start_remote_workbench()
 
 
-## The load gate is [member DotGameClient.gate]: covered, and the local body and the input still, until the level is built, the local player exists and its camera is current.
+## The load gate is [member GSGameClient.gate]: covered, and the local body and the input still, until the level is built, the local player exists and its camera is current.
 ## Without it the first frames showed a half-built world, and a map change tore the level down in front of a body that kept falling. A frozen player is skipped by [method HsPlayer.simulate], which the world calls by name.
 
 ## A map is built: held from the moment the old one starts to go, released once the new one
@@ -92,7 +92,7 @@ func _start_offline() -> void:
 			chat.say_locally("Achievement: %s (+%d)" % [title, points], Color(0.98, 0.84, 0.40))
 	)
 	game.start()
-	DotLog.result(CHANNEL, "chat, offline", chat.attach(null))
+	GSLog.result(CHANNEL, "chat, offline", chat.attach(null))
 
 
 ## A solo stand-in's name: the server's list, through dot-bot's pick, so solo and a server
@@ -100,28 +100,28 @@ func _start_offline() -> void:
 static func _bot_name(index: int) -> String:
 	var taken: Array = []
 	for i in range(index):
-		taken.append(DotBotNames.pick(taken, i, HsGame.BOT_NAMES))
-	return DotBotNames.pick(taken, index, HsGame.BOT_NAMES)
+		taken.append(GSBotNames.pick(taken, i, HsGame.BOT_NAMES))
+	return GSBotNames.pick(taken, index, HsGame.BOT_NAMES)
 
 
 ## Online: no local trust and no panel until the server names this player an admin (sv_workbench_remote). The sets are the game's own; the rows are the server's, through the bridge's profile link.
 func _start_remote_workbench() -> void:
 	if workbench_remote == null:
 		return
-	var wb := DotGameWorkbench.new()
+	var wb := GSGameWorkbench.new()
 	wb.name = "Workbench"
 	wb.remote_client = workbench_remote
 	wb.remote_fn = func() -> bool: return true
 	if game.config_binder != null:
-		for set: DotProfileSet in game.config_binder.profile_sets():
+		for set: GSProfileSet in game.config_binder.profile_sets():
 			wb.add_set(set, "Game settings: %s" % set.rel_path.trim_prefix("config_"))
 	var _fl := game.flashlight_conf()
 	if game.flashlight_binder != null:
-		for set: DotProfileSet in game.flashlight_binder.profile_sets():
+		for set: GSProfileSet in game.flashlight_binder.profile_sets():
 			wb.add_set(set, "Flashlight")
 	add_child(wb)
 	var started := wb.start(game.ensure_runtime())
-	DotLog.result(CHANNEL, "the remote workbench", started)
+	GSLog.result(CHANNEL, "the remote workbench", started)
 	if not started.ok:
 		wb.queue_free()
 		return
@@ -129,15 +129,15 @@ func _start_remote_workbench() -> void:
 	platform.add_workbench(wb)
 
 
-func _build_netcode() -> DotResult:
-	net = DotNetManager.new()
+func _build_netcode() -> GSResult:
+	net = GSNetManager.new()
 	net.name = "Net"
 	net.is_server = false
 	net.local_peer_id = multiplayer.get_unique_id() if multiplayer != null else 2
 	net.auto_tick = false
 	net.config_file = ""
 
-	var net_config := DotNetConfig.new()
+	var net_config := GSNetConfig.new()
 	net_config.tick_rate = game.tick_rate
 	net_config.snapshot_rate = HsGame.NET_SNAPSHOT_RATE
 	net_config.enable_prediction = true
@@ -175,9 +175,9 @@ func _build_netcode() -> DotResult:
 	# And mp_forcecamera / mp_freeroam*: this end flies the spectator's free camera.
 	var _spectate := game.spectate_rules.follow_cvars(link)
 	# Before the seal and in the server's order (after the bridge), or the actions stay local.
-	DotLog.result(CHANNEL, "avatar action message", DotGameAvatarActionMessage.register(net))
+	GSLog.result(CHANNEL, "avatar action message", GSGameAvatarActionMessage.register(net))
 	# The server's order again (after the avatar frame): the remote workbench's frame.
-	workbench_remote = DotGameWorkbenchRemoteClient.attach(net)
+	workbench_remote = GSGameWorkbenchRemoteClient.attach(net)
 	net.messages.seal()
 
 	bridge.hello_received.connect(_on_hello)
@@ -197,7 +197,7 @@ func _build_netcode() -> DotResult:
 		bridge.rtt_source = func() -> float:
 			return float(maxi(0, int(link.call("ping_ms"))))
 
-	DotLog.result(CHANNEL, "chat and voice", chat.attach(bridge))
+	GSLog.result(CHANNEL, "chat and voice", chat.attach(bridge))
 
 	if link != null and link.has_method("is_playing") and bool(link.call("is_playing")):
 		_say_ready()
@@ -307,7 +307,7 @@ func is_seeker() -> bool:
 
 func _on_map(map_id: StringName) -> void:
 	if flash != null:
-		flash.allowed = DotFlashlightRules.allowed_on(game.flashlight_conf(), str(map_id))
+		flash.allowed = GSFlashlightRules.allowed_on(game.flashlight_conf(), str(map_id))
 
 	if ragdolls != null:
 		# A body on the old map would hang in the new one's air.
@@ -381,7 +381,7 @@ func _physics_process(delta: float) -> void:
 	if _covered():
 		return
 
-	var move := _sampler.sample(delta) if _sampler != null else DotFpsCommand.new()
+	var move := _sampler.sample(delta) if _sampler != null else GSFpsCommand.new()
 	move.set_button(HsPlayer.USE_BUTTON, use)
 
 	if is_roaming():
@@ -461,7 +461,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _covered():
 		return
 
-	# Tab, M and a click taking the pointer back are the platform's (DotGameClient).
+	# Tab, M and a click taking the pointer back are the platform's (GSGameClient).
 	if event.is_action_pressed("ui_cancel"):
 		if settings != null:
 			settings.open()
@@ -480,7 +480,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 
 	# A tap or a left click while out; is_next_press skips the mouse press the engine emulates from a touch.
-	if is_spectating() and DotSpectatorHost.is_next_press(event):
+	if is_spectating() and GSSpectatorHost.is_next_press(event):
 		spectate_step(1)
 		return
 

@@ -53,24 +53,24 @@ const DEFAULT_ENV := {
 
 
 ## Reads a document from JSON text, and checks it.
-static func parse_json(text: String, origin: String = "") -> DotResult:
+static func parse_json(text: String, origin: String = "") -> GSResult:
 	var json := JSON.new()
 
 	if json.parse(text) != OK:
-		return DotResult.fail(
-			DotError.CODE_PARSE, "The map is not JSON.",
+		return GSResult.fail(
+			GSError.CODE_PARSE, "The map is not JSON.",
 			"%s line %d: %s" % [origin, json.get_error_line(), json.get_error_message()]
 		)
 
 	if typeof(json.data) != TYPE_DICTIONARY:
-		return DotResult.fail(DotError.CODE_PARSE, "The map is not a JSON object.", origin)
+		return GSResult.fail(GSError.CODE_PARSE, "The map is not a JSON object.", origin)
 
 	return validate(json.data as Dictionary)
 
 
 ## Checks a document and returns a normalised copy of it: every optional field present, every
 ## position three numbers.
-static func validate(source: Dictionary) -> DotResult:
+static func validate(source: Dictionary) -> GSResult:
 	if int(source.get("format", 0)) != FORMAT:
 		return _refuse("format is %s; this build reads %d" % [str(source.get("format")), FORMAT], source)
 
@@ -124,7 +124,7 @@ static func validate(source: Dictionary) -> DotResult:
 	if source.has("terrain"):
 		if not (source["terrain"] is Dictionary):
 			return _refuse("terrain is not a dictionary", source)
-		var ground := DotMapTerrain.from_dict(source["terrain"])
+		var ground := GSMapTerrain.from_dict(source["terrain"])
 		if not ground.ok:
 			return _refuse("terrain: %s" % str(ground), source)
 		var raw_ground: Dictionary = (source["terrain"] as Dictionary).duplicate()
@@ -188,7 +188,7 @@ static func validate(source: Dictionary) -> DotResult:
 	if bad != "":
 		return _refuse(bad, source)
 
-	return DotResult.success(doc)
+	return GSResult.success(doc)
 
 
 static func _lights(source: Dictionary, out: Dictionary) -> String:
@@ -208,7 +208,7 @@ static func _lights(source: Dictionary, out: Dictionary) -> String:
 		return "%d lights; this server takes at most %d (max_map_lights, 0 = no limit)" % [lights.size(), max_lights]
 
 	if _over(lights.size(), lights_warn):
-		DotLog.warn(CHANNEL, "a map has more lights than the warning level; each one costs every frame", {
+		GSLog.warn(CHANNEL, "a map has more lights than the warning level; each one costs every frame", {
 			"map": str(source.get("id", "?")), "lights": lights.size(), "warn_at": lights_warn,
 		})
 
@@ -217,12 +217,12 @@ static func _lights(source: Dictionary, out: Dictionary) -> String:
 
 
 static func _toys(source: Dictionary, out: Dictionary) -> String:
-	# Toys: dot-props' DotPropBodyBox placements, `{toy, at, yaw, links?, on?}`. Which ids exist
+	# Toys: dot-props' GSPropBodyBox placements, `{toy, at, yaw, links?, on?}`. Which ids exist
 	# is the catalogue's to say when the map is built (an unknown one is left out and listed),
 	# so a map with a toy a newer dot-props has still plays on an older server.
 	var toys: Array = []
 	for raw: Variant in source.get("toys", []):
-		var toy := DotPropBodyBox.normal_placement(raw)
+		var toy := GSPropBodyBox.normal_placement(raw)
 		if toy.is_empty():
 			return "toy %d is not {toy, at}" % toys.size()
 		toys.append(toy)
@@ -370,11 +370,11 @@ static func _door(raw: Variant) -> Dictionary:
 
 ## A normalised document as bytes: JSON, deflated, behind both its lengths.
 static func encode(doc: Dictionary) -> PackedByteArray:
-	return DotWireDoc.encode(doc)
+	return GSWireDoc.encode(doc)
 
 
-static func decode(bytes: PackedByteArray) -> DotResult:
-	var text := DotWireDoc.decode_text(bytes, "map")
+static func decode(bytes: PackedByteArray) -> GSResult:
+	var text := GSWireDoc.decode_text(bytes, "map")
 	if not text.ok:
 		return text
 	return parse_json(text.value, "wire")
@@ -382,7 +382,7 @@ static func decode(bytes: PackedByteArray) -> DotResult:
 
 ## A short fingerprint of a document, for a log line and for two ends to compare.
 static func digest(doc: Dictionary) -> String:
-	return DotWireDoc.digest(doc)
+	return GSWireDoc.digest(doc)
 
 
 
@@ -461,7 +461,7 @@ static func apply_limits(config: Object) -> void:
 	lights_warn = int(config.get("map_lights_warn"))
 
 
-static func _refuse(why: String, doc: Dictionary) -> DotResult:
-	return DotResult.fail(
-		DotError.CODE_INVALID, "The map is refused: %s." % why, str(doc.get("id", "?"))
+static func _refuse(why: String, doc: Dictionary) -> GSResult:
+	return GSResult.fail(
+		GSError.CODE_INVALID, "The map is refused: %s." % why, str(doc.get("id", "?"))
 	)

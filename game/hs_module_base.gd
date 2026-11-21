@@ -1,4 +1,4 @@
-extends DotGameModule
+extends GSGameModule
 ## The constants and instance state of [HsModule] (its base layer, split off for size); never loaded on its own.
 
 const HsNetBridge := preload("net/hs_net_bridge.gd")
@@ -29,14 +29,14 @@ const ALIASES := {
 const ROSTER_INTERVAL := 2.0
 
 ## The `hs_bots` cvar, held so the tick does not look it up sixty times a second.
-var _bots: DotConVar = null
+var _bots: GSConVar = null
 
 ## `mp_forcecamera`, kept so the deprecated `hs_spectate_camera` writes through it.
 var _force_camera_cvar: Object = null
 
 ## How many stand-ins, from how many people: dot-server's one rule for every game. See
 ## [method _keep_the_round_full].
-var _quota: DotBotQuota = null
+var _quota: GSBotQuota = null
 
 var _since_roster_check: float = 0.0
 
@@ -47,7 +47,7 @@ var _bot_ids: Array[StringName] = []
 var vote: HsVote = null
 
 ## dot-workbench over the config and the block rules; null before the module loads.
-var workbench: DotGameWorkbench = null
+var workbench: GSGameWorkbench = null
 
 ## The drawn ballot's notice topic. The client shell draws one menu per topic.
 const MAP_BALLOT_TOPIC := &"map_ballot"

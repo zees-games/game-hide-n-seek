@@ -1,4 +1,4 @@
-extends DotGameNetIo
+extends GSGameNetIo
 ## The signals, state and wire helpers of [HsNetBridge] (a base layer, split off for size); never used on its own.
 
 
@@ -16,7 +16,7 @@ const HsPlayer := preload("../hs_player.gd")
 
 const CHANNEL := "hs.net"
 
-## Bytes of acknowledgement in front of every input packet. [method DotNetManager.encode_ack].
+## Bytes of acknowledgement in front of every input packet. [method GSNetManager.encode_ack].
 const ACK_BYTES := 4
 
 ## Commands in every input packet: this tick's and the four before it, so a lost packet costs no tick unless the next four are lost too.
@@ -45,7 +45,7 @@ signal death_received(player_id: int, by: int, why: StringName)
 signal notice_received(text: String)
 
 ## Client side: the server moved this client's own camera. [param mode] is
-## [enum DotSpectatorView.Mode]; the view has already been adopted by the world's mirror.
+## [enum GSSpectatorView.Mode]; the view has already been adopted by the world's mirror.
 signal spectate_received(viewer: int, mode: int, target: int)
 
 ## Client side: the map was rebuilt from what the server sent. The HUD names it.
@@ -60,11 +60,11 @@ signal door_received(index: int, open: bool, tick: int)
 ## Client side: a hider was caught. [param by] is the seeker's session, 0 for a fall.
 signal caught_received(player_id: int, by: int, how: StringName)
 
-## Somebody pressed Enter. Server side. The bridge carries chat and decides nothing: who may say what is [DotChatRouter]'s.
+## Somebody pressed Enter. Server side. The bridge carries chat and decides nothing: who may say what is [GSChatRouter]'s.
 signal say_requested(peer_id: int, channel_id: StringName, text: String)
 
 ## A voice frame arrived. Server side; the payload is unparsed and must not be trusted —
-## [method DotVoiceRouter.relay] is what stamps the speaker, from the peer id below.
+## [method GSVoiceRouter.relay] is what stamps the speaker, from the peer id below.
 signal voice_requested(peer_id: int, payload: PackedByteArray)
 
 ## Client side: one routed line, and one voice frame.
@@ -77,11 +77,11 @@ var game: HsGame = null
 var local_player_id: int = 0
 
 
-## Where a voice frame goes on the server. Assigned by [DotGameModule] to the services
+## Where a voice frame goes on the server. Assigned by [GSGameModule] to the services
 ## layer's `relay_voice`, because the bridge is the only thing that names both ends.
 var voice_relay_fn: Callable = Callable()
 
-## `func(session_id: int) -> DotAvatar`: what a player looks like, asked once as they are
+## `func(session_id: int) -> GSAvatar`: what a player looks like, asked once as they are
 ## seated. Assigned by the module, which is what has the identity layer; unset, or answering
 ## null, is the stock person, which is what everybody was before there was one.
 var avatar_fn: Callable = Callable()
@@ -101,7 +101,7 @@ var _player_of_peer: Dictionary = {}
 var _peer_of_player: Dictionary = {}
 var _ready_peers: Dictionary = {}
 ## Carries the game's profile runtime over this manager; null when the types would not register.
-var profile_link: DotNetProfileLink = null
+var profile_link: GSNetProfileLink = null
 ## Server: peers whose READY came before their seat ([method add_player]). Over ENet with loss READY can overtake `loaded`, and a READY
 ## dropped here left that client waiting for a world for ever. Admitted when seated.
 var _ready_unseated: Dictionary = {}
@@ -109,7 +109,7 @@ var _ready_unseated: Dictionary = {}
 var _tick: int = 0
 var _game_ticked_for: int = -1
 
-## Server only: whether [method DotNetManager.server_tick] is on the stack, and the net ids let go of meanwhile. The world ticks inside the first
+## Server only: whether [method GSNetManager.server_tick] is on the stack, and the net ids let go of meanwhile. The world ticks inside the first
 ## behaviour's `_net_simulate`, so a player removed there would get a fresh lag-compensation track recorded after the registry forgot it,
 ## and nothing would forget it again. Forgotten here once the manager has let go of its list.
 var _in_server_tick := false
@@ -163,8 +163,8 @@ func player_for_peer(peer_id: int) -> int:
 	return int(_player_of_peer.get(peer_id, 0))
 
 
-func _build_entity(player: HsPlayer, peer_id: int) -> DotNetIdentity:
-	# The behaviour is added BEFORE the identity: [DotNetIdentity] collects behaviours in
+func _build_entity(player: HsPlayer, peer_id: int) -> GSNetIdentity:
+	# The behaviour is added BEFORE the identity: [GSNetIdentity] collects behaviours in
 	# `_ready` by walking the subtree, and one added afterwards would never be found.
 	var behaviour := HsPlayerNet.new()
 	behaviour.name = "Net"
@@ -172,13 +172,13 @@ func _build_entity(player: HsPlayer, peer_id: int) -> DotNetIdentity:
 	behaviour.bridge = self
 	player.add_child(behaviour)
 
-	var identity := DotNetIdentity.new()
+	var identity := GSNetIdentity.new()
 	identity.name = "Identity"
 	identity.owner_peer_id = peer_id
 	# SHARED: the server corrects, the owner predicts. SERVER would put a player's own
 	# movement a round trip behind their keys, and a hider dashing for a cupboard would arrive
 	# a round trip after the seeker turned the corner.
-	identity.authority = DotNetIdentity.Authority.SHARED
+	identity.authority = GSNetIdentity.Authority.SHARED
 	# [b]Relevant to everybody, except a hider to a seeker while the hiders hide[/b] — see
 	# [HsInterest]. Not `always_relevant`, which bypasses the rule; and nothing lingers, or the
 	# first second of the hide would still be sent.
@@ -228,8 +228,8 @@ func _register_toys() -> void:
 
 ## A toy's behaviour and identity under [param parent] (the toy on the server, a holder of the client's own), registered under [param net_id]
 ## (0 allocates one: the server). Null when the registry refused it. The behaviour before the identity, which collects behaviours in `_ready`.
-func _toy_entity(toy: DotPropBody, parent: Node, net_id: int) -> DotGameToyNet:
-	var behaviour := DotGameToyNet.new()
+func _toy_entity(toy: GSPropBody, parent: Node, net_id: int) -> GSGameToyNet:
+	var behaviour := GSGameToyNet.new()
 	behaviour.name = "Net"
 	behaviour.toy = toy
 	var holder := Node3D.new() if parent != toy else null
@@ -241,10 +241,10 @@ func _toy_entity(toy: DotPropBody, parent: Node, net_id: int) -> DotGameToyNet:
 	if net.is_server:
 		behaviour.pull()
 
-	var identity := DotNetIdentity.new()
+	var identity := GSNetIdentity.new()
 	identity.name = "Identity"
 	identity.owner_peer_id = 0
-	identity.authority = DotNetIdentity.Authority.SERVER
+	identity.authority = GSNetIdentity.Authority.SERVER
 	# Relevant to everybody but a seeker while the hiders hide ([HsInterest]): a ball rolling
 	# away from where a hider just walked is a hider on the wire.
 	identity.always_relevant = false
@@ -253,7 +253,7 @@ func _toy_entity(toy: DotPropBody, parent: Node, net_id: int) -> DotGameToyNet:
 
 	var registered := net.registry.register(identity, net_id, net.clock.tick, net.config)
 	if not registered.ok:
-		DotLog.warn(CHANNEL, "could not replicate a toy", {"toy": _toy_nets.size(), "error": str(registered.error)})
+		GSLog.warn(CHANNEL, "could not replicate a toy", {"toy": _toy_nets.size(), "error": str(registered.error)})
 		for node: Node in [behaviour, identity]:
 			at.remove_child(node)
 			node.queue_free()
@@ -269,7 +269,7 @@ func _toy_entity(toy: DotPropBody, parent: Node, net_id: int) -> DotGameToyNet:
 ## the same toy collects every behaviour under it in its `_ready`, and a freed one still found
 ## there broke the next snapshot (game-playlot found it). A map change, or a new TOYS.
 func _release_toys() -> void:
-	for behaviour: DotGameToyNet in _toy_nets:
+	for behaviour: GSGameToyNet in _toy_nets:
 		if not is_instance_valid(behaviour):
 			continue
 		if behaviour.identity != null and net != null and net.registry.has(behaviour.identity.net_id):
@@ -290,7 +290,7 @@ func _release_toys() -> void:
 
 ## Client: TOYS. A mirror for every id at once, whether this end has built that map or not: dot-net stops reading a snapshot at the first
 ## entity it does not know, so a client whose MAP never arrived had every later player frozen. Paired with this end's toys by index when both are here.
-func _apply_toys(reader: DotNetReader) -> void:
+func _apply_toys(reader: GSNetReader) -> void:
 	var told := HsEvents.read_toys(reader)
 	if not bool(told["ok"]) or net == null or net.is_server:
 		return
@@ -314,16 +314,16 @@ func _pair_pending_toys() -> void:
 	var same_map := game.map != null and (_toys_map == &"" or game.map.id() == _toys_map)
 	var box := game.map.toys if same_map and game.map.toys != null else null
 	if box != null and box.count() != _toy_nets.size():
-		DotLog.warn(CHANNEL, "the server's map has a different number of toys", {"server": _toy_nets.size(), "here": box.count()})
+		GSLog.warn(CHANNEL, "the server's map has a different number of toys", {"server": _toy_nets.size(), "here": box.count()})
 	for i in range(_toy_nets.size()):
-		var behaviour: DotGameToyNet = _toy_nets[i]
+		var behaviour: GSGameToyNet = _toy_nets[i]
 		if is_instance_valid(behaviour):
 			behaviour.toy = box.toy(i) if box != null else null
 
 
 ## Client: the old map's toys are about to go; the mirrors stay registered, without them.
 func _unpair_toys() -> void:
-	for behaviour: DotGameToyNet in _toy_nets:
+	for behaviour: GSGameToyNet in _toy_nets:
 		if is_instance_valid(behaviour):
 			behaviour.toy = null
 
@@ -336,7 +336,7 @@ func toy_entities() -> int:
 ## How many toys this end replicates: a client's, mirrors paired with a toy. For a check.
 func toy_count() -> int:
 	var n := 0
-	for behaviour: DotGameToyNet in _toy_nets:
+	for behaviour: GSGameToyNet in _toy_nets:
 		if is_instance_valid(behaviour) and (net.is_server or behaviour.toy != null):
 			n += 1
 	return n
@@ -356,7 +356,7 @@ func _clock_body() -> PackedByteArray:
 
 ## [param packet] and the commands before it from the local replay history, oldest first,
 ## for one input packet. See [constant INPUT_COPIES].
-func _input_copies(packet: DotNetInput) -> Array:
+func _input_copies(packet: GSNetInput) -> Array:
 	var batch: Array = Array(net.local_inputs().recent(INPUT_COPIES, packet.tick - 1))
 	batch = batch.slice(maxi(0, batch.size() - (INPUT_COPIES - 1)))
 	batch.append(packet)
@@ -451,22 +451,22 @@ func _adopt_tick_rate(rate: int) -> void:
 	# The LIVE one, which is built from the config back at `setup()` and is therefore not
 	# updated by writing the config alone.
 	net.clock.tick_rate = game.tick_rate
-	# dot-net API 7 has DotNetClock.adopt_tick_rate(), which also raises the engine's step cap to a quarter second of ticks. A shell built
+	# dot-net API 7 has GSNetClock.adopt_tick_rate(), which also raises the engine's step cap to a quarter second of ticks. A shell built
 	# before it gets the same rule here; remove this branch when the oldest shell is API 7.
-	if DotAddonApi.build_level("dot_net") >= 7:
-		DotNetClock.adopt_tick_rate(game.tick_rate)
+	if GSAddonApi.build_level("dot_net") >= 7:
+		GSNetClock.adopt_tick_rate(game.tick_rate)
 	else:
 		Engine.max_physics_steps_per_frame = maxi(Engine.max_physics_steps_per_frame, ceili(0.25 * float(game.tick_rate)))
 		Engine.physics_ticks_per_second = game.tick_rate
 
-	DotLog.info(CHANNEL, "adopted the server's tick rate", {
+	GSLog.info(CHANNEL, "adopted the server's tick rate", {
 		"was": before, "now": game.tick_rate, "engine": Engine.physics_ticks_per_second,
 	})
 
 
 ## The map, which on a client is a document it builds exactly as the server did. Refused with a line, never half built:
 ## a client a format behind says so ([HsMapDoc]) rather than building a map with holes in it.
-func _apply_map(reader: DotNetReader) -> void:
+func _apply_map(reader: GSNetReader) -> void:
 	var told := HsEvents.read_map(reader)
 
 	if not bool(told["ok"]) or game == null:
@@ -484,7 +484,7 @@ func _send_map(peer_id: int) -> void:
 
 ## One piece of a large map. Index 0 starts it over; a piece out of order, or a whole that
 ## does not add up, drops the map with a line rather than building half of one.
-func _apply_map_part(reader: DotNetReader) -> void:
+func _apply_map_part(reader: GSNetReader) -> void:
 	var told := HsEvents.read_map_part(reader)
 
 	if not bool(told["ok"]) or game == null:
@@ -499,7 +499,7 @@ func _apply_map_part(reader: DotNetReader) -> void:
 		_map_joined = PackedByteArray()
 
 	if index != _map_next or int(told["count"]) != _map_count or int(told["total"]) != _map_total:
-		DotLog.warn(CHANNEL, "a map piece arrived out of order; the map is dropped", {
+		GSLog.warn(CHANNEL, "a map piece arrived out of order; the map is dropped", {
 			"index": index, "expected": _map_next, "count": told["count"],
 		})
 		_map_next = -1
@@ -514,7 +514,7 @@ func _apply_map_part(reader: DotNetReader) -> void:
 	_map_next = 0
 
 	if _map_joined.size() != _map_total:
-		DotLog.warn(CHANNEL, "a map's pieces do not add up; the map is dropped", {
+		GSLog.warn(CHANNEL, "a map's pieces do not add up; the map is dropped", {
 			"bytes": _map_joined.size(), "expected": _map_total,
 		})
 		return
@@ -529,7 +529,7 @@ func _build_map_bytes(encoded: PackedByteArray) -> void:
 	var decoded := HsMapDoc.decode(encoded)
 
 	if not decoded.ok:
-		DotLog.warn(CHANNEL, "the server sent a map this build cannot build", {
+		GSLog.warn(CHANNEL, "the server sent a map this build cannot build", {
 			"why": decoded.error.message, "detail": decoded.error.detail,
 		})
 		return
@@ -565,13 +565,13 @@ func _claim_local_player() -> void:
 	if claimed == 0 or mine.identity.owner_peer_id == claimed:
 		return
 
-	DotLog.debug(CHANNEL, "claimed the local player after HELLO", {
+	GSLog.debug(CHANNEL, "claimed the local player after HELLO", {
 		"session": local_player_id, "net_id": mine.identity.net_id,
 	})
 	var _changed := net.registry.change_owner(mine.identity.net_id, claimed)
 
 
-func _apply_clock(reader: DotNetReader) -> void:
+func _apply_clock(reader: GSNetReader) -> void:
 	var clock := HsEvents.read_clock(reader)
 
 	if not bool(clock["ok"]):

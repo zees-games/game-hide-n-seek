@@ -7,7 +7,7 @@ const HsController := preload("hs_controller.gd")
 
 ## What a player needs on screen: the clock and who it counts for, their side, how close they are to being caught, and a blindfold for the seekers while the hiders hide.
 ## The blindfold is a black rect UNDER every widget, since seekers still see the HUD and menus; the world behind it is not drawn, and a blindfolded seeker is also held by a server-owned modifier (see [HsController], [HsInterest]) so it does not rely on an honest client.
-## The clock is a [DotScoreStrip] and the door prompt a [DotKeyPrompt]. Hints read the bindings table the Controls page edits, so a rebound key is never a lie.
+## The clock is a [GSScoreStrip] and the door prompt a [GSKeyPrompt]. Hints read the bindings table the Controls page edits, so a rebound key is never a lie.
 
 const BLIND_FADE_SEC := 0.25
 const BLIND_COLOUR := Color(0.01, 0.01, 0.015)
@@ -28,7 +28,7 @@ const MAP_COLOUR := Color(0.80, 0.88, 0.98)
 ## so a light or high-contrast theme can change them. Static so a render tool can use it.
 static func piece_theme() -> Theme:
 	var t := Theme.new()
-	var type := DotHudPiece.THEME_TYPE
+	var type := GSHudPiece.THEME_TYPE
 	t.set_color(&"plate_edge", type, Color(MAP_COLOUR, 0.3))
 	t.set_color(&"highlight", type, MAP_COLOUR)
 	return t
@@ -67,9 +67,9 @@ var blindfold: ColorRect = null
 var _root: Control = null
 ## The clock, the hiders hidden and the seekers either side of it, and the caption and map
 ## name under it.
-var strip: DotScoreStrip = null
+var strip: GSScoreStrip = null
 ## "Open the pantry door" with the use key drawn as a key, while one is in reach.
-var prompt: DotKeyPrompt = null
+var prompt: GSKeyPrompt = null
 var _shout: Label = null
 var _hints: Label = null
 var _disc: Panel = null
@@ -83,7 +83,7 @@ var _meter_back: ColorRect = null
 var _meter_fill: ColorRect = null
 var _meter_label: Label = null
 var _blindfold_label: Label = null
-var _crosshair: DotCrosshair = null
+var _crosshair: GSCrosshair = null
 var _shout_for: float = 0.0
 
 
@@ -121,14 +121,14 @@ func _build() -> void:
 	_blindfold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_blindfold_label.add_theme_color_override("font_color", Color(0.98, 0.78, 0.45))
 
-	# The glance pieces read their colours from the theme on the type DotHudPiece; set on
+	# The glance pieces read their colours from the theme on the type GSHudPiece; set on
 	# the root, every piece under it inherits them. See [method piece_theme].
 	_root.theme = piece_theme()
 	_follow()
 
 	# Top centre, full width because the strip centres itself on its own middle. Its plates
 	# span 388 pixels round the middle, clear of the key hints top left at 1280 x 720.
-	strip = DotScoreStrip.new()
+	strip = GSScoreStrip.new()
 	strip.name = "Clock"
 	strip.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	strip.offset_top = 14.0
@@ -176,7 +176,7 @@ func _build() -> void:
 	watching_label.add_theme_color_override("font_color", Color(0.80, 0.90, 1.0))
 
 	# What the use key would do, under the crosshair while a door is in reach.
-	prompt = DotKeyPrompt.new()
+	prompt = GSKeyPrompt.new()
 	prompt.name = "DoorPrompt"
 	prompt.font_size = 15
 	_rect(prompt, Control.PRESET_CENTER, -240.0, 14.0, 240.0, 46.0)
@@ -209,7 +209,7 @@ func _build_disc() -> void:
 
 func _build_crosshair() -> void:
 	# A dot, as before: no arms, no outline, no spread.
-	_crosshair = DotCrosshair.new()
+	_crosshair = GSCrosshair.new()
 	_crosshair.name = "Crosshair"
 	_crosshair.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_crosshair.length = 0.0
@@ -220,7 +220,7 @@ func _build_crosshair() -> void:
 	_crosshair.dot_radius = 3.0
 	_crosshair.colour = Color(1.0, 1.0, 1.0, 0.75)
 	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if DotAddonApi.build_level("dot_ui") >= 14:
+	if GSAddonApi.build_level("dot_ui") >= 14:
 		_crosshair.set(&"alive_source", func() -> bool: return player != null and player.is_alive())
 	_root.add_child(_crosshair)
 
@@ -311,7 +311,7 @@ func _process(delta: float) -> void:
 	# reads "Hiders win in · Pinecrest Park".
 	var running := game.phase != HsGame.Phase.IDLE
 	strip.show_clock(
-		DotScoreStrip.clock_text(left) if running else "", running and left <= LOW_CLOCK_SEC,
+		GSScoreStrip.clock_text(left) if running else "", running and left <= LOW_CLOCK_SEC,
 		caption, str(game.map_doc.get("name", ""))
 	)
 	if running:
@@ -370,7 +370,7 @@ func _draw_disc(side: int) -> void:
 
 func _draw_hints(side: int) -> void:
 	# Key hints mean nothing on a touchscreen, and the Menu button stands in their corner.
-	if DotPlatform.has_touch() or player == null or not player.is_alive() or player.watching or side == 0 or is_blindfolded():
+	if GSPlatform.has_touch() or player == null or not player.is_alive() or player.watching or side == 0 or is_blindfolded():
 		_hints.text = ""
 		return
 
@@ -479,7 +479,7 @@ func present_blind(delta: float) -> void:
 			var left := game.seconds_left()
 			# The strip's own words, so the two clocks on a seeker's screen never disagree by
 			# the second one rounds down and the other up.
-			_blindfold_label.text = "Counting while they hide\n%s" % DotScoreStrip.clock_text(left)
+			_blindfold_label.text = "Counting while they hide\n%s" % GSScoreStrip.clock_text(left)
 
 
 func is_blind() -> bool:
