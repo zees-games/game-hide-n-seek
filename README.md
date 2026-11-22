@@ -198,6 +198,7 @@ A map is a JSON file: the building as boxes, the furniture as props, the doors, 
 
 | Asset | Author / source | License | Where |
 | --- | --- | --- | --- |
+| Godot Engine logo (boot splash) | Andrea Calabró, [godotengine.org](https://godotengine.org/press/) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | `branding/splash.png` |
 | Furniture | Kenney, Furniture Kit (most-used pieces, rebuilt by `art-src/build_props.py`) | CC0 | `assets/props/furniture/CREDITS.md` |
 | Trees, bushes, stones, logs, melon and pumpkin patches | Kenney, Nature Kit, rebuilt the same way; colours toned down at load | CC0 | `assets/props/nature/CREDITS.md` |
 | The two climbing trees | Made for this game in the Nature Kit's style by `tools/climb_trees.py` | CC0 | `tools/` |
