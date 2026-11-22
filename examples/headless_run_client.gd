@@ -28,6 +28,12 @@ func _test_the_client() -> void:
 		"the game's keys are actions, from the bindings table")
 	_check(client.get("player") != null and client.get("hud") != null and (client.get("hud") as Node).get("game") != null,
 		"a player and a HUD bound to the world")
+	var tier_store: GSSettingsManager = (client.get("settings") as GSMenuSettings).settings
+	var tier_quality: int = int(tier_store.get_value(&"texture_quality"))
+	var tier_surfaces := GSMapSurfaces.new()
+	var _tier: Dictionary = GSMapTextureTier.apply_current(tier_surfaces)
+	_check(GSMapTextureTier.current_quality == tier_quality and tier_surfaces.max_texture_size == int(GSMapTextureTier.settings(tier_quality)["max_size"]),
+		"the video setting's texture quality caps the map art", "%d %d" % [GSMapTextureTier.current_quality, tier_surfaces.max_texture_size])
 	client.call("open_taunts")
 	var menu: Variant = (client.get("settings") as Node).get("menu") if client.get("settings") != null else null
 	_check(menu != null and (menu as GSMenu).picker.is_open(), "the taunt picker opens")

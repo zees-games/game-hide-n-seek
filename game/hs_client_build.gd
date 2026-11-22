@@ -282,6 +282,8 @@ func _build_settings() -> void:
 	platform.maps_rows_fn = func() -> Array: return game.map_rows() if game != null else []
 	platform.maps_change_fn = func(id: StringName) -> GSResult: return game.change_map_now(id)
 	GSLog.result(CHANNEL, "the platform", platform.setup())
+	# The video setting's texture quality caps the map art the next map loads (512 / 1024 / 2048 / unlimited).
+	GSMapTextureTier.follow(settings.settings)
 	# The starter set: the equipped list needs a credential the client does not hold (the server reads it).
 	GSLog.result(CHANNEL, "avatar actions", platform.add_avatar_actions(net, _avatar_figure))
 	_add_noblock_and_workbench()
