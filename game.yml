@@ -15,7 +15,8 @@ content_id: gamemann/game-hide-n-seek
 version: 0.0.0
 kind: pack
 
-name: Hide & Seek
+name: "Hide and Seek"
+icon: branding/icon.png
 max_players: 24
 
 scene: scenes/hs_server.tscn
