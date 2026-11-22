@@ -1,11 +1,11 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const HsFigure := preload("../game/hs_figure.gd")
 const HsConfig := preload("../game/hs_config.gd")
 const HsGame := preload("../game/hs_game.gd")
 const HsPlayer := preload("../game/hs_player.gd")
 
-## Every player always has a visible body: with no avatar art available (a native build that never imported or shipped the people, a failed load) a figure falls back to the next stock person, and to a coloured capsule only when none loads (dot-player-char's `DotHumanoidAssets.available_body`).
+## Every player always has a visible body: with no avatar art available (a native build that never imported or shipped the people, a failed load) a figure falls back to the next stock person, and to a coloured capsule only when none loads (gs-player-char's `GSHumanoidAssets.available_body`).
 ## Run: [code]./game.sh --no-parse test headless_avatars[/code].
 
 const SECTIONS := 3
@@ -16,7 +16,7 @@ var _finished := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -46,7 +46,7 @@ func _empty_set() -> void:
 	add_child(fig)
 	fig.build(1.8, HsFigure.ATLASES[0], Color.BLUE)
 	_check(not fig.from_art and fig.person.get_child_count() > 0, "the last resort is a capsule, not nothing")
-	_check(DotHumanoidAssets.available_body(&"matt") == &"", "no body is reported available")
+	_check(GSHumanoidAssets.available_body(&"matt") == &"", "no body is reported available")
 	fig.queue_free()
 	_finished += 1
 
@@ -56,7 +56,7 @@ func _one_body_left() -> void:
 	_entered += 1
 	print("one stock person left")
 	_remove_bodies([&"sam"])
-	_check(DotHumanoidAssets.available_body(&"matt") == &"sam", "a missing body is replaced by the next that loads")
+	_check(GSHumanoidAssets.available_body(&"matt") == &"sam", "a missing body is replaced by the next that loads")
 	var all_art := true
 	for atlas in HsFigure.ATLASES:
 		var fig := HsFigure.new()
@@ -115,10 +115,10 @@ func _drawn(fig: HsFigure) -> bool:
 
 ## Makes every stock body's model unavailable except [param keep] (the import cache missing it, as a native pack without the people).
 func _remove_bodies(keep: Array) -> void:
-	for id in DotHumanoidLook.BODIES:
+	for id in GSHumanoidLook.BODIES:
 		if not keep.has(id):
-			DotHumanoidAssets._scenes[DotHumanoidAssets.body_path(id)] = null
+			GSHumanoidAssets._scenes[GSHumanoidAssets.body_path(id)] = null
 	if keep.is_empty():
 		return
 	for id in keep:
-		DotHumanoidAssets._scenes.erase(DotHumanoidAssets.body_path(id))
+		GSHumanoidAssets._scenes.erase(GSHumanoidAssets.body_path(id))
