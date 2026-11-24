@@ -20,15 +20,14 @@ game/hs_game.gd	39
 game/hs_game_rotation.gd	35
 game/hs_hud.gd	37
 game/hs_map.gd	174
-game/hs_map_doc.gd	149
+game/hs_map_doc.gd	119
 game/hs_materials.gd	340
 game/hs_player.gd	65
 game/hs_progress.gd	92
 game/hs_props.gd	127
-game/hs_services.gd	150
+game/hs_services.gd	83
 game/net/hs_events.gd	211
 game/net/hs_net_bridge_state.gd	35
-game/net/hs_net_link.gd	121
 game/net/hs_player_net.gd	35
 tools/measure_props.gd	131
 tools/render_cover.gd	50
