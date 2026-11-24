@@ -8,6 +8,7 @@ const HsNetCommand := preload("hs_net_command.gd")
 const HsNetLink := preload("hs_net_link.gd")
 const HsPlayerNet := preload("hs_player_net.gd")
 const HsInterest := preload("hs_interest.gd")
+const HsHullView := preload("hs_hull_view.gd")
 const HsRequest := preload("hs_request.gd")
 
 const HsGame := preload("../hs_game.gd")

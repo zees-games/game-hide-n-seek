@@ -23,7 +23,6 @@ game/hs_map.gd	174
 game/hs_map_doc.gd	119
 game/hs_materials.gd	340
 game/hs_player.gd	65
-game/hs_progress.gd	92
 game/hs_props.gd	127
 game/hs_services.gd	83
 game/net/hs_events.gd	211

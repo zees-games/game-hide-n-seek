@@ -64,6 +64,9 @@ func ensure_game_ticked(tick: int) -> void:
 
 	game.tick_once(tick)
 
+	# Every player's feet after this tick, for the next ticks' rewinds.
+	game.hull_view.record(tick)
+
 
 func client_tick(tick: int, command: GSFpsCommand) -> void:
 	if net == null or net.is_server or game == null:
@@ -82,6 +85,7 @@ func client_tick(tick: int, command: GSFpsCommand) -> void:
 	if kept != null:
 		packet = kept
 	else:
+		game.hull_view.fill(packet, tick, null)
 		net.local_inputs().push(packet)
 
 	# The behaviour simulates from `last_move` on a fresh tick and on a replayed one alike —
@@ -91,6 +95,10 @@ func client_tick(tick: int, command: GSFpsCommand) -> void:
 
 	if mine != null:
 		mine.last_move = packet.move
+		mine.last_view_q = packet.view_lag_q
+		mine.last_view_back = packet.view_back
+		mine.last_view_span = packet.view_span
+		mine.last_view_tick = tick
 
 	# One predicted player, and nothing else: everybody else is drawn from snapshots. The
 	# doors first, posed for this tick, because the player is predicted against them.

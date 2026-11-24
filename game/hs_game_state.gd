@@ -10,6 +10,8 @@ var fall_rules: GSFallDamageRules = make_fall_rules()
 var stomp: GSStomp = GSStomp.new()
 ## Each player's vertical speed going into this tick's movement, for [method _resolve_stomps].
 var _pre_vy: Dictionary = {}
+## Lag-compensated hulls (`mp_solidplayers_unlag`): an `HsHullView`, set by a netcode bridge on both ends; null with no network, where nothing is lagged. Its rewind moves the bodies in `players`.
+var hull_view: RefCounted = null
 var _stomp_hulls: Array = []  # scratch for _resolve_stomps, cleared each call
 ## The ambience cvars (`hs_ambient*`): bound by the module (REPLICATED), followed by a client through its link.
 var ambient_rules: GSAmbienceRules = HsAmbience.make_rules()
@@ -486,6 +488,14 @@ func _now() -> float:
 
 func delta_for_tick() -> float:
 	return 1.0 / float(maxi(tick_rate, 1))
+
+
+## Runs [param work] (a mover's step, at [param tick]) against the hulls where the mover's own view drew them when the rules ask (mp_solidplayers_unlag), else as it is.
+func step_against_view(id: StringName, tick: int, work: Callable) -> void:
+	if hull_view != null and body_rules.solid and body_rules.unlag:
+		hull_view.around(id, tick, work)
+	else:
+		work.call()
 
 
 func set_tick_rate(rate: int) -> bool:

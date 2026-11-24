@@ -553,7 +553,7 @@ func _step(delta: float) -> void:
 
 		if player.is_alive() and not player.watching:
 			_pre_vy[id] = player.controller.state.velocity.y
-			player.simulate(_tick, delta)
+			step_against_view(id, _tick, player.simulate.bind(_tick, delta))
 
 	_resolve_stomps()
 

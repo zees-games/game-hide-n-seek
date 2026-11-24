@@ -36,6 +36,9 @@ func attach(p_game: Object, p_net: GSNetManager) -> GSResult:
 
 	net.send_fn = _send
 
+	# Where the other hulls stood on a mover's screen (mp_solidplayers_unlag): the game and the predicted step both ask it.
+	game.hull_view = HsHullView.new(game, net, _behaviours)
+
 	var event := net.messages.register(
 		HsEvent.NAME, HsEvent,
 		GSNetMessage.Delivery.RELIABLE, GSNetMessage.Direction.TO_CLIENT

@@ -4,11 +4,8 @@ extends "headless_net_base.gd"
 ## It checks the claims the game rests on over a wire: the blindfold is true on the wire (a seeker's snapshots carry no hider while they hide, `HsInterest`), a catch is the server's and the client's prediction holds on the same ticks, and the sight meter is its owner's alone.
 ## Sections and checks are both counted.
 
-const SECTIONS := 17
-const CHECKS := 93
-
-var _sections_entered := 0
-var _sections_finished := 0
+const SECTIONS := 18
+const CHECKS := 101
 
 
 func _ready() -> void:
@@ -36,6 +33,7 @@ func _run() -> void:
 		await _test_the_round_ends()
 		await _test_the_toys_cross()
 		await _test_a_client_without_the_map()
+		await _test_the_hull_view()
 		await _test_leaving()
 
 	_test_the_remote_workbench()
@@ -777,12 +775,3 @@ func _workbench_rig() -> Dictionary:
 		"flags": flags, "state": state, "snet": snet, "cnet": cnet, "sconfig": sconfig, "sbinder": sbinder,
 		"set": set, "swb": swb, "cwb": cwb, "cremote": cremote, "crt": crt, "remote": remote, "slink": slink, "clink": clink,
 	}
-
-
-func _section(name: String) -> void:
-	_sections_entered += 1
-	print(name)
-
-
-func _finished() -> void:
-	_sections_finished += 1

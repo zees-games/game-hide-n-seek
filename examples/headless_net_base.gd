@@ -22,6 +22,8 @@ const INPUT_LEAD := 3
 const KITCHEN_A := Vector3(3.0, 0.05, -3.0)
 const KITCHEN_B := Vector3(8.0, 0.05, -3.0)
 
+var _sections_entered := 0
+var _sections_finished := 0
 var _server_game: HsGame = null
 var _client_game: HsGame = null
 var _server_net: GSNetManager = null
@@ -181,3 +183,42 @@ func _steps(count: int, command: GSFpsCommand = null) -> void:
 
 ## sv_workbench_remote over the real frames, in the order HsModule and HsClient register them: an admin gets a
 ## panel and an edit that applies and replicates; a guest, a non-admin, a revoked admin and the cvar off are refused.
+
+
+## The hulls a mover bumps are the ones its screen drew: opt-in, read off the command, answered from the ring (server) and
+## the interpolator (client). In the seek phase, since a blindfolded seeker is sent no hiders to interpolate.
+func _test_the_hull_view() -> void:
+	_section("the hulls the mover bumps are the ones its screen drew")
+	_check(_server_game.hull_view != null and _client_game.hull_view != null, "both ends have a hull view")
+	_check(not _server_game.body_rules.solid, "players are not solid by default, so this costs nothing until a server turns it on")
+	for game: HsGame in [_server_game, _client_game]:
+		game.body_rules.solid = true
+		game.body_rules.unlag = true
+		game.body_rules.refresh()
+	_server_game._set_phase(HsGame.Phase.SEEK)
+	await _steps(60)
+	var behaviour: Object = _server_bridge._behaviours.get(SESSION)
+	_check(behaviour != null and behaviour.last_view_q >= 0, "the server read a view off the client's command", str(behaviour.last_view_q if behaviour != null else -2))
+	_check(behaviour != null and behaviour.last_view_tick > 0, "and the tick it was for")
+	var ring: Variant = _server_game.hull_view.view.ring_at(_second.player_id, _server_net.clock.tick - 2)
+	_check(ring is Vector3, "the server's ring holds another player's feet for a recent tick", str(ring))
+	var answered: int = 0
+	for kind: String in ["ring", "interp", "miss", "teleport", "none"]:
+		answered += int(_server_game.hull_view.view.counts[kind]) + int(_client_game.hull_view.view.counts[kind])
+	_check(answered > 0, "the movers' steps asked it", str(_server_game.hull_view.view.counts) + str(_client_game.hull_view.view.counts))
+	_check(int(_client_game.hull_view.view.counts["interp"]) > 0, "the client answers from the interpolator", str(_client_game.hull_view.view.counts))
+	for game: HsGame in [_server_game, _client_game]:
+		game.body_rules.unlag = false
+	var before: int = _server_game.hull_view.view.counts["ring"]
+	await _steps(10)
+	_check(int(_server_game.hull_view.view.counts["ring"]) == before, "with unlag off the step runs against the present and asks nothing")
+	_finished()
+
+
+func _section(name: String) -> void:
+	_sections_entered += 1
+	print(name)
+
+
+func _finished() -> void:
+	_sections_finished += 1

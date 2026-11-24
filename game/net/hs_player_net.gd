@@ -75,6 +75,12 @@ var _seen_warp: int = -1
 ## rather than stopping dead. The controller says the same of its own command.
 var last_move: GSFpsCommand = GSFpsCommand.new()
 
+## The view the last command named ([HsNetCommand.view_lag_q], `view_back`, `view_span`) and the tick it was for: what the hull rewind moves the other players' hulls by. Retained across a lost packet like the movement; -1 is no view.
+var last_view_q: int = -1
+var last_view_back: int = -1
+var last_view_span: int = 0
+var last_view_tick: int = -1
+
 var last_state_tick: int = -1
 
 
@@ -123,6 +129,10 @@ func _net_apply_input(input: GSNetInput, _tick: int) -> void:
 
 	if command != null:
 		last_move = command.move
+		last_view_q = command.view_lag_q
+		last_view_back = command.view_back
+		last_view_span = command.view_span
+		last_view_tick = command.tick
 
 
 ## On the authority the whole game ticks as one, so the first behaviour through drives the world and the rest find it done. A predicting client simulates its one predicted player, which is all a client may compute.
@@ -137,7 +147,7 @@ func _net_simulate(tick: int, delta: float) -> void:
 		# The prediction: the controller's own tick, with the same hold modifier the server
 		# applies, which travels in the movement state.
 		player.controller.apply_command(last_move.duplicate_command())
-		player.controller.simulate_tick(tick, delta)
+		bridge.game.step_against_view(player.player_id, tick, player.controller.simulate_tick.bind(tick, delta))
 
 	pull()
 
